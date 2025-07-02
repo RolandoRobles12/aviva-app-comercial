@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App name -->
+    <string name="app_name">Promotores Aviva Tu Negocio</string>
+
+    <!-- Navigation titles -->
+    <string name="title_home">Inicio</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notificaciones</string>
+    <string name="title_admin">Admin</string>
+
+    <!-- Dashboard strings -->
+    <string name="dashboard_title">Panel de Administración</string>
+    <string name="active_users_default">Usuarios activos: 0</string>
+    <string name="total_visits_default">Visitas hoy: 0</string>
+    <string name="filter_by_seller">Filtrar por vendedor:</string>
+    <string name="show_all_sellers">Mostrar todos los vendedores</string>
+    <string name="realtime_updates">Actualizaciones en tiempo real</string>
+    <string name="period_label">Período:</string>
+    <string name="admin_routes_title">RUTAS COMPLETAS (Solo Administradores)</string>
+    <string name="activate_route_view">Activar vista de rutas completas</string>
+    <string name="day_route_button">Ruta del Día</string>
+    <string name="clear_routes_button">Limpiar</string>
+    <string name="all_routes_button">Rutas de Todos los Usuarios</string>
+    <string name="route_help_text">Selecciona un usuario para ver su ruta específica. Las rutas muestran ubicaciones cada 15 minutos. Verde = Inicio, Rojo = Fin, Naranja = Paradas largas</string>
+    <string name="registered_visits_title">Visitas Registradas</string>
+
+    <!-- Date filter options -->
+    <string name="filter_today">Hoy</string>
+    <string name="filter_yesterday">Ayer</string>
+    <string name="filter_this_week">Esta semana</string>
+    <string name="filter_select_date">Seleccionar fecha...</string>
+
+    <!-- Status messages -->
+    <string name="loading_users">Cargando usuarios...</string>
+    <string name="loading_visits">Cargando visitas...</string>
+    <string name="no_visits_found">No se encontraron visitas</string>
+    <string name="error_loading_data">Error al cargar datos</string>
+    <string name="realtime_activated">Actualizaciones en tiempo real activadas</string>
+    <string name="realtime_deactivated">Actualizaciones en tiempo real desactivadas</string>
+
+    <!-- Route messages -->
+    <string name="route_loaded">Ruta cargada</string>
+    <string name="routes_cleared">Rutas limpiadas</string>
+    <string name="no_location_data">No hay datos de ubicación para el período seleccionado</string>
+    <string name="select_user_for_route">Selecciona un usuario específico para ver su ruta</string>
+    <string name="activate_routes_first">Activa la vista de rutas primero</string>
+    <string name="realtime_only_today">Tiempo real solo disponible para Hoy</string>
+    <string name="icono_prospecto_default">🏪</string>
+    <string name="nombre_prospecto_placeholder">Nombre del prospecto</string>
+    <string name="giro_prospecto_placeholder">Giro comercial</string>
+    <string name="probabilidad_placeholder">Probabilidad de éxito</string>
+    <string name="distancia_placeholder">Distancia desde tu ubicación</string>
+    <string name="navegar_a_prospecto">Navegar a prospecto</string>
+</resources>

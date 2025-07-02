@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme for night mode. -->
+    <style name="Theme.PromotoresAvivaTuNegocio" parent="Theme.Material3.DayNight">
+        <!-- Primary brand color for dark theme -->
+        <item name="colorPrimary">@color/primary_light</item>
+        <item name="colorPrimaryVariant">@color/primary</item>
+        <item name="colorOnPrimary">@color/black</item>
+
+        <!-- Secondary brand color for dark theme -->
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorSecondaryVariant">@color/accent</item>
+        <item name="colorOnSecondary">@color/black</item>
+
+        <!-- Status bar color for dark theme -->
+        <item name="android:statusBarColor">@color/primary</item>
+
+        <!-- Background colors for dark theme -->
+        <item name="android:colorBackground">@color/black</item>
+        <item name="colorSurface">@color/gray</item>
+        <item name="colorOnSurface">@color/white</item>
+
+        <!-- Material Design 3 button attributes for dark theme -->
+        <item name="colorPrimaryContainer">@color/primary</item>
+        <item name="colorOnPrimaryContainer">@color/white</item>
+        <item name="colorSecondaryContainer">@color/primary_dark</item>
+        <item name="colorOnSecondaryContainer">@color/white</item>
+
+        <!-- Button colors for Material3 dark theme -->
+        <item name="materialButtonOutlinedStyle">@style/Widget.App.Button.OutlinedButton.Night</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button.Night</item>
+    </style>
+
+    <!-- Custom button styles for dark theme -->
+    <style name="Widget.App.Button.Night" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/primary_light</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="Widget.App.Button.OutlinedButton.Night" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/primary_light</item>
+        <item name="android:textColor">@color/primary_light</item>
+    </style>
+
+    <!-- ThemeOverlay for TextButton in dark theme -->
+    <style name="ThemeOverlay.Material3.Button.TextButton" parent="ThemeOverlay.Material3.Button">
+        <item name="colorPrimary">@color/primary_light</item>
+        <item name="colorOnSurface">@color/white</item>
+    </style>
+</resources>

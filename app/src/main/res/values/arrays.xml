@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="date_filters">
+        <item>Hoy</item>
+        <item>Ayer</item>
+        <item>Esta semana</item>
+        <item>Seleccionar fecha...</item>
+    </string-array>
+</resources>

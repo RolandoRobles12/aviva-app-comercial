@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    tools:context=".ui.dashboard.DashboardFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Título -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dashboard_title"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Estadísticas -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/activeUsersText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/active_users_default"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/totalVisitsText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/total_visits_default"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Controles -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Selector de usuario -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_by_seller"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
+
+                <Spinner
+                    android:id="@+id/userSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="12dp"
+                    android:minHeight="48dp"/>
+
+                <!-- Switch para mostrar todos -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/showAllUsersSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="@string/show_all_sellers"
+                    android:checked="true"
+                    android:layout_marginBottom="8dp"
+                    android:minHeight="48dp"/>
+
+                <!-- Switch para tiempo real -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/realtimeSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="12dp"
+                    android:text="@string/realtime_updates"
+                    android:minHeight="48dp" />
+
+                <!-- Filtro de fecha -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/period_label"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
+
+                <Spinner
+                    android:id="@+id/dateFilterSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:minHeight="48dp"/>
+
+                <!-- Texto de rango seleccionado -->
+                <TextView
+                    android:id="@+id/selectedRangeText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="#666"
+                    android:padding="8dp"
+                    android:background="#F5F5F5"
+                    android:layout_marginTop="4dp"
+                    android:visibility="gone"/>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- CONTROLES DE RUTAS PARA ADMINISTRADORES -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/adminRouteControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#FFF3E0">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Header de administrador -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="RUTAS (Solo Administradores)"
+                    android:textStyle="bold"
+                    android:textColor="#E65100"
+                    android:gravity="center"
+                    android:layout_marginBottom="12dp"
+                    android:background="#FFE0B2"
+                    android:padding="8dp" />
+
+                <!-- Switch principal para activar rutas -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/routeViewSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="🗺️ Activar vista de rutas"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"
+                    android:minHeight="48dp" />
+
+                <!-- Panel de botones de rutas CORREGIDO -->
+                <LinearLayout
+                    android:id="@+id/routeControlsPanel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Primera fila de botones -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnShowDayRoute"
+                            android:layout_width="0dp"
+                            android:layout_height="56dp"
+                            android:layout_weight="1"
+                            android:text="Ruta del Día"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:backgroundTint="#1976D2"
+                            app:cornerRadius="8dp"
+                            android:elevation="2dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearRoutes"
+                            android:layout_width="0dp"
+                            android:layout_height="56dp"
+                            android:layout_weight="1"
+                            android:text="Limpiar"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginStart="6dp"
+                            app:backgroundTint="#F44336"
+                            app:cornerRadius="8dp"
+                            android:elevation="2dp" />
+
+                    </LinearLayout>
+
+                    <!-- Segunda fila - botón completo -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnShowAllRoutes"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:text="Todas las Rutas"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="#4CAF50"
+                        app:cornerRadius="8dp"
+                        android:elevation="2dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Botón para RESETEAR filtros -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnResetFilters"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="🔄 Resetear Filtros a HOY"
+                        android:textColor="#666666"
+                        android:textSize="13sp"
+                        app:backgroundTint="#EEEEEE"
+                        app:cornerRadius="6dp"
+                        android:layout_marginBottom="8dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                    <!-- Información de ayuda más clara -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🟢 Inicio • 🔴 Fin • 🟠 Paradas largas • Ubicaciones cada 15min"
+                        android:textSize="11sp"
+                        android:textColor="#555"
+                        android:background="#F0F0F0"
+                        android:padding="8dp"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center"
+                        android:lineSpacingExtra="2dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Mapa CON ALTURA FIJA -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="400dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="16dp">
+
+            <!-- CONTENEDOR NO SCROLLEABLE PARA EL MAPA -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clickable="true"
+                android:focusable="true">
+
+                <fragment
+                    android:id="@+id/dashboardMap"
+                    android:name="com.google.android.gms.maps.SupportMapFragment"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"/>
+
+            </FrameLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Lista de visitas -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/registered_visits_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/visitsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"/>
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
