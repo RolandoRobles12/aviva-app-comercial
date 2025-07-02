@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_dialog_background"
+    android:padding="24dp">
+
+    <!-- Header -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🚶‍♂️ Opciones de Navegación"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/primary"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Opción 1: Ruta completa -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/primary">
+
+        <Button
+            android:id="@+id/btnRutaCompleta"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:text="🗺️ Ruta completa a todos los prospectos"
+            android:textSize="16sp"
+            android:textColor="@color/primary"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:drawablePadding="12dp"
+            style="@style/Widget.Material3.Button.TextButton" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Opción 2: Prospecto específico -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/secondary">
+
+        <Button
+            android:id="@+id/btnProspectoEspecifico"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:text="📍 Navegar a prospecto específico"
+            android:textSize="16sp"
+            android:textColor="@color/primary"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:drawablePadding="12dp"
+            style="@style/Widget.Material3.Button.TextButton" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Botón cancelar -->
+    <Button
+        android:id="@+id/btnCancelar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Cancelar"
+        android:textColor="@android:color/darker_gray"
+        style="@style/Widget.Material3.Button.TextButton" />
+
+</LinearLayout>
