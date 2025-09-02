@@ -29,7 +29,7 @@
             android:layout_marginBottom="16dp"
             android:gravity="center" />
 
-        <!-- ===== NUEVA SECCIÓN: AVIVA TU NEGOCIO ===== -->
+        <!-- ===== SECCIÓN: AVIVA TU NEGOCIO CON BOTÓN AOS ===== -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/avivaCard"
             android:layout_width="match_parent"
@@ -59,11 +59,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Encuentra negocios elegibles para Aviva Tu"
+                    android:text="Encuentra negocios elegibles para Aviva Tu Negocio"
                     android:textSize="14sp"
                     android:textColor="#424242"
                     android:gravity="center" />
 
+                <!-- Primera fila de botones: Buscar y Ver Lista -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -93,7 +94,17 @@
 
                 </LinearLayout>
 
-                <!-- BOTÓN DE HISTORIAL REMOVIDO - Solo para admin desde panel web -->
+                <!-- NUEVO: Botón para crear solicitud en AOS -->
+                <Button
+                    android:id="@+id/btnCrearSolicitudAOS"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="📝 Crear Solicitud en AOS"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#2196F3"
+                    android:textColor="@android:color/white" />
 
                 <!-- Indicador de progreso para búsqueda -->
                 <ProgressBar
@@ -228,7 +239,7 @@
             android:text="Registrar Visita"
             android:layout_marginBottom="16dp" />
 
-        <!-- Formulario de visita -->
+        <!-- Formulario de visita CON SELECTOR DE STATUS -->
         <androidx.cardview.widget.CardView
             android:id="@+id/visitFormCard"
             android:layout_width="match_parent"
@@ -265,6 +276,24 @@
                         android:hint="Nombre del negocio" />
 
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- NUEVO: Selector de Status con Spinner tradicional -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Estado de la visita"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"
+                    android:textColor="@android:color/black" />
+
+                <Spinner
+                    android:id="@+id/statusSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@android:drawable/btn_dropdown"
+                    android:padding="12dp" />
 
                 <!-- Comentarios -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -353,6 +382,17 @@
                         android:layout_marginStart="8dp" />
 
                 </LinearLayout>
+
+                <!-- NUEVO: Botón AOS en formulario también -->
+                <Button
+                    android:id="@+id/btnCrearSolicitudAOSForm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="📝 Crear Solicitud en AOS"
+                    android:textSize="14sp"
+                    android:backgroundTint="#2196F3"
+                    android:textColor="@android:color/white" />
 
             </LinearLayout>
 

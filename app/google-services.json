@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "256021991557",
+    "firebase_url": "https://promotores-aviva-tu-negocio-default-rtdb.firebaseio.com",
     "project_id": "promotores-aviva-tu-negocio",
     "storage_bucket": "promotores-aviva-tu-negocio.firebasestorage.app"
   },
@@ -13,6 +14,22 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "256021991557-1sjfv0fu5qef4eecv5tsak877eacq3br.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.promotoresavivatunegocio_1",
+            "certificate_hash": "66eaa3ad4bb57c657c8cf76426d2e29636f9b628"
+          }
+        },
+        {
+          "client_id": "256021991557-5e764f3p22jdfro813362uera0dofeqc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.promotoresavivatunegocio_1",
+            "certificate_hash": "22c889da71ff9e667e0b1d6d99d2f7cdaf77cf33"
+          }
+        },
         {
           "client_id": "256021991557-g98u1fp8u72gb6i89igppn107jimonj5.apps.googleusercontent.com",
           "client_type": 1,

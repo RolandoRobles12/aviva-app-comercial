@@ -15,9 +15,13 @@ data class User(
     val lastLocationUpdate: Timestamp? = null,
     val lastLocationAccuracy: Float? = null,
     val name: String? = null,                    // Para compatibilidad
-    val role: String? = null,                    // Para sistema de roles (admin, user)
+    val role: String? = null,                    // "admin", "promotor", "gerente"
     val profileImageUrl: String? = null,         // URL de imagen de perfil
     val createdAt: Timestamp? = null,            // Fecha de creación del usuario
     val lastLocationProvider: String? = null,    // Proveedor de ubicación
-    val isLocationActive: Boolean? = null        // Si el tracking de ubicación está activo
+    val isLocationActive: Boolean? = null,       // Si el tracking de ubicación está activo
+
+    // NUEVOS CAMPOS PARA GERENTES
+    val assignedPromoters: List<String>? = null, // IDs de promotores asignados (solo para gerentes)
+    val managerId: String? = null                // ID del gerente (solo para promotores)
 )

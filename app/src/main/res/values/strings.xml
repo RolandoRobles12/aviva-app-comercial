@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App name -->
-    <string name="app_name">Promotores Aviva Tu Negocio</string>
+    <string name="app_name">Aviva Tu Negocio Promotores</string>
+
+    <!-- Google Sign-In Client ID -->
+    <string name="default_web_client_id">256021991557-9lk38c1eq1jd4vac364iqfep3cfr5d8r.apps.googleusercontent.com</string>
 
     <!-- Navigation titles -->
     <string name="title_home">Inicio</string>

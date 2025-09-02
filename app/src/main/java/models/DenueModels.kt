@@ -36,5 +36,31 @@ data class NegocioDenue(
     val direccion: String,
     val telefono: String? = null,
     val email: String? = null,
-    val sitioWeb: String? = null
+    val sitioWeb: String? = null,
+
+    // AGREGAR ESTOS CAMPOS:
+    val clee: String = "",
+    val idEstablecimiento: String = "",
+    val claseActividad: String = "",
+    val estrato: String = "",
+    val tipoVialidad: String = "",
+    val calle: String = "",
+    val numeroExterior: String = "",
+    val numeroInterior: String = "",
+    val colonia: String = "",
+    val codigoPostal: String = "",
+    val localidad: String = "",
+    val municipio: String = "",
+    val entidadFederativa: String = "",
+    val tipoEstablecimiento: String = "",
+    val tipoCorredor: String = "",
+    val nombreCorredor: String = "",
+    val numeroLocal: String = "",
+    val ageb: String = "",
+    val manzana: String = "",
+    val edificio: String = "",
+    val idClaseActividad: String = "",
+    val idSector: String = "",
+    val idSubsector: String = "",
+    val idRama: String = ""
 )

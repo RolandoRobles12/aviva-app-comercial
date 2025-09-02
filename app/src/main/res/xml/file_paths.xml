@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Directorio para imágenes de la cámara -->
+    <!-- Directorio para archivos temporales de cámara (REQUERIDO para el código corregido) -->
+    <cache-path
+        name="camera_images"
+        path="." />
+
+    <!-- Directorio para imágenes finales en almacenamiento externo -->
     <external-files-path
         name="images"
         path="Pictures" />
 
-    <!-- Directorio para archivos temporales -->
+    <!-- Directorio para archivos temporales en cache externo -->
     <external-cache-path
         name="cache"
         path="." />

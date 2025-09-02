@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@android:color/white"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,59 +18,220 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Información principal -->
+        <!-- Header con nombre y status -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="12dp">
 
-            <TextView
-                android:id="@+id/businessNameText"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Nombre del Negocio"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/businessNameText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Nombre del Negocio"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#1A1A1A"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/timestampText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="01/01/2024 10:30"
+                    android:textSize="14sp"
+                    android:textColor="#666666"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/statusText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Pendiente"
+                android:text="Solicitud creada"
+                android:textSize="12sp"
                 android:textStyle="bold"
-                android:textSize="14sp" />
+                android:textColor="@android:color/white"
+                android:background="@drawable/status_background_created"
+                android:padding="8dp"
+                android:layout_marginStart="8dp"
+                android:minWidth="100dp"
+                android:gravity="center"
+                android:layout_gravity="top" />
 
         </LinearLayout>
 
-        <!-- Comentarios -->
-        <TextView
-            android:id="@+id/commentsText"
+        <!-- Separador -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Contenido principal -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Comentarios de la visita"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
+            android:orientation="vertical">
 
-        <!-- Imagen de la visita -->
+            <!-- Comentarios -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="💬 "
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/commentsText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Comentarios de la visita"
+                    android:textSize="14sp"
+                    android:textColor="#444444"
+                    android:maxLines="3"
+                    android:ellipsize="end"
+                    android:lineSpacingExtra="2dp" />
+
+            </LinearLayout>
+
+            <!-- Vendedor -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👤 "
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/vendorText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Vendedor"
+                    android:textSize="14sp"
+                    android:textColor="#666666" />
+
+            </LinearLayout>
+
+            <!-- Ubicación -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                android:id="@+id/locationLayout">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📍 "
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/locationText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Ubicación"
+                    android:textSize="14sp"
+                    android:textColor="#666666" />
+
+            </LinearLayout>
+
+            <!-- Indicador de prospecto Aviva -->
+            <LinearLayout
+                android:id="@+id/avivaIndicatorLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="#E3F2FD"
+                android:padding="8dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎯 "
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/avivaIndicatorText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Prospecto Aviva"
+                    android:textSize="12sp"
+                    android:textColor="#1976D2"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Imagen de la visita (si existe) -->
         <ImageView
             android:id="@+id/visitImage"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="120dp"
             android:scaleType="centerCrop"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone" />
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            android:background="#F5F5F5" />
 
-        <!-- Timestamp -->
-        <TextView
-            android:id="@+id/timestampText"
+        <!-- Footer con botones de acción -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="01/01/2024 10:30"
-            android:textSize="12sp"
-            android:textColor="@android:color/darker_gray" />
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp"
+            android:gravity="end">
+
+            <Button
+                android:id="@+id/btnViewMap"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="📍 Ver en Mapa"
+                android:textSize="12sp"
+                android:textColor="#2196F3"
+                android:background="@android:color/transparent"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.Material3.Button.TextButton" />
+
+            <Button
+                android:id="@+id/btnViewDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="📋 Detalles"
+                android:textSize="12sp"
+                android:textColor="#2196F3"
+                android:background="@android:color/transparent"
+                style="@style/Widget.Material3.Button.TextButton" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

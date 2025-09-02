@@ -1,326 +1,456 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
     tools:context=".ui.dashboard.DashboardFragment">
 
-    <LinearLayout
+    <!-- AppBar con título y controles principales -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
-        <!-- Título -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/dashboard_title"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
-
-        <!-- Estadísticas -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.appbar.CollapsingToolbarLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp"
-            android:layout_marginBottom="16dp">
+            android:layout_height="200dp"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:contentScrim="?attr/colorPrimary">
 
+            <!-- Estadísticas grandes en el header -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:orientation="horizontal"
-                android:padding="16dp">
+                android:gravity="center"
+                android:padding="24dp"
+                app:layout_collapseMode="parallax">
 
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:gravity="center">
 
                     <TextView
                         android:id="@+id/activeUsersText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/active_users_default"
-                        android:textSize="16sp"
+                        android:text="12 Usuarios"
+                        android:textColor="@android:color/white"
+                        android:textSize="24sp"
                         android:textStyle="bold"/>
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Activos hoy"
+                        android:textColor="@android:color/white"
+                        android:textSize="14sp"
+                        android:alpha="0.8"/>
+
                 </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="60dp"
+                    android:background="@android:color/white"
+                    android:alpha="0.3"/>
 
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:gravity="center">
 
                     <TextView
                         android:id="@+id/totalVisitsText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/total_visits_default"
-                        android:textSize="16sp"
+                        android:text="47 Visitas"
+                        android:textColor="@android:color/white"
+                        android:textSize="24sp"
                         android:textStyle="bold"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Registradas"
+                        android:textColor="@android:color/white"
+                        android:textSize="14sp"
+                        android:alpha="0.8"/>
 
                 </LinearLayout>
 
             </LinearLayout>
 
-        </androidx.cardview.widget.CardView>
+            <!-- Toolbar colapsable -->
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:layout_collapseMode="pin"
+                app:title="Dashboard"
+                app:titleTextColor="@android:color/white"/>
 
-        <!-- Controles -->
-        <androidx.cardview.widget.CardView
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Contenido principal con coordinación -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp"
-            android:layout_marginBottom="16dp">
+            android:orientation="vertical">
 
-            <LinearLayout
+            <!-- Controles principales - más espaciados -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_margin="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="8dp">
 
-                <!-- Selector de usuario -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/filter_by_seller"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"/>
-
-                <Spinner
-                    android:id="@+id/userSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginBottom="12dp"
-                    android:minHeight="48dp"/>
-
-                <!-- Switch para mostrar todos -->
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/showAllUsersSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:text="@string/show_all_sellers"
-                    android:checked="true"
-                    android:layout_marginBottom="8dp"
-                    android:minHeight="48dp"/>
-
-                <!-- Switch para tiempo real -->
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/realtimeSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginBottom="12dp"
-                    android:text="@string/realtime_updates"
-                    android:minHeight="48dp" />
-
-                <!-- Filtro de fecha -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/period_label"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"/>
-
-                <Spinner
-                    android:id="@+id/dateFilterSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:minHeight="48dp"/>
-
-                <!-- Texto de rango seleccionado -->
-                <TextView
-                    android:id="@+id/selectedRangeText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textSize="12sp"
-                    android:textColor="#666"
-                    android:padding="8dp"
-                    android:background="#F5F5F5"
-                    android:layout_marginTop="4dp"
-                    android:visibility="gone"/>
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- CONTROLES DE RUTAS PARA ADMINISTRADORES -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/adminRouteControls"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone"
-            app:cardBackgroundColor="#FFF3E0">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- Header de administrador -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="RUTAS (Solo Administradores)"
-                    android:textStyle="bold"
-                    android:textColor="#E65100"
-                    android:gravity="center"
-                    android:layout_marginBottom="12dp"
-                    android:background="#FFE0B2"
-                    android:padding="8dp" />
-
-                <!-- Switch principal para activar rutas -->
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/routeViewSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:text="🗺️ Activar vista de rutas"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="16dp"
-                    android:minHeight="48dp" />
-
-                <!-- Panel de botones de rutas CORREGIDO -->
                 <LinearLayout
-                    android:id="@+id/routeControlsPanel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:visibility="gone">
+                    android:padding="20dp">
 
-                    <!-- Primera fila de botones -->
+                    <!-- Filtro de usuario -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👤 Filtrar por usuario"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp"/>
+
+                    <Spinner
+                        android:id="@+id/userSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginBottom="16dp"
+                        android:background="@android:drawable/btn_dropdown"
+                        android:padding="12dp"/>
+
+                    <!-- Switches con mejor espaciado -->
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/showAllUsersSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🎯 Mostrar todos los usuarios"
+                        android:textSize="15sp"
+                        android:padding="12dp"
+                        android:checked="true"
+                        android:layout_marginBottom="8dp"/>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/realtimeSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📡 Actualizaciones en tiempo real"
+                        android:textSize="15sp"
+                        android:padding="12dp"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- Filtro de fecha -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📅 Período de tiempo"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp"/>
+
+                    <Spinner
+                        android:id="@+id/dateFilterSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@android:drawable/btn_dropdown"
+                        android:padding="12dp"/>
+
+                    <!-- Texto de rango actual -->
+                    <TextView
+                        android:id="@+id/selectedRangeText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="HOY (07/07/2025)"
+                        android:textSize="14sp"
+                        android:textColor="#666"
+                        android:background="#F8F9FA"
+                        android:padding="12dp"
+                        android:layout_marginTop="8dp"/>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Controles de Admin -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/adminRouteControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="#FFF8E1"
+                app:strokeColor="#FF9800"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- Header de admin -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginBottom="8dp">
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnShowDayRoute"
-                            android:layout_width="0dp"
-                            android:layout_height="56dp"
-                            android:layout_weight="1"
-                            android:text="Ruta del Día"
-                            android:textColor="#FFFFFF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
-                            app:backgroundTint="#1976D2"
-                            app:cornerRadius="8dp"
-                            android:elevation="2dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="24sp"
+                            android:layout_marginEnd="8dp"/>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnClearRoutes"
+                        <TextView
                             android:layout_width="0dp"
-                            android:layout_height="56dp"
+                            android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Limpiar"
-                            android:textColor="#FFFFFF"
-                            android:textSize="14sp"
+                            android:text="Panel de Administrador"
+                            android:textSize="18sp"
                             android:textStyle="bold"
-                            android:layout_marginStart="6dp"
-                            app:backgroundTint="#F44336"
-                            app:cornerRadius="8dp"
-                            android:elevation="2dp" />
+                            android:textColor="#E65100"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="RUTAS"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="#FF9800"
+                            android:background="#FFE0B2"
+                            android:padding="4dp"/>
 
                     </LinearLayout>
 
-                    <!-- Segunda fila - botón completo -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnShowAllRoutes"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:text="Todas las Rutas"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        app:backgroundTint="#4CAF50"
-                        app:cornerRadius="8dp"
-                        android:elevation="2dp"
-                        android:layout_marginBottom="8dp" />
-
-                    <!-- Botón para RESETEAR filtros -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnResetFilters"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:text="🔄 Resetear Filtros a HOY"
-                        android:textColor="#666666"
-                        android:textSize="13sp"
-                        app:backgroundTint="#EEEEEE"
-                        app:cornerRadius="6dp"
-                        android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-                    <!-- Información de ayuda más clara -->
-                    <TextView
+                    <!-- Switch principal -->
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/routeViewSwitch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="🟢 Inicio • 🔴 Fin • 🟠 Paradas largas • Ubicaciones cada 15min"
-                        android:textSize="11sp"
-                        android:textColor="#555"
-                        android:background="#F0F0F0"
-                        android:padding="8dp"
-                        android:layout_marginTop="4dp"
-                        android:gravity="center"
-                        android:lineSpacingExtra="2dp" />
+                        android:text="🗺️ Activar vista de rutas"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:padding="12dp"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- Botones de control -->
+                    <LinearLayout
+                        android:id="@+id/routeControlsPanel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="12dp">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnShowDayRoute"
+                                android:layout_width="0dp"
+                                android:layout_height="56dp"
+                                android:layout_weight="1"
+                                android:text="Ruta del Día"
+                                android:textSize="14sp"
+                                android:layout_marginEnd="8dp"
+                                app:backgroundTint="#1976D2"
+                                app:cornerRadius="12dp"/>
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnClearRoutes"
+                                android:layout_width="0dp"
+                                android:layout_height="56dp"
+                                android:layout_weight="1"
+                                android:text="Limpiar"
+                                android:textSize="14sp"
+                                android:layout_marginStart="8dp"
+                                app:backgroundTint="#F44336"
+                                app:cornerRadius="12dp"/>
+
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnShowAllRoutes"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:text="🌐 Todas las Rutas"
+                            android:textSize="15sp"
+                            android:layout_marginBottom="12dp"
+                            app:backgroundTint="#4CAF50"
+                            app:cornerRadius="12dp"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnResetFilters"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="🔄 Resetear a HOY"
+                            android:textSize="14sp"
+                            app:backgroundTint="#EEEEEE"
+                            app:cornerRadius="8dp"
+                            android:layout_marginBottom="12dp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+                        <!-- Info -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:background="#F0F0F0"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="ℹ️"
+                                android:textSize="16sp"
+                                android:layout_marginEnd="8dp"/>
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="🟢 Inicio • 🔴 Fin • 🟠 Paradas • Ubicaciones cada 15min"
+                                android:textSize="12sp"
+                                android:textColor="#555"/>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
 
                 </LinearLayout>
 
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- MAPA -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="500dp"
+                android:layout_margin="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="12dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <fragment
+                        android:id="@+id/dashboardMap"
+                        android:name="com.google.android.gms.maps.SupportMapFragment"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"/>
+
+                    <!-- Botón fullscreen -->
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/fabFullscreenMap"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top|end"
+                        android:layout_margin="16dp"
+                        android:contentDescription="Abrir mapa en pantalla completa"
+                        app:srcCompat="@android:drawable/ic_menu_gallery"
+                        app:tint="@android:color/white"
+                        app:backgroundTint="#1976D2"/>
+
+                    <!-- Indicador de estado -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|start"
+                        android:layout_margin="16dp"
+                        android:orientation="horizontal"
+                        android:background="#CC000000"
+                        android:padding="8dp"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:id="@+id/mapStatusIndicator"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@android:color/holo_green_light"
+                            android:layout_marginEnd="6dp"/>
+
+                        <TextView
+                            android:id="@+id/mapStatusText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mapa listo"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp"/>
+
+                    </LinearLayout>
+
+                </FrameLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Lista de visitas -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_margin="16dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📋 Visitas Registradas"
+                    android:textSize="20sp"
+                    android:textStyle="bold"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnExportList"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="📊 Exportar"
+                    android:textSize="12sp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
             </LinearLayout>
 
-        </androidx.cardview.widget.CardView>
-
-        <!-- Mapa CON ALTURA FIJA -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="400dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp"
-            android:layout_marginBottom="16dp">
-
-            <!-- CONTENEDOR NO SCROLLEABLE PARA EL MAPA -->
-            <FrameLayout
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/visitsRecyclerView"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clickable="true"
-                android:focusable="true">
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="24dp"
+                android:nestedScrollingEnabled="false"
+                android:clipToPadding="false"/>
 
-                <fragment
-                    android:id="@+id/dashboardMap"
-                    android:name="com.google.android.gms.maps.SupportMapFragment"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"/>
+        </LinearLayout>
 
-            </FrameLayout>
+    </androidx.core.widget.NestedScrollView>
 
-        </androidx.cardview.widget.CardView>
-
-        <!-- Lista de visitas -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/registered_visits_title"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp"/>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/visitsRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"/>
-
-    </LinearLayout>
-
-</androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

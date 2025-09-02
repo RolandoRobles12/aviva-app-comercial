@@ -26,6 +26,7 @@ import com.google.firebase.Timestamp
 import com.promotoresavivatunegocio_1.R
 import com.promotoresavivatunegocio_1.adapters.VisitsAdapter
 import com.promotoresavivatunegocio_1.models.Visit
+import com.promotoresavivatunegocio_1.MainActivity
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.text.SimpleDateFormat
@@ -72,6 +73,10 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private var isSelectingStartDate = true
     private var isCustomDateRange = false
     private var isAdminUser = false
+
+    // VARIABLES PARA GERENTES
+    private var isManagerUser = false
+    private var managerPromoters: List<String> = emptyList()
 
     companion object {
         private const val TAG = "DashboardFragment"
@@ -183,7 +188,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================================
-    // MÉTODOS DE FECHA MEJORADOS
+    // MÉTODOS DE FECHA
     // ============================================================================
 
     private fun setToday() {
@@ -410,7 +415,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         // Cargar visitas
         loadVisits()
 
-        Toast.makeText(context, "✅ Filtros reseteados a HOY", Toast.LENGTH_SHORT).show()
+        val userType = if (isManagerUser) "✅ Filtros reseteados a HOY (Mis Promotores)" else "✅ Filtros reseteados a HOY"
+        Toast.makeText(context, userType, Toast.LENGTH_SHORT).show()
         Log.d(TAG, "🔄 Filtros reseteados a HOY")
     }
 
@@ -432,7 +438,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         showAllUsersSwitch.setOnCheckedChangeListener { _, isChecked ->
             userSpinner.isEnabled = !isChecked
             if (isChecked) {
-                // Si está marcado "mostrar todos", cargar todas las visitas
+                // Si está marcado "mostrar todos", cargar todas las visitas (filtradas por gerente si aplica)
                 loadVisits()
             }
         }
@@ -498,7 +504,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             isMapToolbarEnabled = true
         }
 
-        // NUEVO: Configurar click en marcadores para mostrar detalles
+        // Configurar click en marcadores para mostrar detalles
         map.setOnMarkerClickListener { marker ->
             val visit = marker.tag as? Visit
             if (visit != null) {
@@ -515,7 +521,254 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================================
-    // MÉTODOS PARA MOSTRAR DETALLES DE VISITAS (CORREGIDO)
+    // VERIFICACIÓN DE ACCESO ADMIN/GERENTE
+    // ============================================================================
+
+    private fun checkAdminAccess() {
+        val mainActivity = activity as? MainActivity
+        if (mainActivity != null) {
+            // Verificar si es admin
+            if (mainActivity.canAccessDashboard() && !mainActivity.isManager()) {
+                Log.d(TAG, "✅ Usuario admin - Mostrando controles completos")
+                isAdminUser = true
+                isManagerUser = false
+                managerPromoters = emptyList()
+                adminRouteControls.visibility = View.VISIBLE
+
+                // Texto normal para admins
+                btnResetFilters.text = "Resetear Filtros"
+
+                // Verificar si es gerente
+            } else if (mainActivity.isManager()) {
+                Log.d(TAG, "✅ Usuario gerente - Mostrando dashboard filtrado")
+                isAdminUser = false
+                isManagerUser = true
+                managerPromoters = mainActivity.getManagerPromoters()
+
+                // Mostrar controles de rutas para gerentes también
+                adminRouteControls.visibility = View.VISIBLE
+
+                // Cambiar texto del botón para gerentes
+                btnResetFilters.text = "Resetear (Mis Promotores)"
+
+                Log.d(TAG, "✅ Gerente configurado - Promotores asignados: ${managerPromoters.size}")
+
+            } else {
+                Log.d(TAG, "❌ Usuario sin permisos de dashboard")
+                isAdminUser = false
+                isManagerUser = false
+                managerPromoters = emptyList()
+                adminRouteControls.visibility = View.GONE
+            }
+        } else {
+            Log.e(TAG, "❌ No se pudo obtener MainActivity")
+            isAdminUser = false
+            isManagerUser = false
+            managerPromoters = emptyList()
+            adminRouteControls.visibility = View.GONE
+        }
+    }
+
+    // ============================================================================
+    // CARGA DE USUARIOS CON FILTRADO PARA GERENTES
+    // ============================================================================
+
+    private fun loadUsers() {
+        // Si es gerente, solo cargar sus promotores asignados
+        if (isManagerUser && managerPromoters.isNotEmpty()) {
+            Log.d(TAG, "🔍 Gerente - Cargando solo promotores asignados: ${managerPromoters.size}")
+            loadManagerPromoters()
+        } else {
+            // Admin o gerente sin promotores - cargar todos los usuarios
+            loadAllUsers()
+        }
+    }
+
+    private fun loadManagerPromoters() {
+        allUsers.clear()
+        userIdMap.clear()
+        allUsers.add("Todos mis promotores")
+
+        Log.d(TAG, "🔍 Cargando promotores del gerente: ${managerPromoters}")
+
+        // Como máximo tendrá 5 promotores, usar directamente whereIn con el document ID
+        db.collection("users")
+            .get() // Obtener todos y filtrar manualmente para evitar problemas
+            .addOnSuccessListener { documents ->
+                for (document in documents) {
+                    try {
+                        // Verificar si este documento está en la lista de promotores del gerente
+                        if (managerPromoters.contains(document.id)) {
+                            val userName = document.getString("name")
+                                ?: document.getString("displayName")
+                                ?: document.getString("username")
+                                ?: document.getString("email")?.substringBefore("@")
+                                ?: "Promotor ${document.id.take(8)}"
+
+                            val userId = document.id
+
+                            allUsers.add(userName)
+                            userIdMap[userName] = userId
+
+                            Log.d(TAG, "Promotor cargado - ID: $userId, Nombre: $userName")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al convertir promotor: ${document.id}", e)
+                    }
+                }
+
+                updateUserSpinner()
+                Log.d(TAG, "✅ Promotores del gerente cargados: ${allUsers.size - 1}")
+
+                // Si solo tiene un promotor, seleccionarlo automáticamente
+                if (allUsers.size == 2) {
+                    userSpinner.setSelection(1)
+                    showAllUsersSwitch.isChecked = false
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Error cargando promotores del gerente", e)
+                Toast.makeText(context, "Error al cargar promotores", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun loadAllUsers() {
+        Log.d(TAG, "🔄 Cargando todos los usuarios...")
+
+        db.collection("users")
+            .get() // REMOVIDO: .orderBy que causaba problemas
+            .addOnSuccessListener { documents ->
+                allUsers.clear()
+                userIdMap.clear()
+                allUsers.add("Todos los usuarios")
+
+                Log.d(TAG, "📄 Documentos encontrados: ${documents.size()}")
+
+                for (document in documents) {
+                    try {
+                        val userName = document.getString("name")
+                            ?: document.getString("displayName")
+                            ?: document.getString("username")
+                            ?: document.getString("email")?.substringBefore("@")
+                            ?: "Usuario ${document.id.take(8)}"
+
+                        val userId = document.id
+
+                        allUsers.add(userName)
+                        userIdMap[userName] = userId
+
+                        Log.d(TAG, "Usuario cargado - ID: $userId, Nombre: $userName, Email: ${document.getString("email")}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al convertir usuario: ${document.id}", e)
+                    }
+                }
+
+                updateUserSpinner()
+                Log.d(TAG, "✅ Todos los usuarios cargados: ${allUsers.size - 1}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Error cargando usuarios", e)
+                Toast.makeText(context, "Error al cargar usuarios", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun updateUserSpinner() {
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, allUsers)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        userSpinner.adapter = adapter
+    }
+
+    // ============================================================================
+    // CARGA DE VISITAS CON FILTRADO PARA GERENTES
+    // ============================================================================
+
+    private fun loadVisits() {
+        val (startTime, endTime) = getDateRange()
+
+        var query: Query = db.collection("visits")
+            .whereGreaterThanOrEqualTo("timestamp", startTime)
+            .whereLessThanOrEqualTo("timestamp", endTime)
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+
+        // FILTRADO PARA GERENTES
+        if (isManagerUser) {
+            // Si es gerente, solo mostrar visitas de sus promotores asignados
+            if (managerPromoters.isNotEmpty()) {
+                if (!showAllUsersSwitch.isChecked && userSpinner.selectedItemPosition > 0 && allUsers.isNotEmpty()) {
+                    // Filtro por promotor específico
+                    val selectedUserName = allUsers[userSpinner.selectedItemPosition]
+                    val selectedUserId = userIdMap[selectedUserName]
+
+                    if (selectedUserId != null && managerPromoters.contains(selectedUserId)) {
+                        query = query.whereEqualTo("userId", selectedUserId)
+                        Log.d(TAG, "🔍 Gerente - Filtrando por promotor: $selectedUserName ($selectedUserId)")
+                    } else {
+                        Log.w(TAG, "⚠️ Gerente intentando acceder a promotor no asignado")
+                        return // No cargar visitas si intenta acceder a promotor no asignado
+                    }
+                } else {
+                    // Mostrar todos los promotores del gerente (máximo 5, así que funciona con whereIn)
+                    query = query.whereIn("userId", managerPromoters)
+                    Log.d(TAG, "🔍 Gerente - Mostrando todos sus promotores: ${managerPromoters.size}")
+                }
+            } else {
+                Log.w(TAG, "⚠️ Gerente sin promotores asignados")
+                // No cargar visitas si no tiene promotores asignados
+                visitAdapter.submitList(emptyList())
+                updateStatistics()
+                googleMap?.clear()
+                return
+            }
+        } else {
+            // FILTRADO NORMAL PARA ADMINS (código original)
+            if (!showAllUsersSwitch.isChecked && userSpinner.selectedItemPosition > 0 && allUsers.isNotEmpty()) {
+                val selectedUserName = allUsers[userSpinner.selectedItemPosition]
+                val selectedUserId = userIdMap[selectedUserName]
+
+                if (selectedUserId != null) {
+                    query = query.whereEqualTo("userId", selectedUserId)
+                    Log.d(TAG, "🔍 Admin - Filtrando por usuario: $selectedUserName ($selectedUserId)")
+                }
+            }
+        }
+
+        visitListener?.remove()
+        visitListener = query.addSnapshotListener { snapshots, e ->
+            if (e != null) {
+                Log.w(TAG, "Error al cargar visitas", e)
+                Toast.makeText(context, "Error al cargar visitas: ${e.message}", Toast.LENGTH_SHORT).show()
+                return@addSnapshotListener
+            }
+
+            visits.clear()
+            snapshots?.documents?.forEach { document ->
+                try {
+                    val visit = document.toObject(Visit::class.java)
+                    visit?.let {
+                        // Verificación adicional para gerentes
+                        if (isManagerUser && !managerPromoters.contains(it.userId)) {
+                            return@forEach // Saltar visitas de promotores no asignados
+                        }
+
+                        val visitWithId = it.copy(id = document.id)
+                        visits.add(visitWithId)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al convertir visita: ${document.id}", e)
+                }
+            }
+
+            visitAdapter.submitList(visits.toList())
+            updateStatistics()
+            loadVisitMarkers()
+
+            val userType = if (isManagerUser) "gerente" else "admin"
+            Log.d(TAG, "✅ Visitas cargadas ($userType): ${visits.size}")
+        }
+    }
+
+    // ============================================================================
+    // MÉTODOS PARA MOSTRAR DETALLES DE VISITAS
     // ============================================================================
 
     private fun showVisitDetails(visit: Visit) {
@@ -583,7 +836,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             commentsCard.visibility = View.GONE
         }
 
-        // Foto (CORREGIDO)
+        // Foto
         loadVisitPhoto(visit, photosCard, photoImageView)
 
         // Crear y mostrar dialog
@@ -719,123 +972,6 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    // ============================================================================
-    // RESTO DE MÉTODOS (sin cambios)
-    // ============================================================================
-
-    private fun checkAdminAccess() {
-        Log.d(TAG, "🔧 TEMPORAL: Forzando controles de admin para debug")
-
-        // TEMPORAL: Mostrar controles siempre para admin confirmado
-        isAdminUser = true
-        adminRouteControls.visibility = View.VISIBLE
-
-        Log.d(TAG, "✅ Controles de admin forzados a VISIBLE")
-
-        // Código original para verificación (solo logs)
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            db.collection("users").document(currentUser.uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    val role = document.getString("role") ?: "vendedor"
-                    Log.d(TAG, "📄 Rol real en Firebase: '$role'")
-                    Log.d(TAG, "📄 Usuario: ${currentUser.email}")
-                    Log.d(TAG, "📄 UID: ${currentUser.uid}")
-                }
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Error checking admin access", e)
-                }
-        }
-    }
-
-    private fun loadUsers() {
-        db.collection("users")
-            .get()
-            .addOnSuccessListener { documents ->
-                allUsers.clear()
-                userIdMap.clear()
-                allUsers.add("Todos los usuarios")
-
-                for (document in documents) {
-                    // Intentar diferentes campos de nombre
-                    val userName = document.getString("name")
-                        ?: document.getString("displayName")
-                        ?: document.getString("username")
-                        ?: document.getString("email")?.substringBefore("@")
-                        ?: "Usuario ${document.id.take(8)}"
-
-                    val userId = document.id
-
-                    allUsers.add(userName)
-                    userIdMap[userName] = userId
-
-                    // Debug: mostrar estructura del documento
-                    Log.d(TAG, "Usuario cargado - ID: $userId, Nombre: $userName")
-                    Log.d(TAG, "Campos disponibles: ${document.data?.keys}")
-                }
-
-                // Actualizar spinner con usuarios reales
-                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, allUsers)
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                userSpinner.adapter = adapter
-
-                Log.d(TAG, "Usuarios cargados: ${allUsers.size - 1}")
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Error cargando usuarios", e)
-                Toast.makeText(context, "Error al cargar usuarios", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    private fun loadVisits() {
-        val (startTime, endTime) = getDateRange()
-
-        var query: Query = db.collection("visits")
-            .whereGreaterThanOrEqualTo("timestamp", startTime)
-            .whereLessThanOrEqualTo("timestamp", endTime)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-
-        // Filtrar por usuario específico si no está en "mostrar todos"
-        if (!showAllUsersSwitch.isChecked && userSpinner.selectedItemPosition > 0 && allUsers.isNotEmpty()) {
-            val selectedUserName = allUsers[userSpinner.selectedItemPosition]
-            val selectedUserId = userIdMap[selectedUserName]
-
-            if (selectedUserId != null) {
-                query = query.whereEqualTo("userId", selectedUserId)
-                Log.d(TAG, "Filtrando por usuario: $selectedUserName ($selectedUserId)")
-            }
-        }
-
-        visitListener?.remove()
-        visitListener = query.addSnapshotListener { snapshots, e ->
-            if (e != null) {
-                Log.w(TAG, "Error al cargar visitas", e)
-                Toast.makeText(context, "Error al cargar visitas: ${e.message}", Toast.LENGTH_SHORT).show()
-                return@addSnapshotListener
-            }
-
-            visits.clear()
-            snapshots?.documents?.forEach { document ->
-                try {
-                    val visit = document.toObject(Visit::class.java)
-                    visit?.let {
-                        val visitWithId = it.copy(id = document.id)
-                        visits.add(visitWithId)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error al convertir visita: ${document.id}", e)
-                }
-            }
-
-            visitAdapter.submitList(visits.toList())
-            updateStatistics()
-            loadVisitMarkers()
-
-            Log.d(TAG, "Visitas cargadas: ${visits.size}")
-        }
-    }
-
     private fun loadVisitMarkers() {
         googleMap?.let { map ->
             // Solo limpiar marcadores de visitas si las rutas no están activas
@@ -901,7 +1037,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         // Buscar en el mapa de usuarios cargados
         val foundName = userIdMap.entries.find { it.value == userId }?.key
-        if (foundName != null && foundName != "Todos los usuarios") {
+        if (foundName != null && foundName != "Todos los usuarios" && foundName != "Todos mis promotores") {
             return foundName
         }
 
@@ -930,6 +1066,10 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         return "Usuario ${userId.take(8)}"
     }
 
+    // ============================================================================
+    // ESTADÍSTICAS CON CONTEXTO DE GERENTE
+    // ============================================================================
+
     private fun updateStatistics() {
         val uniqueUsers = visits.map { it.userId }.filter { it.isNotEmpty() }.toSet()
 
@@ -945,12 +1085,15 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
-        activeUsersText.text = "Usuarios activos $periodText: ${uniqueUsers.size}"
-        totalVisitsText.text = "Visitas en $periodText: ${visits.size}"
+        val userTypeText = if (isManagerUser) "Mis promotores activos" else "Usuarios activos"
+        val visitTypeText = if (isManagerUser) "Visitas de mis promotores" else "Visitas en"
+
+        activeUsersText.text = "$userTypeText $periodText: ${uniqueUsers.size}"
+        totalVisitsText.text = "$visitTypeText $periodText: ${visits.size}"
     }
 
     // ============================================================================
-    // MÉTODOS DE RUTAS MEJORADOS
+    // MÉTODOS DE RUTAS CON FILTRADO PARA GERENTES
     // ============================================================================
 
     private fun showDayRoute() {
@@ -960,7 +1103,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
 
         val selectedUserName = if (showAllUsersSwitch.isChecked || userSpinner.selectedItemPosition == 0) {
-            Toast.makeText(context, "Selecciona un usuario específico para ver su ruta", Toast.LENGTH_SHORT).show()
+            val userType = if (isManagerUser) "promotor" else "usuario"
+            Toast.makeText(context, "Selecciona un $userType específico para ver su ruta", Toast.LENGTH_SHORT).show()
             return
         } else {
             allUsers[userSpinner.selectedItemPosition]
@@ -972,10 +1116,15 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             return
         }
 
+        // VERIFICACIÓN ADICIONAL PARA GERENTES
+        if (isManagerUser && !managerPromoters.contains(selectedUserId)) {
+            Toast.makeText(context, "No tienes permisos para ver la ruta de este promotor", Toast.LENGTH_LONG).show()
+            return
+        }
+
         val (startTime, endTime) = getDateRange()
 
         Log.d(TAG, "🔍 Buscando ruta para usuario: $selectedUserName ($selectedUserId)")
-        Log.d(TAG, "🔍 Período: ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(startTime.toDate())} - ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(endTime.toDate())}")
 
         db.collection("locations")
             .whereEqualTo("userId", selectedUserId)
@@ -988,7 +1137,6 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
                 if (documents.isEmpty) {
                     Toast.makeText(context, "No hay datos de ubicación para el período seleccionado", Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, "❌ No se encontraron ubicaciones en 'locations' para usuario: $selectedUserId")
                     return@addOnSuccessListener
                 }
 
@@ -1010,20 +1158,26 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         val (startTime, endTime) = getDateRange()
 
-        Log.d(TAG, "🔍 Buscando rutas de todos los usuarios")
-        Log.d(TAG, "🔍 Período: ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(startTime.toDate())} - ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(endTime.toDate())}")
-
-        db.collection("locations")
+        var query = db.collection("locations")
             .whereGreaterThanOrEqualTo("timestamp", startTime)
             .whereLessThanOrEqualTo("timestamp", endTime)
             .orderBy("timestamp", Query.Direction.ASCENDING)
-            .get()
+
+        // FILTRADO PARA GERENTES (como máximo 5 promotores, así que funciona con whereIn)
+        if (isManagerUser && managerPromoters.isNotEmpty()) {
+            query = query.whereIn("userId", managerPromoters)
+            Log.d(TAG, "🔍 Gerente - Buscando rutas de sus promotores: ${managerPromoters.size}")
+        } else {
+            Log.d(TAG, "🔍 Admin - Buscando rutas de todos los usuarios")
+        }
+
+        query.get()
             .addOnSuccessListener { documents ->
                 Log.d(TAG, "✅ Consulta exitosa - Documentos encontrados: ${documents.size()}")
 
                 if (documents.isEmpty) {
-                    Toast.makeText(context, "No hay datos de ubicación para el período seleccionado", Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, "❌ No se encontraron ubicaciones en 'locations' para el período")
+                    val userType = if (isManagerUser) "tus promotores" else "usuarios"
+                    Toast.makeText(context, "No hay datos de ubicación para $userType en el período seleccionado", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
 
@@ -1042,6 +1196,11 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 )
 
                 locationsByUser.entries.forEachIndexed { index, (userId, userLocations) ->
+                    // Verificación adicional para gerentes
+                    if (isManagerUser && !managerPromoters.contains(userId)) {
+                        return@forEachIndexed // Saltar usuarios no asignados
+                    }
+
                     val userName = getUserNameById(userId)
                     val color = colors[index % colors.size]
                     Log.d(TAG, "🎨 Dibujando ruta para $userName: ${userLocations.size} puntos")
@@ -1051,12 +1210,13 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 // Recargar marcadores de visitas
                 loadVisitMarkers()
 
-                Log.d(TAG, "✅ Rutas cargadas para ${locationsByUser.size} usuarios (${documents.size()} puntos total)")
-                Toast.makeText(context, "Rutas cargadas para ${locationsByUser.size} usuarios", Toast.LENGTH_SHORT).show()
+                val userType = if (isManagerUser) "promotores asignados" else "usuarios"
+                Log.d(TAG, "✅ Rutas cargadas para ${locationsByUser.size} $userType (${documents.size()} puntos total)")
+                Toast.makeText(context, "Rutas cargadas para ${locationsByUser.size} $userType", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "❌ Error cargando rutas de usuarios", e)
-                Toast.makeText(context, "Error al cargar rutas de usuarios: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e(TAG, "❌ Error cargando rutas", e)
+                Toast.makeText(context, "Error al cargar rutas: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -1128,7 +1288,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    private fun drawUserRouteWithColor(documents: List<QueryDocumentSnapshot>, userName: String, color: Float) {
+    private fun drawUserRouteWithColor(documents: List<DocumentSnapshot>, userName: String, color: Float) {
         googleMap?.let { map ->
             val points = mutableListOf<LatLng>()
 
@@ -1267,20 +1427,26 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         startOfDay.set(Calendar.SECOND, 0)
         startOfDay.set(Calendar.MILLISECOND, 0)
 
-        realtimeListener = db.collection("visits")
+        var query = db.collection("visits")
             .whereGreaterThanOrEqualTo("timestamp", Timestamp(startOfDay.time))
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshots, e ->
-                if (e != null) {
-                    Log.w(TAG, "Error en actualizaciones en tiempo real", e)
-                    return@addSnapshotListener
-                }
 
-                if (!isCustomDateRange && dateFilterSpinner.selectedItemPosition == 0) {
-                    Log.d(TAG, "📡 Actualización en tiempo real recibida")
-                    // La carga se maneja por el listener principal
-                }
+        // Filtrar por gerente en tiempo real
+        if (isManagerUser && managerPromoters.isNotEmpty()) {
+            query = query.whereIn("userId", managerPromoters)
+        }
+
+        realtimeListener = query.addSnapshotListener { snapshots, e ->
+            if (e != null) {
+                Log.w(TAG, "Error en actualizaciones en tiempo real", e)
+                return@addSnapshotListener
             }
+
+            if (!isCustomDateRange && dateFilterSpinner.selectedItemPosition == 0) {
+                Log.d(TAG, "📡 Actualización en tiempo real recibida")
+                // La carga se maneja por el listener principal
+            }
+        }
     }
 
     private fun stopRealtimeUpdates() {

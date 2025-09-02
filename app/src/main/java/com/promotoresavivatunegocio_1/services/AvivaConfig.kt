@@ -8,7 +8,6 @@ object AvivaConfig {
     /*────────────────────────── API KEYS ──────────────────────────*/
     const val GOOGLE_API_KEY = BuildConfig.GOOGLE_API_KEY
     const val DENUE_TOKEN    = BuildConfig.DENUE_TOKEN
-
     /*────────────────────── Catálogo de giros ────────────────────*/
     val girosAceptados = listOf(
         GiroRelevante(

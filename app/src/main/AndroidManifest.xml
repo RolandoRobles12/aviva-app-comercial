@@ -97,9 +97,9 @@
             </intent-filter>
         </activity>
 
-        <!-- Servicio de ubicación existente -->
+        <!-- CORREGIDO: Servicio de ubicación que realmente se usa -->
         <service
-            android:name=".services.LocationTrackingService"
+            android:name="com.promotoresavivatunegocio_1.LocationService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location"
