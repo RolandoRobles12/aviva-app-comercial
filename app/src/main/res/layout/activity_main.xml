@@ -7,50 +7,125 @@
     tools:context=".MainActivity">
 
     <!-- Login Container - Se muestra cuando el usuario no está autenticado -->
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/loginContainer"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="32dp"
+        android:background="@color/background"
         android:visibility="visible"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Logo o título de la app -->
-        <ImageView
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:src="@mipmap/ic_launcher"
-            android:layout_marginBottom="32dp" />
+        <!-- Background gradient card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="24dp"
+            app:cardCornerRadius="32dp"
+            app:cardElevation="12dp"
+            app:cardBackgroundColor="@color/surface">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:layout_marginBottom="48dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="40dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Inicia sesión con tu cuenta institucional"
-            android:textSize="16sp"
-            android:gravity="center"
-            android:layout_marginBottom="32dp" />
+                <!-- Logo con fondo moderno -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    app:cardCornerRadius="70dp"
+                    app:cardElevation="8dp"
+                    app:cardBackgroundColor="@color/primary_container"
+                    android:layout_marginBottom="32dp">
 
-        <!-- Botón de Google Sign In -->
-        <com.google.android.gms.common.SignInButton
-            android:id="@+id/signInButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:src="@mipmap/ic_launcher"
+                        android:scaleType="centerInside" />
 
-    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Título principal -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:textSize="32sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_text"
+                    android:gravity="center"
+                    android:layout_marginBottom="16dp"
+                    android:fontFamily="sans-serif-medium" />
+
+                <!-- Subtítulo -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Impulsa tu negocio con nosotros"
+                    android:textSize="18sp"
+                    android:textColor="@color/secondary_text"
+                    android:gravity="center"
+                    android:layout_marginBottom="40dp"
+                    android:fontFamily="sans-serif-light" />
+
+                <!-- Descripción -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Inicia sesión con tu cuenta institucional para acceder a todas las funciones"
+                    android:textSize="16sp"
+                    android:textColor="@color/secondary_text"
+                    android:gravity="center"
+                    android:layout_marginBottom="48dp"
+                    android:lineSpacingExtra="4dp" />
+
+                <!-- Botón de Google Sign In Moderno -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="6dp"
+                    app:cardBackgroundColor="@color/surface"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <com.google.android.gms.common.SignInButton
+                        android:id="@+id/signInButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_margin="8dp" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Elementos decorativos -->
+        <View
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="20dp"
+            android:background="@drawable/gradient_light"
+            android:alpha="0.3" />
+
+        <View
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="30dp"
+            android:background="@drawable/gradient_primary"
+            android:alpha="0.2" />
+
+    </FrameLayout>
 
     <!-- Fragment Container - Se muestra cuando el usuario está autenticado -->
     <fragment
@@ -73,11 +148,16 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="0dp"
         android:layout_marginEnd="0dp"
-        android:background="?android:attr/windowBackground"
+        android:background="@color/surface"
         android:visibility="gone"
+        android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:menu="@menu/bottom_nav_menu" />
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@color/primary"
+        app:itemTextColor="@color/primary_text"
+        app:itemActiveIndicatorStyle="@style/Widget.App.BottomNavigationView.ActiveIndicator"
+        app:labelVisibilityMode="labeled" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

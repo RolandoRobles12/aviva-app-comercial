@@ -100,6 +100,7 @@ dependencies {
 
     // Lifecycle / Startup
     implementation("androidx.lifecycle:lifecycle-service:2.8.2")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.2")
     implementation("androidx.startup:startup-runtime:1.1.1")
 
     // Google Play Services & Maps
@@ -115,6 +116,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // Glide
     implementation("com.github.bumptech.glide:glide:4.16.0")
@@ -128,6 +130,12 @@ dependencies {
     // Activity & Fragment
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("androidx.fragment:fragment-ktx:1.7.1")
+
+    // ViewPager2 & Tabs
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
+
+    // Chrome Custom Tabs (para login OAuth en navegador integrado)
+    implementation("androidx.browser:browser:1.8.0")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

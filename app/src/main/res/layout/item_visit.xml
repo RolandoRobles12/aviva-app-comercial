@@ -4,10 +4,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp"
-    app:cardBackgroundColor="@android:color/white"
+    android:layout_margin="12dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="8dp"
+    app:cardBackgroundColor="@color/surface"
+    app:strokeColor="@color/divider"
+    app:strokeWidth="1dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?android:attr/selectableItemBackground">
@@ -16,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="20dp">
 
         <!-- Header con nombre y status -->
         <LinearLayout
@@ -36,37 +38,48 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Nombre del Negocio"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold"
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/primary_text"
                     android:maxLines="2"
-                    android:ellipsize="end" />
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium" />
 
                 <TextView
                     android:id="@+id/timestampText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="01/01/2024 10:30"
-                    android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="4dp" />
+                    android:textSize="15sp"
+                    android:textColor="@color/secondary_text"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif-light" />
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/statusText"
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Solicitud creada"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"
-                android:background="@drawable/status_background_created"
-                android:padding="8dp"
                 android:layout_marginStart="8dp"
-                android:minWidth="100dp"
-                android:gravity="center"
-                android:layout_gravity="top" />
+                android:layout_gravity="top"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/primary">
+
+                <TextView
+                    android:id="@+id/statusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Solicitud creada"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:padding="12dp"
+                    android:minWidth="100dp"
+                    android:gravity="center"
+                    android:fontFamily="sans-serif-medium" />
+
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 

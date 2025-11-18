@@ -303,7 +303,7 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "🛡️ Configurando acceso de administrador...")
 
             // Mostrar menú de Dashboard para admins
-            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_dashboard)
+            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_home)
             dashboardMenuItem?.isVisible = true
 
             // Mostrar menú de Admin para admins
@@ -322,7 +322,7 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "👔 Configurando acceso de gerente...")
 
             // Mostrar menú de Dashboard para gerentes
-            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_dashboard)
+            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_home)
             dashboardMenuItem?.isVisible = true
 
             // OCULTAR menú de Admin para gerentes
@@ -341,7 +341,7 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "👤 Configurando acceso de usuario normal...")
 
             // Ocultar menú de Dashboard para usuarios normales (promotores)
-            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_dashboard)
+            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_home)
             dashboardMenuItem?.isVisible = false
 
             // Ocultar menú de Admin para usuarios normales
@@ -535,10 +535,10 @@ class MainActivity : AppCompatActivity() {
             // Agregar listener para controlar acceso al dashboard y admin
             navView.setOnItemSelectedListener { item ->
                 when (item.itemId) {
-                    R.id.navigation_dashboard -> {
+                    R.id.navigation_home -> {
                         if (canAccessDashboard()) {
                             Log.d(TAG, "✅ Acceso a Dashboard autorizado")
-                            navController.navigate(R.id.navigation_dashboard)
+                            navController.navigate(R.id.navigation_home)
                             true
                         } else {
                             Log.w(TAG, "❌ Acceso a Dashboard denegado")

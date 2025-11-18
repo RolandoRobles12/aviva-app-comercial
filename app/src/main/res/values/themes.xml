@@ -47,4 +47,9 @@
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnSurface">@color/primary</item>
     </style>
+
+    <!-- Bottom Navigation Active Indicator -->
+    <style name="Widget.App.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/primary_container</item>
+    </style>
 </resources>

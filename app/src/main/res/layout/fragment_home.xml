@@ -6,6 +6,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/background"
     android:splitMotionEvents="false"
     android:fillViewport="true"
     tools:context=".ui.home.HomeFragment">
@@ -18,26 +19,59 @@
         android:splitMotionEvents="false"
         android:descendantFocusability="beforeDescendants">
 
-        <!-- Mensaje de bienvenida -->
-        <TextView
-            android:id="@+id/welcomeText"
+        <!-- Header moderno con gradiente -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Bienvenido"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"
-            android:gravity="center" />
+            android:layout_marginBottom="24dp"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@color/primary">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:background="@drawable/gradient_primary">
+
+                <TextView
+                    android:id="@+id/welcomeText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="¡Bienvenido!"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:gravity="center"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Gestiona tu trabajo de promoción"
+                    android:textSize="16sp"
+                    android:textColor="@color/white"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp"
+                    android:alpha="0.9"
+                    android:fontFamily="sans-serif-light" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== SECCIÓN: AVIVA TU NEGOCIO CON BOTÓN AOS ===== -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/avivaCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="#E3F2FD">
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@color/surface"
+            app:strokeColor="@color/primary_container"
+            app:strokeWidth="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -45,24 +79,53 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
+                <!-- Header con icono -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Aviva Tu Negocio"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#1976D2"
-                    android:gravity="center" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/primary_container"
+                        android:layout_marginEnd="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="🚀"
+                            android:textSize="20sp"
+                            android:gravity="center" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Aviva Tu Negocio"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvProspectosInfo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
                     android:text="Encuentra negocios elegibles para Aviva Tu Negocio"
-                    android:textSize="14sp"
-                    android:textColor="#424242"
-                    android:gravity="center" />
+                    android:textSize="15sp"
+                    android:textColor="@color/secondary_text"
+                    android:gravity="center"
+                    android:lineSpacingExtra="2dp"
+                    android:layout_marginBottom="20dp" />
 
                 <!-- Primera fila de botones: Buscar y Ver Lista -->
                 <LinearLayout
@@ -72,39 +135,47 @@
                     android:orientation="horizontal"
                     android:gravity="center">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnBuscarProspectos"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="56dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="8dp"
                         android:text="🔍 Buscar Ahora"
-                        android:textSize="12sp"
-                        android:backgroundTint="#4CAF50" />
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/primary"
+                        app:cornerRadius="16dp"
+                        app:elevation="4dp" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnVerProspectos"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="56dp"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
                         android:text="📋 Ver Lista"
-                        android:textSize="12sp"
-                        android:backgroundTint="#FF9800" />
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/secondary"
+                        app:cornerRadius="16dp"
+                        app:elevation="4dp" />
 
                 </LinearLayout>
 
                 <!-- NUEVO: Botón para crear solicitud en AOS -->
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnCrearSolicitudAOS"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
                     android:text="📝 Crear Solicitud en AOS"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
-                    android:backgroundTint="#2196F3"
-                    android:textColor="@android:color/white" />
+                    android:background="@drawable/gradient_light"
+                    android:textColor="@color/primary_dark"
+                    app:cornerRadius="16dp"
+                    app:elevation="6dp" />
 
                 <!-- Indicador de progreso para búsqueda -->
                 <ProgressBar
@@ -135,40 +206,51 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="24dp"
             android:orientation="horizontal">
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="#E8F5E8">
+                android:layout_marginEnd="12dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/success_background"
+                app:strokeWidth="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="12dp"
+                    android:padding="20dp"
                     android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎯"
+                        android:textSize="24sp"
+                        android:layout_marginBottom="8dp" />
 
                     <TextView
                         android:id="@+id/tvProspectosHoy"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0"
-                        android:textSize="20sp"
+                        android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="#2E7D32" />
+                        android:textColor="@color/primary"
+                        android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Prospectos"
-                        android:textSize="11sp"
-                        android:textColor="#424242" />
+                        android:textSize="14sp"
+                        android:textColor="@color/secondary_text"
+                        android:fontFamily="sans-serif-light" />
 
                 </LinearLayout>
 
@@ -178,33 +260,44 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="#FFF3E0">
+                android:layout_marginStart="12dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/secondary_container"
+                app:strokeWidth="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="12dp"
+                    android:padding="20dp"
                     android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📞"
+                        android:textSize="24sp"
+                        android:layout_marginBottom="8dp" />
 
                     <TextView
                         android:id="@+id/tvLlamadasHoy"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0"
-                        android:textSize="20sp"
+                        android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="#F57C00" />
+                        android:textColor="@color/secondary"
+                        android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Llamadas"
-                        android:textSize="11sp"
-                        android:textColor="#424242" />
+                        android:textSize="14sp"
+                        android:textColor="@color/secondary_text"
+                        android:fontFamily="sans-serif-light" />
 
                 </LinearLayout>
 
@@ -213,12 +306,14 @@
         </LinearLayout>
 
         <!-- Mapa -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:layout_height="220dp"
+            android:layout_marginBottom="24dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:strokeColor="@color/divider"
+            app:strokeWidth="1dp">
 
             <fragment
                 android:id="@+id/map"
@@ -229,25 +324,34 @@
                 android:focusable="true"
                 android:focusableInTouchMode="true" />
 
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Botón para registrar visita -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRegisterVisit"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Registrar Visita"
-            android:layout_marginBottom="16dp" />
+            android:layout_height="56dp"
+            android:text="✨ Registrar Nueva Visita"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:background="@drawable/gradient_primary"
+            android:textColor="@color/white"
+            app:cornerRadius="16dp"
+            app:elevation="6dp"
+            android:layout_marginBottom="20dp" />
 
         <!-- Formulario de visita CON SELECTOR DE STATUS -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/visitFormCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:visibility="gone"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:layout_marginBottom="24dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@color/surface"
+            app:strokeColor="@color/primary_container"
+            app:strokeWidth="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -255,13 +359,42 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
+                <!-- Header del formulario -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Registrar Nueva Visita"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="16dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="24dp">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/primary_container"
+                        android:layout_marginEnd="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="📋"
+                            android:textSize="20sp"
+                            android:gravity="center" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Registrar Nueva Visita"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
 
                 <!-- Nombre del negocio -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -318,22 +451,30 @@
                     android:orientation="horizontal"
                     android:layout_marginBottom="16dp">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnTakePhoto"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="48dp"
                         android:layout_weight="1"
-                        android:text="Tomar Foto"
+                        android:text="📷 Tomar Foto"
                         android:layout_marginEnd="8dp"
+                        app:strokeColor="@color/primary"
+                        app:strokeWidth="2dp"
+                        android:textColor="@color/primary"
+                        app:cornerRadius="12dp"
                         style="@style/Widget.Material3.Button.OutlinedButton" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSelectPhoto"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="48dp"
                         android:layout_weight="1"
-                        android:text="Seleccionar"
+                        android:text="🖼️ Seleccionar"
                         android:layout_marginStart="8dp"
+                        app:strokeColor="@color/secondary"
+                        app:strokeWidth="2dp"
+                        android:textColor="@color/secondary"
+                        app:cornerRadius="12dp"
                         style="@style/Widget.Material3.Button.OutlinedButton" />
 
                 </LinearLayout>
@@ -364,48 +505,83 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnCancelVisit"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="48dp"
                         android:layout_weight="1"
-                        android:text="Cancelar"
+                        android:text="❌ Cancelar"
                         android:layout_marginEnd="8dp"
+                        app:strokeColor="@color/error_color"
+                        app:strokeWidth="2dp"
+                        android:textColor="@color/error_color"
+                        app:cornerRadius="12dp"
                         style="@style/Widget.Material3.Button.OutlinedButton" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSubmitVisit"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="48dp"
                         android:layout_weight="1"
-                        android:text="Guardar Visita"
-                        android:layout_marginStart="8dp" />
+                        android:text="✅ Guardar Visita"
+                        android:layout_marginStart="8dp"
+                        app:backgroundTint="@color/primary"
+                        app:cornerRadius="12dp" />
 
                 </LinearLayout>
 
                 <!-- NUEVO: Botón AOS en formulario también -->
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnCrearSolicitudAOSForm"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
                     android:text="📝 Crear Solicitud en AOS"
                     android:textSize="14sp"
-                    android:backgroundTint="#2196F3"
-                    android:textColor="@android:color/white" />
+                    android:background="@drawable/gradient_light"
+                    android:textColor="@color/primary_dark"
+                    app:cornerRadius="12dp" />
 
             </LinearLayout>
 
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Título de visitas recientes -->
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Visitas Recientes"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/primary_container"
+                android:layout_marginEnd="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="📊"
+                    android:textSize="18sp"
+                    android:gravity="center" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Visitas Recientes"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_text"
+                android:fontFamily="sans-serif-medium" />
+
+        </LinearLayout>
 
         <!-- Lista de visitas recientes -->
         <androidx.recyclerview.widget.RecyclerView

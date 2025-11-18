@@ -1,22 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primarios -->
-    <color name="primary">#1976D2</color>
-    <color name="primary_dark">#1565C0</color>
-    <color name="primary_light">#BBDEFB</color>
+    <!-- Brand Colors -->
+    <color name="primary">#16b877</color>
+    <color name="primary_dark">#074739</color>
+    <color name="primary_light">#b0f5cd</color>
+    <color name="primary_container">#b0f5cd</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_primary_container">#026149</color>
 
-    <!-- Secundarios -->
-    <color name="secondary">#FF9800</color>
-    <color name="accent">@color/secondary</color>
-    <color name="primary_text">#212121</color>
-    <color name="secondary_text">@color/gray</color>
+    <!-- Secondary Brand Colors -->
+    <color name="secondary">#026149</color>
+    <color name="secondary_dark">#074739</color>
+    <color name="secondary_light">#16b877</color>
+    <color name="secondary_container">#b0f5cd</color>
+    <color name="on_secondary">#FFFFFF</color>
+    <color name="on_secondary_container">#074739</color>
+
+    <!-- Surface Colors -->
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F0F5FA</color>
+    <color name="surface_container">#F0F5FA</color>
+    <color name="surface_bright">#FFFFFF</color>
+    <color name="surface_dim">#F0F5FA</color>
+    <color name="on_surface">#074739</color>
+    <color name="on_surface_variant">#026149</color>
+
+    <!-- Background Colors -->
+    <color name="background">#F0F5FA</color>
+    <color name="on_background">#074739</color>
+
+    <!-- Text Colors -->
+    <color name="primary_text">#074739</color>
+    <color name="secondary_text">#026149</color>
+    <color name="tertiary_text">#16b877</color>
+
+    <!-- Accent -->
+    <color name="accent">#16b877</color>
+    <color name="accent_light">#b0f5cd</color>
+
+    <!-- Basic Colors -->
     <color name="icons">#FFFFFF</color>
-    <color name="gray">#757575</color>
+    <color name="gray">#6B7280</color>
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
-    <color name="divider">#BDBDBD</color>
-    <color name="light_green_background">#E8F5E9</color>
-    <color name="light_red_background">#FFEBEE</color>
-    <color name="success_color">#4CAF50</color>
+    <color name="divider">#b0f5cd</color>
+
+    <!-- Status Colors -->
+    <color name="success_color">#16b877</color>
+    <color name="success_background">#b0f5cd</color>
+    <color name="warning_color">#F59E0B</color>
+    <color name="warning_background">#FFFBEB</color>
+    <color name="error_color">#EF4444</color>
+    <color name="error_background">#FEF2F2</color>
+    <color name="info_color">#16b877</color>
+    <color name="info_background">#b0f5cd</color>
+
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#16b877</color>
+    <color name="gradient_end">#026149</color>
+    <color name="gradient_light_start">#b0f5cd</color>
+    <color name="gradient_light_end">#16b877</color>
+
+    <!-- Legacy Support -->
+    <color name="light_green_background">#b0f5cd</color>
+    <color name="light_red_background">#FEF2F2</color>
 
 </resources>

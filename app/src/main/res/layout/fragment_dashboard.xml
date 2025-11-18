@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/background"
     tools:context=".ui.dashboard.DashboardFragment">
 
     <!-- AppBar con título y controles principales -->
@@ -15,9 +16,10 @@
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="220dp"
+            android:background="@drawable/gradient_primary"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:contentScrim="?attr/colorPrimary">
+            app:contentScrim="@color/primary">
 
             <!-- Estadísticas grandes en el header -->
             <LinearLayout
@@ -36,21 +38,30 @@
                     android:gravity="center">
 
                     <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👥"
+                        android:textSize="28sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
                         android:id="@+id/activeUsersText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="12 Usuarios"
                         android:textColor="@android:color/white"
-                        android:textSize="24sp"
-                        android:textStyle="bold"/>
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Activos hoy"
                         android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:alpha="0.8"/>
+                        android:textSize="16sp"
+                        android:alpha="0.9"
+                        android:fontFamily="sans-serif-light" />
 
                 </LinearLayout>
 
@@ -68,21 +79,30 @@
                     android:gravity="center">
 
                     <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📈"
+                        android:textSize="28sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
                         android:id="@+id/totalVisitsText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="47 Visitas"
                         android:textColor="@android:color/white"
-                        android:textSize="24sp"
-                        android:textStyle="bold"/>
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Registradas"
                         android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:alpha="0.8"/>
+                        android:textSize="16sp"
+                        android:alpha="0.9"
+                        android:fontFamily="sans-serif-light" />
 
                 </LinearLayout>
 
@@ -116,9 +136,12 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="8dp">
+                android:layout_margin="20dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="10dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/divider"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -127,70 +150,184 @@
                     android:padding="20dp">
 
                     <!-- Filtro de usuario -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="👤 Filtrar por usuario"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="12dp"/>
-
-                    <Spinner
-                        android:id="@+id/userSpinner"
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:layout_marginBottom="16dp"
-                        android:background="@android:drawable/btn_dropdown"
-                        android:padding="12dp"/>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="4dp"
+                            app:cardBackgroundColor="@color/primary_container"
+                            android:layout_marginEnd="12dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:text="👤"
+                                android:textSize="18sp"
+                                android:gravity="center" />
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Filtrar por usuario"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_text"
+                            android:fontFamily="sans-serif-medium" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="20dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeColor="@color/divider"
+                        app:strokeWidth="1dp">
+
+                        <Spinner
+                            android:id="@+id/userSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:layout_margin="4dp"
+                            android:background="@android:color/transparent"
+                            android:padding="16dp" />
+
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Switches con mejor espaciado -->
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/showAllUsersSwitch"
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="🎯 Mostrar todos los usuarios"
-                        android:textSize="15sp"
-                        android:padding="12dp"
-                        android:checked="true"
-                        android:layout_marginBottom="8dp"/>
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@color/surface_variant">
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/realtimeSwitch"
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/showAllUsersSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="🎯 Mostrar todos los usuarios"
+                            android:textSize="16sp"
+                            android:textColor="@color/primary_text"
+                            android:padding="16dp"
+                            android:checked="true"
+                            app:thumbTint="@color/primary"
+                            app:trackTint="@color/primary_container" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="📡 Actualizaciones en tiempo real"
-                        android:textSize="15sp"
-                        android:padding="12dp"
-                        android:layout_marginBottom="16dp"/>
+                        android:layout_marginBottom="20dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@color/surface_variant">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/realtimeSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="📡 Actualizaciones en tiempo real"
+                            android:textSize="16sp"
+                            android:textColor="@color/primary_text"
+                            android:padding="16dp"
+                            app:thumbTint="@color/secondary"
+                            app:trackTint="@color/secondary_container" />
+
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Filtro de fecha -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="📅 Período de tiempo"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="12dp"/>
-
-                    <Spinner
-                        android:id="@+id/dateFilterSpinner"
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:layout_marginBottom="8dp"
-                        android:background="@android:drawable/btn_dropdown"
-                        android:padding="12dp"/>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="4dp"
+                            app:cardBackgroundColor="@color/secondary_container"
+                            android:layout_marginEnd="12dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:text="📅"
+                                android:textSize="18sp"
+                                android:gravity="center" />
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Período de tiempo"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_text"
+                            android:fontFamily="sans-serif-medium" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeColor="@color/divider"
+                        app:strokeWidth="1dp">
+
+                        <Spinner
+                            android:id="@+id/dateFilterSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:layout_margin="4dp"
+                            android:background="@android:color/transparent"
+                            android:padding="16dp" />
+
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Texto de rango actual -->
-                    <TextView
-                        android:id="@+id/selectedRangeText"
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="HOY (07/07/2025)"
-                        android:textSize="14sp"
-                        android:textColor="#666"
-                        android:background="#F8F9FA"
-                        android:padding="12dp"
-                        android:layout_marginTop="8dp"/>
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="1dp"
+                        app:cardBackgroundColor="@color/primary_container">
+
+                        <TextView
+                            android:id="@+id/selectedRangeText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="HOY (07/07/2025)"
+                            android:textSize="15sp"
+                            android:textColor="@color/primary_dark"
+                            android:textStyle="bold"
+                            android:padding="16dp"
+                            android:gravity="center"
+                            android:fontFamily="sans-serif-medium" />
+
+                    </com.google.android.material.card.MaterialCardView>
 
                 </LinearLayout>
 
@@ -201,13 +338,13 @@
                 android:id="@+id/adminRouteControls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="16dp"
+                android:layout_margin="20dp"
                 android:visibility="gone"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="8dp"
-                app:cardBackgroundColor="#FFF8E1"
-                app:strokeColor="#FF9800"
-                app:strokeWidth="1dp">
+                app:cardCornerRadius="20dp"
+                app:cardElevation="10dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/secondary"
+                app:strokeWidth="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -234,19 +371,28 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Panel de Administrador"
-                            android:textSize="18sp"
+                            android:textSize="20sp"
                             android:textStyle="bold"
-                            android:textColor="#E65100"/>
+                            android:textColor="@color/primary_dark"
+                            android:fontFamily="sans-serif-medium" />
 
-                        <TextView
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="RUTAS"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:textColor="#FF9800"
-                            android:background="#FFE0B2"
-                            android:padding="4dp"/>
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="2dp"
+                            app:cardBackgroundColor="@color/secondary_container">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="RUTAS"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/secondary_dark"
+                                android:padding="8dp" />
+
+                        </com.google.android.material.card.MaterialCardView>
 
                     </LinearLayout>
 
