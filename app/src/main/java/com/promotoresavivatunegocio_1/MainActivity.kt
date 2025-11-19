@@ -40,14 +40,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var storage: FirebaseStorage
     private lateinit var locationManager: LocationManager
 
-    // Estado de admin
-    private var isUserAdmin = false
-    private var adminPermissions: List<String> = emptyList()
-    private var adminLevel: String = ""
-
-    // Estado de gerente - NUEVO
-    private var isUserManager = false
-    private var managerPromoters: List<String> = emptyList()
+    // Sistema de roles basado en User model
+    private var currentUser: models.User? = null
+    private var navigationManager: com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager? = null
 
     companion object {
         private const val TAG = "MainActivity"
@@ -192,220 +187,173 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // MODIFICADO: Verificar admin y gerente, controlar acceso según rol
-    private fun checkAdminAccess(userId: String) {
-        val currentUser = auth.currentUser
-        if (currentUser?.email == null) {
-            Log.d(TAG, "❌ No hay usuario autenticado para verificar permisos")
-            setupNormalUserAccess()
+    /**
+     * Cargar usuario desde Firestore y configurar navegación basada en roles
+     * Reemplaza el sistema legacy de admin/gerente con el nuevo sistema de User model
+     */
+    private fun loadUserAndSetupNavigation(userId: String) {
+        val firebaseUser = auth.currentUser
+        if (firebaseUser?.email == null) {
+            Log.d(TAG, "❌ No hay usuario autenticado para cargar")
+            setupDefaultNavigation()
             return
         }
 
-        Log.d(TAG, "🔍 Verificando acceso de admin para: ${currentUser.email}")
-
-        // Primero verificar si es admin
-        val emailKey = currentUser.email!!.replace("@", "_").replace(".", "_")
-
-        db.collection("admins").document(emailKey)
-            .get()
-            .addOnSuccessListener { adminDocument ->
-                try {
-                    if (adminDocument.exists() && adminDocument.getBoolean("isActive") == true) {
-                        // Usuario es admin
-                        adminPermissions = adminDocument.get("permissions") as? List<String> ?: emptyList()
-                        adminLevel = adminDocument.getString("level") ?: "admin"
-                        isUserAdmin = true
-                        isUserManager = false
-                        managerPromoters = emptyList()
-
-                        setupAdminAccess()
-                        saveAdminInfo(adminPermissions, adminLevel)
-                        clearManagerInfo()
-
-                        Log.d(TAG, "✅ Admin verificado: ${currentUser.email} - Nivel: $adminLevel")
-                        Toast.makeText(this, "Acceso de administrador activado", Toast.LENGTH_SHORT).show()
-                    } else {
-                        // No es admin, verificar si es gerente
-                        Log.d(TAG, "ℹ️ No es admin, verificando si es gerente...")
-                        checkManagerAccess(userId)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "💥 Error procesando datos de admin: ${e.message}", e)
-                    checkManagerAccess(userId)
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.w(TAG, "⚠️ Error verificando acceso admin, verificando gerente", e)
-                checkManagerAccess(userId)
-            }
-    }
-
-    // NUEVO: Verificar acceso de gerente
-    private fun checkManagerAccess(userId: String) {
-        Log.d(TAG, "🔍 Verificando acceso de gerente para userId: $userId")
+        Log.d(TAG, "🔍 Cargando usuario desde Firestore: $userId")
 
         db.collection("users").document(userId)
             .get()
             .addOnSuccessListener { document ->
                 try {
                     if (document.exists()) {
-                        val role = document.getString("role")
-                        Log.d(TAG, "📄 Documento de usuario encontrado, role: $role")
+                        // Convertir documento a User model
+                        currentUser = document.toObject(models.User::class.java)
 
-                        if (role == "gerente") {
-                            // Usuario es gerente
-                            isUserAdmin = false
-                            isUserManager = true
-                            managerPromoters = document.get("assignedPromoters") as? List<String> ?: emptyList()
-                            adminPermissions = emptyList()
-                            adminLevel = ""
+                        if (currentUser != null) {
+                            // Crear navigation manager
+                            navigationManager = com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager.create(currentUser!!)
 
-                            setupManagerAccess()
-                            saveManagerInfo(managerPromoters)
-                            clearAdminInfo()
+                            // Configurar navegación según el rol
+                            setupRoleBasedNavigation()
 
-                            Log.d(TAG, "✅ Gerente verificado: ${auth.currentUser?.email}")
-                            Log.d(TAG, "✅ Promotores asignados: ${managerPromoters.size}")
-                            Toast.makeText(this, "Acceso de gerente activado", Toast.LENGTH_SHORT).show()
+                            val roleDisplay = currentUser!!.getRoleDisplayName()
+                            val productDisplay = currentUser!!.getProductLineDisplayName()
+                            Log.d(TAG, "✅ Usuario cargado: ${firebaseUser.email}")
+                            Log.d(TAG, "✅ Rol: $roleDisplay")
+                            Log.d(TAG, "✅ Línea de producto: $productDisplay")
+
+                            Toast.makeText(
+                                this,
+                                "Bienvenido: $roleDisplay",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
-                            // Usuario normal (promotor o sin rol)
-                            isUserAdmin = false
-                            isUserManager = false
-                            managerPromoters = emptyList()
-                            adminPermissions = emptyList()
-                            adminLevel = ""
-
-                            setupNormalUserAccess()
-                            clearManagerInfo()
-                            clearAdminInfo()
-                            Log.d(TAG, "👤 Usuario normal verificado: ${auth.currentUser?.email} - Rol: $role")
+                            Log.w(TAG, "⚠️ No se pudo convertir el documento a User model")
+                            setupDefaultNavigation()
                         }
                     } else {
-                        Log.d(TAG, "📄 Documento de usuario no existe, configurando acceso normal")
-                        setupNormalUserAccess()
-                        clearManagerInfo()
-                        clearAdminInfo()
+                        Log.w(TAG, "⚠️ Documento de usuario no existe, creando usuario con rol por defecto")
+                        // Crear usuario con rol por defecto
+                        createDefaultUser(userId, firebaseUser.email!!, firebaseUser.displayName ?: "")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "💥 Error procesando datos de gerente: ${e.message}", e)
-                    setupNormalUserAccess()
+                    Log.e(TAG, "💥 Error cargando usuario: ${e.message}", e)
+                    setupDefaultNavigation()
                 }
             }
             .addOnFailureListener { e ->
-                Log.w(TAG, "⚠️ Error verificando acceso de gerente", e)
-                setupNormalUserAccess()
+                Log.w(TAG, "⚠️ Error al obtener usuario de Firestore", e)
+                setupDefaultNavigation()
             }
     }
 
-    // NUEVO: Configurar acceso para administradores
-    private fun setupAdminAccess() {
+    /**
+     * Crear usuario con valores por defecto cuando no existe en Firestore
+     */
+    private fun createDefaultUser(uid: String, email: String, displayName: String) {
+        val newUser = models.User(
+            id = uid,
+            uid = uid,
+            email = email,
+            displayName = displayName,
+            role = models.User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
+            productLine = models.User.ProductLine.AVIVA_TU_NEGOCIO,
+            status = models.User.UserStatus.PENDING_ACTIVATION
+        )
+
+        db.collection("users").document(uid)
+            .set(newUser)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Usuario creado en Firestore con rol por defecto")
+                currentUser = newUser
+                navigationManager = com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager.create(newUser)
+                setupRoleBasedNavigation()
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error creando usuario en Firestore: ${e.message}", e)
+                setupDefaultNavigation()
+            }
+    }
+
+    /**
+     * Configurar navegación basada en el rol del usuario
+     * Usa RoleBasedNavigationManager para determinar qué elementos mostrar
+     */
+    private fun setupRoleBasedNavigation() {
         try {
-            Log.d(TAG, "🛡️ Configurando acceso de administrador...")
+            if (navigationManager == null || currentUser == null) {
+                Log.w(TAG, "⚠️ NavigationManager o currentUser es null, usando navegación por defecto")
+                setupDefaultNavigation()
+                return
+            }
 
-            // Mostrar menú de Dashboard para admins
-            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_home)
-            dashboardMenuItem?.isVisible = true
+            Log.d(TAG, "🎯 Configurando navegación basada en rol: ${currentUser!!.getRoleDisplayName()}")
 
-            // Mostrar menú de Admin para admins
-            val adminMenuItem = binding.navView.menu.findItem(R.id.navigation_admin)
-            adminMenuItem?.isVisible = true
+            // Configurar visibilidad del menú usando el NavigationManager
+            navigationManager!!.configureBottomNavigation(binding.navView.menu)
 
-            Log.d(TAG, "✅ Acceso de admin configurado - Dashboard y Admin visible")
+            Log.d(TAG, "✅ Navegación configurada correctamente para ${currentUser!!.getRoleDisplayName()}")
         } catch (e: Exception) {
-            Log.e(TAG, "💥 Error configurando acceso de admin: ${e.message}", e)
+            Log.e(TAG, "💥 Error configurando navegación basada en rol: ${e.message}", e)
+            setupDefaultNavigation()
         }
     }
 
-    // NUEVO: Configurar acceso para gerentes
-    private fun setupManagerAccess() {
+    /**
+     * Configurar navegación por defecto cuando no hay usuario o hay error
+     */
+    private fun setupDefaultNavigation() {
         try {
-            Log.d(TAG, "👔 Configurando acceso de gerente...")
+            Log.d(TAG, "🔧 Configurando navegación por defecto...")
 
-            // Mostrar menú de Dashboard para gerentes
-            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_home)
-            dashboardMenuItem?.isVisible = true
+            // Ocultar todo excepto lo básico
+            binding.navView.menu.findItem(R.id.navigation_home)?.isVisible = false
+            binding.navView.menu.findItem(R.id.navigation_admin)?.isVisible = false
+            binding.navView.menu.findItem(R.id.navigation_metrics)?.isVisible = true
+            binding.navView.menu.findItem(R.id.navigation_attendance)?.isVisible = true
+            binding.navView.menu.findItem(R.id.navigation_leagues)?.isVisible = true
+            binding.navView.menu.findItem(R.id.navigation_profile)?.isVisible = true
 
-            // OCULTAR menú de Admin para gerentes
-            val adminMenuItem = binding.navView.menu.findItem(R.id.navigation_admin)
-            adminMenuItem?.isVisible = false
-
-            Log.d(TAG, "✅ Acceso de gerente configurado - Dashboard visible, Admin oculto")
+            Log.d(TAG, "✅ Navegación por defecto configurada")
         } catch (e: Exception) {
-            Log.e(TAG, "💥 Error configurando acceso de gerente: ${e.message}", e)
+            Log.e(TAG, "💥 Error configurando navegación por defecto: ${e.message}", e)
         }
     }
 
-    // MODIFICADO: Configurar acceso para usuarios normales (promotores)
-    private fun setupNormalUserAccess() {
-        try {
-            Log.d(TAG, "👤 Configurando acceso de usuario normal...")
-
-            // Ocultar menú de Dashboard para usuarios normales (promotores)
-            val dashboardMenuItem = binding.navView.menu.findItem(R.id.navigation_home)
-            dashboardMenuItem?.isVisible = false
-
-            // Ocultar menú de Admin para usuarios normales
-            val adminMenuItem = binding.navView.menu.findItem(R.id.navigation_admin)
-            adminMenuItem?.isVisible = false
-
-            Log.d(TAG, "✅ Acceso de usuario normal configurado - Solo Inicio y Notificaciones")
-        } catch (e: Exception) {
-            Log.e(TAG, "💥 Error configurando acceso de usuario normal: ${e.message}", e)
-        }
-    }
-
-    private fun saveAdminInfo(permissions: List<String>, level: String) {
-        val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            putStringSet("permissions", permissions.toSet())
-            putString("admin_level", level)
-            putBoolean("is_admin", true)
-            apply()
-        }
-        Log.d(TAG, "💾 Info de admin guardada: level=$level, permissions=${permissions.size}")
-    }
-
-    private fun clearAdminInfo() {
-        val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            clear()
-            apply()
-        }
-        Log.d(TAG, "🗑️ Info de admin limpiada")
-    }
-
-    // NUEVO: Métodos para guardar/limpiar info de gerente
-    private fun saveManagerInfo(promoters: List<String>) {
-        val sharedPref = getSharedPreferences("manager_prefs", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            putStringSet("assigned_promoters", promoters.toSet())
-            putBoolean("is_manager", true)
-            apply()
-        }
-        Log.d(TAG, "💾 Info de gerente guardada: promoters=${promoters.size}")
-    }
-
-    private fun clearManagerInfo() {
-        val sharedPref = getSharedPreferences("manager_prefs", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            clear()
-            apply()
-        }
-        Log.d(TAG, "🗑️ Info de gerente limpiada")
-    }
-
-    // MODIFICADO: Método para verificar si el usuario puede acceder al dashboard
+    /**
+     * Verificar si el usuario puede acceder al dashboard
+     * Usa el sistema de permisos del User model
+     */
     fun canAccessDashboard(): Boolean {
-        return (isUserAdmin && adminPermissions.contains("view_dashboard")) || isUserManager
+        return currentUser?.canAccessTeamDashboard() == true || currentUser?.isAdmin() == true
     }
 
-    // NUEVOS: Métodos para obtener info del gerente (usar en Dashboard)
+    /**
+     * Verificar si el usuario es gerente
+     */
     fun isManager(): Boolean {
-        return isUserManager
+        return currentUser?.isManager() == true
     }
 
+    /**
+     * Obtener los promotores asignados al gerente
+     */
     fun getManagerPromoters(): List<String> {
-        return managerPromoters
+        return currentUser?.assignedPromoters ?: emptyList()
+    }
+
+    /**
+     * Obtener el usuario actual (para uso en fragments)
+     */
+    fun getCurrentUser(): models.User? {
+        return currentUser
+    }
+
+    /**
+     * Obtener el navigation manager (para uso en fragments)
+     */
+    fun getNavigationManager(): com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager? {
+        return navigationManager
     }
 
     // ============================================================================
@@ -482,7 +430,7 @@ class MainActivity : AppCompatActivity() {
             if (currentUser.email?.endsWith(INSTITUTIONAL_DOMAIN) == true) {
                 Log.d(TAG, "✅ Email autorizado, mostrando contenido principal")
                 showMainContent()
-                checkAdminAccess(currentUser.uid)
+                loadUserAndSetupNavigation(currentUser.uid)
                 testStorageConnection()
             } else {
                 Log.w(TAG, "❌ Email no autorizado: ${currentUser.email}")
@@ -532,36 +480,27 @@ class MainActivity : AppCompatActivity() {
             // MODIFICADO: Configurar navegación con validación de acceso
             navView.setupWithNavController(navController)
 
-            // Agregar listener para controlar acceso al dashboard y admin
+            // Agregar listener para controlar acceso basado en roles
             navView.setOnItemSelectedListener { item ->
-                when (item.itemId) {
-                    R.id.navigation_home -> {
-                        if (canAccessDashboard()) {
-                            Log.d(TAG, "✅ Acceso a Dashboard autorizado")
-                            navController.navigate(R.id.navigation_home)
-                            true
-                        } else {
-                            Log.w(TAG, "❌ Acceso a Dashboard denegado")
-                            Toast.makeText(this, "No tienes permisos para acceder al Dashboard", Toast.LENGTH_SHORT).show()
-                            false
-                        }
-                    }
-                    R.id.navigation_admin -> {
-                        if (isUserAdmin) {
-                            Log.d(TAG, "✅ Acceso a Admin autorizado")
-                            navController.navigate(R.id.navigation_admin)
-                            true
-                        } else {
-                            Log.w(TAG, "❌ Acceso a Admin denegado")
-                            Toast.makeText(this, "No tienes permisos para acceder al Panel de Admin", Toast.LENGTH_SHORT).show()
-                            false
-                        }
-                    }
-                    else -> {
-                        Log.d(TAG, "🔗 Navegando a: ${item.itemId}")
-                        navController.navigate(item.itemId)
-                        true
-                    }
+                // Si hay navigationManager, usar su validación
+                if (navigationManager != null && !navigationManager!!.canNavigateTo(item.itemId)) {
+                    Log.w(TAG, "❌ Acceso denegado a destino: ${item.itemId}")
+                    Toast.makeText(
+                        this,
+                        "No tienes permisos para acceder a esta sección",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnItemSelectedListener false
+                }
+
+                // Navegación permitida
+                Log.d(TAG, "✅ Navegando a: ${item.itemId}")
+                try {
+                    navController.navigate(item.itemId)
+                    true
+                } catch (e: Exception) {
+                    Log.e(TAG, "💥 Error navegando a ${item.itemId}: ${e.message}", e)
+                    false
                 }
             }
 
@@ -649,7 +588,7 @@ class MainActivity : AppCompatActivity() {
                     user?.let {
                         saveUserToFirestore(it)
                         showMainContent()
-                        checkAdminAccess(it.uid)
+                        loadUserAndSetupNavigation(it.uid)
                         testStorageConnection()
                     }
                 } else {
