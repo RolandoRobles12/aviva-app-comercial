@@ -135,6 +135,9 @@ dependencies {
     // ViewPager2 & Tabs
     implementation("androidx.viewpager2:viewpager2:1.0.0")
 
+    // GridLayout
+    implementation("androidx.gridlayout:gridlayout:1.0.0")
+
     // Chrome Custom Tabs (para login OAuth en navegador integrado)
     implementation("androidx.browser:browser:1.8.0")
 
