@@ -336,6 +336,11 @@ class UserService {
         return try {
             val allUsers = getAllUsers()
 
+            val gerentesCount = allUsers.count { it.role == User.UserRole.GERENTE_AVIVA_CONTIGO }
+            val promotoresNegocioCount = allUsers.count { it.role == User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO }
+            val embajadoresCompraCount = allUsers.count { it.role == User.UserRole.EMBAJADOR_AVIVA_TU_COMPRA }
+            val promotoresCasaCount = allUsers.count { it.role == User.UserRole.PROMOTOR_AVIVA_TU_CASA }
+
             val stats = UserStatistics(
                 totalUsers = allUsers.size,
                 activeUsers = allUsers.count { it.status == User.UserStatus.ACTIVE },
@@ -344,8 +349,12 @@ class UserService {
                 suspendedUsers = allUsers.count { it.status == User.UserStatus.SUSPENDED },
                 superAdmins = allUsers.count { it.role == User.UserRole.SUPER_ADMIN },
                 admins = allUsers.count { it.role == User.UserRole.ADMIN },
-                supervisors = allUsers.count { it.role == User.UserRole.SUPERVISOR },
-                promotors = allUsers.count { it.role == User.UserRole.PROMOTOR }
+                gerentesContigo = gerentesCount,
+                promotoresNegocio = promotoresNegocioCount,
+                embajadoresCompra = embajadoresCompraCount,
+                promotoresCasa = promotoresCasaCount,
+                supervisors = gerentesCount,  // Legacy compatibility
+                promotors = promotoresNegocioCount + embajadoresCompraCount + promotoresCasaCount  // Legacy compatibility
             )
 
             stats
@@ -415,11 +424,20 @@ class UserService {
         val suspendedUsers: Int = 0,
         val superAdmins: Int = 0,
         val admins: Int = 0,
-        val supervisors: Int = 0,
-        val promotors: Int = 0
+        val gerentesContigo: Int = 0,
+        val promotoresNegocio: Int = 0,
+        val embajadoresCompra: Int = 0,
+        val promotoresCasa: Int = 0,
+        // Legacy fields (computed for backward compatibility)
+        val supervisors: Int = 0,  // Maps to gerentesContigo
+        val promotors: Int = 0     // Sum of all promotor types
     ) {
         fun getActivationRate(): Double {
             return if (totalUsers > 0) (activeUsers.toDouble() / totalUsers) * 100 else 0.0
+        }
+
+        fun getTotalSalesRoles(): Int {
+            return gerentesContigo + promotoresNegocio + embajadoresCompra + promotoresCasa
         }
     }
 }

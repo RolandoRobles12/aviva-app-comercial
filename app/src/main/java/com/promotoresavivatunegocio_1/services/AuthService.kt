@@ -175,7 +175,8 @@ class AuthService(private val context: Context) {
                 email = firebaseUser.email ?: "",
                 displayName = firebaseUser.displayName ?: "",
                 photoUrl = firebaseUser.photoUrl?.toString(),
-                role = User.UserRole.PROMOTOR, // Default role
+                role = User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO, // Default role
+                productLine = User.ProductLine.AVIVA_TU_NEGOCIO, // Default product line
                 status = User.UserStatus.PENDING_ACTIVATION, // Requires admin activation
                 createdAt = Timestamp.now(),
                 updatedAt = Timestamp.now()

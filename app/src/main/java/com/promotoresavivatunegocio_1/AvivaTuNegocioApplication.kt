@@ -138,12 +138,17 @@ class AvivaTuNegocioApplication : Application() {
                         // Enable admin-specific background monitoring
                         enableAdminMonitoring()
                     }
-                    models.User.UserRole.SUPERVISOR -> {
-                        // Enable supervisor-specific features
+                    models.User.UserRole.GERENTE_AVIVA_CONTIGO -> {
+                        // Enable manager-specific features (supervisor replacement)
                         enableSupervisorFeatures(user.assignedPromoters)
                     }
-                    models.User.UserRole.PROMOTOR -> {
-                        // Enable promotor-specific features
+                    models.User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO -> {
+                        // Enable promotor-specific features (full functionality)
+                        enablePromotorFeatures(user.productTypes, user.kiosks)
+                    }
+                    models.User.UserRole.EMBAJADOR_AVIVA_TU_COMPRA,
+                    models.User.UserRole.PROMOTOR_AVIVA_TU_CASA -> {
+                        // Enable basic promotor features (limited functionality)
                         enablePromotorFeatures(user.productTypes, user.kiosks)
                     }
                 }
