@@ -74,7 +74,7 @@ class MetricsFragment : Fragment() {
 
     private fun setupUI() {
         // Configurar pull-to-refresh
-        binding.swipeRefresh.setOnRefreshListener {
+        binding.swipeRefresh?.setOnRefreshListener {
             viewModel.refresh()
         }
 
@@ -109,8 +109,8 @@ class MetricsFragment : Fragment() {
     private fun setupObservers() {
         // Observar estado de carga
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.swipeRefresh.isRefreshing = isLoading
-            binding.loadingOverlay.visibility = if (isLoading) View.VISIBLE else View.GONE
+            binding.swipeRefresh?.isRefreshing = isLoading
+            binding.loadingOverlay?.visibility = if (isLoading) View.VISIBLE else View.GONE
         }
 
         // Observar reporte de métricas
@@ -149,7 +149,7 @@ class MetricsFragment : Fragment() {
 
     private fun setupCharts() {
         // Configurar Line Chart (Ventas)
-        binding.salesChart.apply {
+        binding.salesChart?.apply {
             description.isEnabled = false
             setTouchEnabled(true)
             setDrawGridBackground(false)
@@ -178,7 +178,7 @@ class MetricsFragment : Fragment() {
         }
 
         // Configurar Bar Chart (Prospectos)
-        binding.prospectsChart.apply {
+        binding.prospectsChart?.apply {
             description.isEnabled = false
             setTouchEnabled(false)
             setDrawGridBackground(false)
@@ -324,7 +324,7 @@ class MetricsFragment : Fragment() {
             fillAlpha = 30
         }
 
-        binding.salesChart.apply {
+        binding.salesChart?.apply {
             data = LineData(dataSet)
             xAxis.valueFormatter = IndexAxisValueFormatter(labels)
             xAxis.granularity = 1f
@@ -352,7 +352,7 @@ class MetricsFragment : Fragment() {
             valueTextColor = ContextCompat.getColor(requireContext(), R.color.primary_text)
         }
 
-        binding.prospectsChart.apply {
+        binding.prospectsChart?.apply {
             data = BarData(dataSet)
             xAxis.granularity = 1f
             animateY(1000, Easing.EaseInOutQuad)
@@ -372,21 +372,21 @@ class MetricsFragment : Fragment() {
 
     private fun animateViews() {
         // Animar cards principales con fade in
-        val views = listOf(
+        val views = listOfNotNull(
             binding.cardSalesChart,
             binding.cardProspectsChart
         )
 
         views.forEachIndexed { index, view ->
-            view.alpha = 0f
-            view.translationY = 50f
-            view.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(500)
-                .setStartDelay((index * 100).toLong())
-                .setInterpolator(AccelerateDecelerateInterpolator())
-                .start()
+            view?.alpha = 0f
+            view?.translationY = 50f
+            view?.animate()
+                ?.alpha(1f)
+                ?.translationY(0f)
+                ?.setDuration(500)
+                ?.setStartDelay((index * 100).toLong())
+                ?.setInterpolator(AccelerateDecelerateInterpolator())
+                ?.start()
         }
     }
 
