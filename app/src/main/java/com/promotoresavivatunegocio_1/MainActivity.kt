@@ -308,7 +308,8 @@ class MainActivity : AppCompatActivity() {
 
             // Ocultar todo excepto lo básico
             binding.navView.menu.findItem(R.id.navigation_home)?.isVisible = false
-            binding.navView.menu.findItem(R.id.navigation_admin)?.isVisible = false
+            // Note: Admin removed from bottom nav (5-item limit), accessible via Profile
+            // binding.navView.menu.findItem(R.id.navigation_admin)?.isVisible = false
             binding.navView.menu.findItem(R.id.navigation_metrics)?.isVisible = true
             binding.navView.menu.findItem(R.id.navigation_attendance)?.isVisible = true
             binding.navView.menu.findItem(R.id.navigation_leagues)?.isVisible = true

@@ -31,11 +31,4 @@
         android:icon="@drawable/ic_profile_24"
         android:title="Perfil" />
 
-    <!-- Admin (solo visible para SUPER_ADMIN y ADMIN) -->
-    <item
-        android:id="@+id/navigation_admin"
-        android:icon="@drawable/ic_admin_24"
-        android:title="Admin"
-        android:visible="false" />
-
 </menu>
