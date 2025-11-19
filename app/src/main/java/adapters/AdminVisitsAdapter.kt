@@ -38,7 +38,7 @@ class AdminVisitsAdapter(
 
             // Formatear fecha
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-            timestampText.text = visit.timestamp?.toDate()?.let { dateFormat.format(it) } ?: "Fecha no disponible"
+            timestampText.text = dateFormat.format(Date(visit.timestamp))
 
             // Configurar estado
             statusText.text = when (visit.status) {

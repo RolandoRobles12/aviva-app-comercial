@@ -8,11 +8,11 @@ import com.google.gson.Gson
 import com.promotoresavivatunegocio_1.database.AppDatabase
 import com.promotoresavivatunegocio_1.database.entities.SyncQueue
 import com.promotoresavivatunegocio_1.utils.NetworkConnectivityManager
+import com.promotoresavivatunegocio_1.models.ProspectoAviva
+import com.promotoresavivatunegocio_1.models.Visit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
-import models.ProspectoAviva
-import models.Visit
 import java.util.concurrent.TimeUnit
 
 /**

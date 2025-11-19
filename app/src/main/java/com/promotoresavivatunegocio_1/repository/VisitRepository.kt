@@ -8,10 +8,10 @@ import com.promotoresavivatunegocio_1.database.dao.VisitDao
 import com.promotoresavivatunegocio_1.database.entities.SyncQueue
 import com.promotoresavivatunegocio_1.database.entities.VisitLocal
 import com.promotoresavivatunegocio_1.utils.NetworkConnectivityManager
+import com.promotoresavivatunegocio_1.models.Visit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
-import models.Visit
 
 /**
  * Repository para gestionar visitas con soporte offline
@@ -216,8 +216,8 @@ private fun Visit.toLocal(): VisitLocal {
         businessName = this.businessName,
         businessType = this.businessType,
         address = this.address,
-        latitude = this.location.latitude,
-        longitude = this.location.longitude,
+        latitude = this.location?.latitude ?: 0.0,
+        longitude = this.location?.longitude ?: 0.0,
         photoUrl = this.photoUrl,
         notes = this.notes,
         status = this.status,

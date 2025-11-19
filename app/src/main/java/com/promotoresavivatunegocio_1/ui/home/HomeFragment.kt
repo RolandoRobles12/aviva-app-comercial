@@ -926,13 +926,13 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
             append("Estado: ${Visit.getStatusDisplayText(visit.status)}\n\n")
             append("Fecha: ")
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-            append(visit.timestamp?.toDate()?.let { dateFormat.format(it) } ?: "No disponible")
+            append(dateFormat.format(Date(visit.timestamp)))
             append("\n\n")
 
             append("Vendedor: ${visit.userName}\n\n")
 
-            if (visit.comments.isNotBlank()) {
-                append("Comentarios:\n${visit.comments}\n\n")
+            if (visit.notes.isNotBlank()) {
+                append("Comentarios:\n${visit.notes}\n\n")
             }
 
             if (visit.esProspectoAviva) {
@@ -2372,13 +2372,16 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
                     "userId" to userId,
                     "userName" to userName,
                     "businessName" to businessName,
-                    "comments" to comments,
-                    "imageUrl" to imageUrl,
+                    "businessType" to "",
+                    "address" to "",
+                    "notes" to comments,
+                    "photoUrl" to (imageUrl ?: ""),
                     "location" to GeoPoint(currentLocation!!.latitude, currentLocation!!.longitude),
-                    "accuracy" to currentLocation!!.accuracy,
-                    "timestamp" to Timestamp.now(),
+                    "timestamp" to System.currentTimeMillis(),
                     "status" to selectedStatus, // CAMBIO: Usar el status seleccionado en lugar de "pending"
-                    "prospectoId" to prospectoCoincidente?.id,
+                    "prospectId" to prospectoCoincidente?.id,
+                    "kioskId" to null,
+                    "cityId" to null,
                     "esProspectoAviva" to (prospectoCoincidente != null),
                     "probabilidadOriginal" to prospectoCoincidente?.probabilidad
                 )
@@ -2502,13 +2505,16 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
                             userId = data["userId"] as? String ?: "",
                             userName = data["userName"] as? String ?: "",
                             businessName = data["businessName"] as? String ?: "",
-                            comments = data["comments"] as? String ?: "",
-                            imageUrl = data["imageUrl"] as? String,
+                            businessType = data["businessType"] as? String ?: "",
+                            address = data["address"] as? String ?: "",
+                            notes = data["notes"] as? String ?: "",
+                            photoUrl = data["photoUrl"] as? String ?: "",
                             location = data["location"] as? GeoPoint,
-                            accuracy = (data["accuracy"] as? Number)?.toFloat() ?: 0f,
-                            timestamp = data["timestamp"] as? Timestamp,
+                            timestamp = (data["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                             status = data["status"] as? String ?: Visit.STATUS_SOLICITUD_CREADA,
-                            prospectoId = data["prospectoId"] as? String,
+                            prospectId = data["prospectId"] as? String,
+                            kioskId = data["kioskId"] as? String,
+                            cityId = data["cityId"] as? String,
                             esProspectoAviva = data["esProspectoAviva"] as? Boolean ?: false,
                             probabilidadOriginal = data["probabilidadOriginal"] as? Double
                         )
