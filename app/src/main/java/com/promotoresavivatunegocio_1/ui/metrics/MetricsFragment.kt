@@ -197,7 +197,7 @@ class MetricsFragment : Fragment() {
 
             // Mostrar progreso de objetivo
             binding.progressGoal.progress = report.goalCompletionRate.toInt()
-            binding.tvGoalProgress.text = "${report.salesAchieved} / ${report.salesGoal}"
+            binding.tvGoalProgress.text = "${report.salesAchieved} de ${report.salesGoal} ventas"
             binding.tvGoalPercent.text = "${report.goalCompletionRate.toInt()}%"
         }
     }
@@ -208,7 +208,7 @@ class MetricsFragment : Fragment() {
         // Ventas
         binding.tvTotalSales.text = metrics.totalSales.toString()
         binding.tvSalesAmount.text = currencyFormat.format(metrics.salesAmount)
-        binding.tvAverageTicket.text = currencyFormat.format(metrics.averageTicket)
+        binding.tvAverageTicket.text = "Ticket prom: ${currencyFormat.format(metrics.averageTicket)}"
         binding.tvConversionRate.text = String.format("%.1f%%", metrics.conversionRate)
 
         // Prospectos
