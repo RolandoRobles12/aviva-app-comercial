@@ -1,0 +1,70 @@
+<resources>
+    <!-- Tablet 10" (sw720dp) - Dimensiones escaladas -->
+
+    <!-- Screen margins -->
+    <dimen name="activity_horizontal_margin">32dp</dimen>
+    <dimen name="activity_vertical_margin">32dp</dimen>
+
+    <!-- Spacing & Padding - Aumentado 75% -->
+    <dimen name="spacing_tiny">8dp</dimen>
+    <dimen name="spacing_small">14dp</dimen>
+    <dimen name="spacing_medium">20dp</dimen>
+    <dimen name="spacing_normal">28dp</dimen>
+    <dimen name="spacing_large">32dp</dimen>
+    <dimen name="spacing_xlarge">40dp</dimen>
+    <dimen name="spacing_xxlarge">48dp</dimen>
+
+    <!-- Card dimensions -->
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="card_margin">16dp</dimen>
+    <dimen name="card_elevation">8dp</dimen>
+    <dimen name="card_corner_radius">20dp</dimen>
+
+    <!-- Text sizes - Aumentado ~50% -->
+    <dimen name="text_tiny">14sp</dimen>
+    <dimen name="text_small">16sp</dimen>
+    <dimen name="text_normal">18sp</dimen>
+    <dimen name="text_medium">20sp</dimen>
+    <dimen name="text_large">26sp</dimen>
+    <dimen name="text_xlarge">28sp</dimen>
+    <dimen name="text_xxlarge">32sp</dimen>
+    <dimen name="text_title">26sp</dimen>
+    <dimen name="text_subtitle">20sp</dimen>
+    <dimen name="text_body">18sp</dimen>
+    <dimen name="text_caption">16sp</dimen>
+    <dimen name="text_heading">36sp</dimen>
+
+    <!-- Icon sizes - Aumentado ~60% -->
+    <dimen name="icon_tiny">26dp</dimen>
+    <dimen name="icon_small">32dp</dimen>
+    <dimen name="icon_normal">40dp</dimen>
+    <dimen name="icon_medium">48dp</dimen>
+    <dimen name="icon_large">56dp</dimen>
+    <dimen name="icon_xlarge">64dp</dimen>
+
+    <!-- Button dimensions -->
+    <dimen name="button_height">64dp</dimen>
+    <dimen name="button_padding_horizontal">32dp</dimen>
+    <dimen name="button_corner_radius">16dp</dimen>
+
+    <!-- List item dimensions -->
+    <dimen name="list_item_height">72dp</dimen>
+    <dimen name="list_item_padding">24dp</dimen>
+
+    <!-- Bottom navigation -->
+    <dimen name="bottom_nav_height">72dp</dimen>
+
+    <!-- FAB -->
+    <dimen name="fab_margin">24dp</dimen>
+
+    <!-- Metrics card dimensions -->
+    <dimen name="metrics_card_min_height">200dp</dimen>
+    <dimen name="metrics_value_text_size">32sp</dimen>
+    <dimen name="metrics_label_text_size">16sp</dimen>
+
+    <!-- Dashboard dimensions -->
+    <dimen name="dashboard_card_height">220dp</dimen>
+
+    <!-- Master-detail layout -->
+    <dimen name="master_pane_width">400dp</dimen>
+</resources>
