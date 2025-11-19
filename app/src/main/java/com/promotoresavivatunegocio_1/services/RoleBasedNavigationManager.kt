@@ -87,7 +87,9 @@ class RoleBasedNavigationManager(private val user: User) {
         menu.findItem(R.id.navigation_attendance)?.isVisible = config.showAttendance
         menu.findItem(R.id.navigation_leagues)?.isVisible = config.showLeagues
         menu.findItem(R.id.navigation_profile)?.isVisible = config.showProfile
-        menu.findItem(R.id.navigation_admin)?.isVisible = config.showAdmin
+        // Note: Admin is no longer in bottom nav to comply with 5-item limit
+        // Admin can be accessed via Profile section for authorized users
+        // menu.findItem(R.id.navigation_admin)?.isVisible = config.showAdmin
     }
 
     /**
