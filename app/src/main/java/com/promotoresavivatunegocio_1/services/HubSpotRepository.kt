@@ -19,10 +19,8 @@ class HubSpotRepository {
     companion object {
         private const val TAG = "HubSpotRepository"
 
-        // ⚠️ IMPORTANTE: Reemplaza con la URL de tu proyecto Firebase
-        // Formato: https://REGION-PROJECT_ID.cloudfunctions.net/
-        // Ejemplo: https://us-central1-aviva-app-comercial.cloudfunctions.net/
-        private const val FUNCTIONS_BASE_URL = "https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/"
+        // URL de Firebase Cloud Functions
+        private const val FUNCTIONS_BASE_URL = "https://us-central1-promotores-aviva-tu-negocio.cloudfunctions.net/"
     }
 
     private val auth = FirebaseAuth.getInstance()
