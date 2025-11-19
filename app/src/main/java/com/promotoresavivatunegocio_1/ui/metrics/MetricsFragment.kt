@@ -10,90 +10,50 @@ import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
 import com.promotoresavivatunegocio_1.R
 import com.promotoresavivatunegocio_1.databinding.FragmentMetricsBinding
+import com.promotoresavivatunegocio_1.services.MetricsService
+import kotlinx.coroutines.launch
+import models.MetricsReport
+import models.UserMetrics
+import java.text.NumberFormat
+import java.util.Locale
 
 /**
- * Fragmento de Métricas y Reportería - Looker Studio
+ * Fragmento de Métricas y Reportería
  *
- * Muestra tus dashboards de Looker Studio en Chrome Custom Tabs
+ * Muestra las estadísticas de desempeño del vendedor:
+ * - Ventas totales y monto
+ * - Prospectos generados y convertidos
+ * - Asistencia y horas trabajadas
+ * - Tendencias vs período anterior
+ * - Ranking y posición
  *
- * CONFIGURACIÓN SUPER SIMPLE:
- * 1. Copia las URLs de tus dashboards de Looker Studio
- * 2. Pégalas en las constantes LOOKER_*_DASHBOARD abajo (líneas 63-68)
- * 3. Compila y ejecuta
- * 4. ¡Listo!
- *
- * VENTAJAS DE CHROME CUSTOM TABS:
- * ✅ Login de Google funciona sin error 403
- * ✅ Todas las funciones de Looker Studio disponibles
- * ✅ Filtros interactivos funcionan
- * ✅ Exportar a PDF/Excel disponible
- * ✅ Mejor rendimiento
- * ✅ Apariencia integrada con los colores de tu app
+ * LOOKER STUDIO:
+ * El botón "Refresh" abre los dashboards de Looker Studio en Chrome Custom Tabs.
+ * Para cambiar la URL del dashboard, modifica LOOKER_DASHBOARD_URL abajo.
  */
 class MetricsFragment : Fragment() {
     private var _binding: FragmentMetricsBinding? = null
     private val binding get() = _binding!!
 
     private val auth = FirebaseAuth.getInstance()
+    private val metricsService = MetricsService()
+
+    private var currentPeriod = UserMetrics.MetricsPeriod.MENSUAL
 
     companion object {
-        private const val TAG = "MetricsFragment"
-
-        // ============================================================================
-        // CONFIGURACIÓN - CAMBIA ESTAS URLs POR TUS DASHBOARDS DE LOOKER STUDIO
-        // ============================================================================
-
         /**
-         * URLs de tus dashboards de Looker Studio
-         *
-         * CÓMO OBTENER LA URL:
-         * 1. Ve a Looker Studio (https://lookerstudio.google.com)
-         * 2. Abre tu dashboard
-         * 3. Copia la URL de la barra de direcciones
-         * 4. Pégala aquí
+         * URL de tu dashboard de Looker Studio
+         * Para obtener la URL:
+         * 1. Abre tu dashboard en Looker Studio
+         * 2. Copia la URL de la barra de direcciones
+         * 3. Pégala aquí
          */
-        private const val LOOKER_MAIN_DASHBOARD = "https://lookerstudio.google.com/u/0/reporting/5f4ab63e-bea9-4726-96f3-078ffd1ff9cb/page/iWhNF"
-
-        // Dashboards específicos por período (opcional - si tienes dashboards separados)
-        private const val LOOKER_DAILY_DASHBOARD = "https://lookerstudio.google.com/u/0/reporting/5f4ab63e-bea9-4726-96f3-078ffd1ff9cb/page/iWhNF"
-        private const val LOOKER_WEEKLY_DASHBOARD = "https://lookerstudio.google.com/u/0/reporting/5f4ab63e-bea9-4726-96f3-078ffd1ff9cb/page/iWhNF"
-        private const val LOOKER_MONTHLY_DASHBOARD = "https://lookerstudio.google.com/u/0/reporting/5f4ab63e-bea9-4726-96f3-078ffd1ff9cb/page/iWhNF"
-
-        /**
-         * MODO DE VISUALIZACIÓN: Chrome Custom Tabs
-         *
-         * Los dashboards se abren en Chrome Custom Tabs automáticamente.
-         * Esto asegura que el login de Google funcione sin problemas.
-         */
-        enum class DisplayMode {
-            CHROME_TABS   // Único modo disponible
-        }
-
-        // Siempre usa Chrome Custom Tabs (recomendado por Google)
-        private val DISPLAY_MODE = DisplayMode.CHROME_TABS
-
-        /**
-         * ¿Usar dashboards separados por período?
-         * - true: Usar LOOKER_DAILY_DASHBOARD, LOOKER_WEEKLY_DASHBOARD, etc.
-         * - false: Usar solo LOOKER_MAIN_DASHBOARD para todo
-         */
-        private const val USE_SEPARATE_DASHBOARDS = false
-
-        /**
-         * ¿Filtrar dashboards por usuario?
-         * Si tus dashboards de Looker Studio tienen configurado un parámetro
-         * de usuario, puedes pasarlo en la URL
-         *
-         * Ejemplo: ?params={"userId":"VALOR"}
-         */
-        private const val ENABLE_USER_FILTER = false
-        private const val USER_PARAM_NAME = "userId"  // Nombre del parámetro en Looker Studio
+        private const val LOOKER_DASHBOARD_URL = "https://lookerstudio.google.com/u/0/reporting/5f4ab63e-bea9-4726-96f3-078ffd1ff9cb/page/iWhNF"
     }
-
-    private var currentDashboardUrl = LOOKER_MAIN_DASHBOARD
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -108,74 +68,51 @@ class MetricsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupUI()
-
-        // Mostrar dashboard en Chrome Custom Tabs
-        showInfoAndOpenChromeTabs()
+        loadMetrics()
     }
 
     private fun setupUI() {
-        // Configurar botones de período
+        // Botones de período
         binding.btnDaily.setOnClickListener {
-            currentDashboardUrl = if (USE_SEPARATE_DASHBOARDS) {
-                LOOKER_DAILY_DASHBOARD
-            } else {
-                LOOKER_MAIN_DASHBOARD
-            }
-            openDashboard()
+            currentPeriod = UserMetrics.MetricsPeriod.DIARIO
+            updatePeriodButtons()
+            loadMetrics()
         }
 
         binding.btnWeekly.setOnClickListener {
-            currentDashboardUrl = if (USE_SEPARATE_DASHBOARDS) {
-                LOOKER_WEEKLY_DASHBOARD
-            } else {
-                LOOKER_MAIN_DASHBOARD
-            }
-            openDashboard()
+            currentPeriod = UserMetrics.MetricsPeriod.SEMANAL
+            updatePeriodButtons()
+            loadMetrics()
         }
 
         binding.btnMonthly.setOnClickListener {
-            currentDashboardUrl = if (USE_SEPARATE_DASHBOARDS) {
-                LOOKER_MONTHLY_DASHBOARD
-            } else {
-                LOOKER_MAIN_DASHBOARD
-            }
-            openDashboard()
+            currentPeriod = UserMetrics.MetricsPeriod.MENSUAL
+            updatePeriodButtons()
+            loadMetrics()
         }
 
+        // Botón Refresh ahora abre Looker Studio
         binding.btnRefresh.setOnClickListener {
-            openDashboard()
+            openLookerStudio()
         }
+
+        updatePeriodButtons()
     }
 
-    private fun openDashboard() {
-        openInChromeTabs(currentDashboardUrl)
+    private fun updatePeriodButtons() {
+        binding.btnDaily.isSelected = currentPeriod == UserMetrics.MetricsPeriod.DIARIO
+        binding.btnWeekly.isSelected = currentPeriod == UserMetrics.MetricsPeriod.SEMANAL
+        binding.btnMonthly.isSelected = currentPeriod == UserMetrics.MetricsPeriod.MENSUAL
     }
 
-    // ============================================================================
-    // MODO 1: CHROME CUSTOM TABS (Recomendado)
-    // ============================================================================
-
-    private fun showInfoAndOpenChromeTabs() {
-        // Ocultar otros elementos
-        binding.progressBar.visibility = View.GONE
-        binding.scrollContent.visibility = View.GONE
-
-        // Abrir automáticamente el dashboard
-        openInChromeTabs(currentDashboardUrl)
-    }
-
-    private fun openInChromeTabs(dashboardUrl: String) {
+    /**
+     * Abre el dashboard de Looker Studio en Chrome Custom Tabs
+     */
+    private fun openLookerStudio() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            Toast.makeText(context, "Debes iniciar sesión para ver los reportes", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Debes iniciar sesión", Toast.LENGTH_SHORT).show()
             return
-        }
-
-        // Construir URL final (con filtro de usuario si está habilitado)
-        val finalUrl = if (ENABLE_USER_FILTER) {
-            buildUrlWithUserFilter(dashboardUrl, currentUser.uid, currentUser.email ?: "")
-        } else {
-            dashboardUrl
         }
 
         try {
@@ -196,40 +133,146 @@ class MetricsFragment : Fragment() {
                 .build()
 
             // Abrir Looker Studio
-            customTabsIntent.launchUrl(requireContext(), Uri.parse(finalUrl))
+            customTabsIntent.launchUrl(requireContext(), Uri.parse(LOOKER_DASHBOARD_URL))
 
-            Toast.makeText(context, "Abriendo reportes...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Abriendo Looker Studio...", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
             Toast.makeText(
                 context,
-                "Error al abrir reportes. Asegúrate de tener Chrome instalado.",
+                "Error al abrir Looker Studio. Asegúrate de tener Chrome instalado.",
                 Toast.LENGTH_LONG
             ).show()
         }
     }
 
-    // ============================================================================
-    // UTILIDADES
-    // ============================================================================
+    private fun loadMetrics() {
+        val user = auth.currentUser
+        if (user == null) {
+            Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-    /**
-     * Construye la URL con parámetros de filtro de usuario
-     *
-     * Looker Studio acepta parámetros en la URL como:
-     * https://tu-dashboard.com?params={"userId":"VALOR"}
-     *
-     * IMPORTANTE: Debes configurar el parámetro en Looker Studio primero:
-     * 1. En Looker Studio: Archivo > Administrar parámetros
-     * 2. Crear parámetro con el nombre configurado en USER_PARAM_NAME
-     * 3. Usar ese parámetro en tus filtros
-     */
-    private fun buildUrlWithUserFilter(baseUrl: String, userId: String, userEmail: String): String {
-        // Usar el valor que prefieras: userId o userEmail
-        val filterValue = userId  // Cambia a userEmail si prefieres filtrar por email
+        binding.progressBar.visibility = View.VISIBLE
+        binding.scrollContent.visibility = View.GONE
 
-        // Formato de parámetros de Looker Studio
-        return "$baseUrl?params={\"$USER_PARAM_NAME\":\"$filterValue\"}"
+        lifecycleScope.launch {
+            try {
+                // Generar reporte con comparaciones
+                val report = metricsService.generateMetricsReport(user.uid)
+
+                if (report != null) {
+                    displayReport(report)
+                    binding.scrollContent.visibility = View.VISIBLE
+                } else {
+                    // Intentar obtener métricas actuales sin comparación
+                    val metrics = metricsService.getCurrentUserMetrics(user.uid, currentPeriod)
+                    if (metrics != null) {
+                        displayMetrics(metrics)
+                        binding.scrollContent.visibility = View.VISIBLE
+                    } else {
+                        showEmptyState()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Error al cargar métricas: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun displayReport(report: MetricsReport) {
+        report.currentMetrics?.let { metrics ->
+            displayMetrics(metrics)
+
+            // Mostrar tendencias
+            displayTrend(binding.tvSalesTrend, report.salesTrend)
+            displayTrend(binding.tvProspectsTrend, report.prospectsTrend)
+            displayTrend(binding.tvAttendanceTrend, report.attendanceTrend)
+
+            // Mostrar progreso de objetivo
+            binding.progressGoal.progress = report.goalCompletionRate.toInt()
+            binding.tvGoalProgress.text = "${report.salesAchieved} / ${report.salesGoal}"
+            binding.tvGoalPercent.text = "${report.goalCompletionRate.toInt()}%"
+        }
+    }
+
+    private fun displayMetrics(metrics: UserMetrics) {
+        val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "MX"))
+
+        // Ventas
+        binding.tvTotalSales.text = metrics.totalSales.toString()
+        binding.tvSalesAmount.text = currencyFormat.format(metrics.salesAmount)
+        binding.tvAverageTicket.text = currencyFormat.format(metrics.averageTicket)
+        binding.tvConversionRate.text = String.format("%.1f%%", metrics.conversionRate)
+
+        // Prospectos
+        binding.tvProspectsGenerated.text = metrics.prospectsGenerated.toString()
+        binding.tvProspectsContacted.text = metrics.prospectsContacted.toString()
+        binding.tvProspectsConverted.text = metrics.prospectsConverted.toString()
+
+        // Asistencia
+        binding.tvDaysWorked.text = metrics.daysWorked.toString()
+        binding.tvAttendanceRate.text = String.format("%.1f%%", metrics.attendanceRate)
+        binding.tvHoursWorked.text = String.format("%.1f h", metrics.totalHoursWorked)
+
+        // Actividad
+        binding.tvVisitsCompleted.text = metrics.visitsCompleted.toString()
+        binding.tvKiosksVisited.text = metrics.kiosksVisited.toString()
+        binding.tvCitiesVisited.text = metrics.citiesVisited.toString()
+
+        // Ranking
+        binding.tvRankPosition.text = if (metrics.rankPosition > 0) {
+            "#${metrics.rankPosition}"
+        } else {
+            "N/A"
+        }
+        binding.tvLeaguePosition.text = if (metrics.leaguePosition > 0) {
+            "#${metrics.leaguePosition}"
+        } else {
+            "N/A"
+        }
+
+        // Puntos
+        binding.tvTotalPoints.text = metrics.totalPoints.toString()
+        binding.tvMonthlyPoints.text = "+${metrics.monthlyPoints}"
+    }
+
+    private fun displayTrend(textView: android.widget.TextView, trend: Double) {
+        val trendText = if (trend > 0) {
+            "↑ +${String.format("%.1f%%", trend)}"
+        } else if (trend < 0) {
+            "↓ ${String.format("%.1f%%", trend)}"
+        } else {
+            "→ 0%"
+        }
+
+        textView.text = trendText
+
+        // Color basado en la tendencia
+        val colorRes = if (trend > 0) {
+            android.R.color.holo_green_dark
+        } else if (trend < 0) {
+            android.R.color.holo_red_dark
+        } else {
+            android.R.color.darker_gray
+        }
+
+        textView.setTextColor(resources.getColor(colorRes, null))
+    }
+
+    private fun showEmptyState() {
+        binding.scrollContent.visibility = View.GONE
+        Toast.makeText(
+            context,
+            "No hay métricas disponibles para este período",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     override fun onDestroyView() {
