@@ -70,9 +70,7 @@ class VisitsAdapter(
 
             // Formatear fecha
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-            timestampText.text = visit.timestamp?.toDate()?.let {
-                dateFormat.format(it)
-            } ?: "Fecha no disponible"
+            timestampText.text = dateFormat.format(Date(visit.timestamp))
 
             // Vendedor
             vendorText.text = if (visit.userName.isNotBlank()) {
@@ -82,8 +80,8 @@ class VisitsAdapter(
             }
 
             // Comentarios
-            commentsText.text = if (visit.comments.isNotBlank()) {
-                visit.comments
+            commentsText.text = if (visit.notes.isNotBlank()) {
+                visit.notes
             } else {
                 "Sin comentarios adicionales"
             }

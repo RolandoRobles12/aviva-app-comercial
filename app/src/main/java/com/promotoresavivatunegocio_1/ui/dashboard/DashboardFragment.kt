@@ -803,15 +803,10 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
 
         // Formatear fecha y hora
-        visit.timestamp?.let { timestamp ->
-            val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            dateText.text = dateFormat.format(timestamp.toDate())
-            timeText.text = timeFormat.format(timestamp.toDate())
-        } ?: run {
-            dateText.text = "Fecha no disponible"
-            timeText.text = "Hora no disponible"
-        }
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        dateText.text = dateFormat.format(Date(visit.timestamp))
+        timeText.text = timeFormat.format(Date(visit.timestamp))
 
         // Vendedor
         val sellerName = if (visit.userName.isNotEmpty()) {
@@ -829,9 +824,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
 
         // Comentarios
-        if (!visit.comments.isNullOrEmpty()) {
+        if (visit.notes.isNotBlank()) {
             commentsCard.visibility = View.VISIBLE
-            commentsText.text = visit.comments
+            commentsText.text = visit.notes
         } else {
             commentsCard.visibility = View.GONE
         }
@@ -870,14 +865,14 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
     private fun loadVisitPhoto(visit: Visit, photosCard: View, photoImageView: ImageView) {
         // Si la visita tiene imagen en el modelo
-        if (!visit.imageUrl.isNullOrEmpty()) {
+        if (visit.photoUrl.isNotBlank()) {
             Log.d(TAG, "📸 Cargando imagen desde el modelo de visita")
 
             photosCard.visibility = View.VISIBLE
 
             // Cargar imagen con Glide
             Glide.with(this)
-                .load(visit.imageUrl)
+                .load(visit.photoUrl)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .placeholder(android.R.drawable.ic_menu_camera)
                 .error(android.R.drawable.ic_menu_close_clear_cancel)
@@ -886,7 +881,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
             // Click para ver en pantalla completa
             photoImageView.setOnClickListener {
-                showFullScreenPhoto(visit.imageUrl!!)
+                showFullScreenPhoto(visit.photoUrl)
             }
 
         } else {
@@ -987,8 +982,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                     val position = LatLng(geoPoint.latitude, geoPoint.longitude)
                     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
                     val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
-                    val time = timeFormat.format(visit.timestamp?.toDate() ?: Date())
-                    val date = dateFormat.format(visit.timestamp?.toDate() ?: Date())
+                    val time = timeFormat.format(Date(visit.timestamp))
+                    val date = dateFormat.format(Date(visit.timestamp))
 
                     val userName = if (visit.userName.isNotEmpty()) visit.userName else getUserNameById(visit.userId)
 

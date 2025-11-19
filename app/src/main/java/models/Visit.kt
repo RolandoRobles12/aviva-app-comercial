@@ -1,22 +1,24 @@
 package com.promotoresavivatunegocio_1.models
 
 import com.google.firebase.firestore.GeoPoint
-import com.google.firebase.Timestamp
 
 data class Visit(
     var id: String = "", // Debe ser var para poder asignar el ID del documento
     val userId: String = "",
     val userName: String = "",
     val businessName: String = "",
-    val comments: String = "",
-    val imageUrl: String? = null,
-    val location: GeoPoint? = null, // Nullable para evitar errores de deserialización
-    val accuracy: Float = 0f,
-    val timestamp: Timestamp? = null, // Nullable para evitar errores de deserialización
+    val businessType: String = "",
+    val address: String = "",
+    val location: GeoPoint? = null,
+    val photoUrl: String = "",
+    val notes: String = "",
     val status: String = "solicitud_creada", // Status por defecto
+    val timestamp: Long = System.currentTimeMillis(),
 
     // CAMPOS PARA EMPAREJAMIENTO CON PROSPECTOS AVIVA
-    val prospectoId: String? = null,
+    val prospectId: String? = null,
+    val kioskId: String? = null,
+    val cityId: String? = null,
     val esProspectoAviva: Boolean = false,
     val probabilidadOriginal: Double? = null
 ) {
