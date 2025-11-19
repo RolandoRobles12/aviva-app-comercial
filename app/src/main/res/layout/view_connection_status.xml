@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista de estado de conexión y sincronización -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/connectionStatusCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:visibility="gone"
+    app:cardBackgroundColor="@color/surface"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:gravity="center_vertical">
+
+        <!-- Icono de estado -->
+        <ImageView
+            android:id="@+id/iconConnectionStatus"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@android:drawable/presence_online"
+            android:layout_marginEnd="8dp"
+            app:tint="@android:color/holo_green_dark" />
+
+        <!-- Texto de estado -->
+        <TextView
+            android:id="@+id/txtConnectionStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Online"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <!-- Contador de pendientes (solo visible si hay pendientes) -->
+        <TextView
+            android:id="@+id/txtPendingCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3 pendientes"
+            android:textSize="11sp"
+            android:visibility="gone"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Botón sincronizar (solo visible si hay pendientes) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSyncNow"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:text="Sincronizar"
+            android:textSize="11sp"
+            android:visibility="gone"
+            android:paddingHorizontal="12dp"
+            app:cornerRadius="16dp"
+            style="@style/Widget.Material3.Button.TextButton" />
+
+        <!-- Progress indicator (solo visible durante sincronización) -->
+        <ProgressBar
+            android:id="@+id/progressSync"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:visibility="gone"
+            android:indeterminate="true"
+            style="@android:style/Widget.ProgressBar.Small" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
