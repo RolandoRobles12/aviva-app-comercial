@@ -11,3 +11,7 @@
 # Secrets y claves privadas
 local.properties
 secrets.properties
+
+# Node/NPM (solo en raíz, functions/ tiene su propio .gitignore)
+package-lock.json
+node_modules/
