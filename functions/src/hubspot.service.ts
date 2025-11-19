@@ -6,10 +6,8 @@ import axios, { AxiosInstance } from "axios";
  */
 export class HubSpotService {
   private axiosInstance: AxiosInstance;
-  private apiKey: string;
 
   constructor(apiKey: string) {
-    this.apiKey = apiKey;
     this.axiosInstance = axios.create({
       baseURL: "https://api.hubapi.com",
       headers: {
