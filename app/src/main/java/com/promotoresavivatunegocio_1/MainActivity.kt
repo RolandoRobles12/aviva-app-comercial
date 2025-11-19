@@ -634,15 +634,10 @@ class MainActivity : AppCompatActivity() {
             googleSignInClient.signOut().addOnCompleteListener(this) {
                 Log.d(TAG, "✅ Sesión cerrada exitosamente")
                 showLoginScreen()
-                clearAdminInfo()
-                clearManagerInfo()
 
-                // Reset estados
-                isUserAdmin = false
-                isUserManager = false
-                adminPermissions = emptyList()
-                managerPromoters = emptyList()
-                adminLevel = ""
+                // Reset estados del usuario
+                currentUser = null
+                navigationManager = null
 
                 Log.d(TAG, "🔄 Estados de usuario reseteados")
             }
