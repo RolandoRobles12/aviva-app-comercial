@@ -1060,7 +1060,7 @@
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Loading Overlay -->
-    <FramLayout
+    <FrameLayout
         android:id="@+id/loadingOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -1074,7 +1074,7 @@
             android:layout_gravity="center"
             android:indeterminateTint="@color/white" />
 
-    </FramLayout>
+    </FrameLayout>
 
     <!-- Floating Action Button para Dashboard -->
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
