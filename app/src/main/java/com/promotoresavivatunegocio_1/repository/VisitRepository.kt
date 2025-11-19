@@ -1,17 +1,18 @@
 package com.promotoresavivatunegocio_1.repository
 
 import android.util.Log
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import com.promotoresavivatunegocio_1.database.dao.SyncQueueDao
 import com.promotoresavivatunegocio_1.database.dao.VisitDao
 import com.promotoresavivatunegocio_1.database.entities.SyncQueue
 import com.promotoresavivatunegocio_1.database.entities.VisitLocal
+import com.promotoresavivatunegocio_1.models.Visit
 import com.promotoresavivatunegocio_1.utils.NetworkConnectivityManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
-import models.Visit
 
 /**
  * Repository para gestionar visitas con soporte offline
@@ -209,24 +210,25 @@ class VisitRepository(
  * Extensiones para convertir entre modelos
  */
 private fun Visit.toLocal(): VisitLocal {
+    val timestampMillis = this.timestamp?.toDate()?.time ?: System.currentTimeMillis()
+
     return VisitLocal(
         id = this.id,
         userId = this.userId,
         userName = this.userName,
         businessName = this.businessName,
-        businessType = this.businessType,
-        address = this.address,
-        latitude = this.location.latitude,
-        longitude = this.location.longitude,
-        photoUrl = this.photoUrl,
-        notes = this.notes,
+        comments = this.comments,
+        imageUrl = this.imageUrl,
+        latitude = this.location?.latitude,
+        longitude = this.location?.longitude,
+        accuracy = this.accuracy,
+        timestampMillis = timestampMillis,
         status = this.status,
-        timestamp = this.timestamp,
-        createdAt = this.timestamp,
+        createdAt = timestampMillis,
         updatedAt = System.currentTimeMillis(),
-        prospectId = this.prospectId,
-        kioskId = this.kioskId,
-        cityId = this.cityId
+        prospectoId = this.prospectoId,
+        esProspectoAviva = this.esProspectoAviva,
+        probabilidadOriginal = this.probabilidadOriginal
     )
 }
 
@@ -236,15 +238,14 @@ private fun VisitLocal.toVisit(): Visit {
         userId = this.userId,
         userName = this.userName,
         businessName = this.businessName,
-        businessType = this.businessType,
-        address = this.address,
+        comments = this.comments,
+        imageUrl = this.imageUrl,
         location = this.toGeoPoint(),
-        photoUrl = this.photoUrl ?: "",
-        notes = this.notes ?: "",
+        accuracy = this.accuracy,
+        timestamp = Timestamp(java.util.Date(this.timestampMillis)),
         status = this.status,
-        timestamp = this.timestamp,
-        prospectId = this.prospectId,
-        kioskId = this.kioskId,
-        cityId = this.cityId
+        prospectoId = this.prospectoId,
+        esProspectoAviva = this.esProspectoAviva,
+        probabilidadOriginal = this.probabilidadOriginal
     )
 }

@@ -7,27 +7,33 @@ import com.google.firebase.firestore.GeoPoint
 /**
  * Entidad Room para almacenar visitas localmente
  * Permite funcionamiento offline y sincronización posterior
+ *
+ * Campos alineados con com.promotoresavivatunegocio_1.models.Visit
  */
 @Entity(tableName = "visits")
 data class VisitLocal(
     @PrimaryKey
     val id: String,
 
-    // Información de la visita
+    // Información de la visita (coincide con Visit.kt)
     val userId: String,
     val userName: String,
     val businessName: String,
-    val businessType: String,
-    val address: String,
-    val latitude: Double,
-    val longitude: Double,
-    val photoUrl: String? = null,
-    val photoLocalPath: String? = null, // Path local si no se subió
-    val notes: String? = null,
-    val status: String, // "Solicitud creada", "No interesado", etc.
+    val comments: String = "", // Corresponde a "comments" en Visit
+    val imageUrl: String? = null, // Corresponde a "imageUrl" en Visit
+    val imageLocalPath: String? = null, // Path local si no se subió
+    val latitude: Double? = null, // location es nullable en Visit
+    val longitude: Double? = null,
+    val accuracy: Float = 0f,
+    val timestampMillis: Long, // Timestamp convertido a millis
+    val status: String,
+
+    // Campos de emparejamiento con prospectos
+    val prospectoId: String? = null,
+    val esProspectoAviva: Boolean = false,
+    val probabilidadOriginal: Double? = null,
 
     // Metadata
-    val timestamp: Long,
     val createdAt: Long,
     val updatedAt: Long,
 
@@ -35,50 +41,53 @@ data class VisitLocal(
     val isSynced: Boolean = false,
     val syncAttempts: Int = 0,
     val lastSyncAttempt: Long? = null,
-    val syncError: String? = null,
-
-    // Información adicional
-    val prospectId: String? = null,
-    val kioskId: String? = null,
-    val cityId: String? = null
+    val syncError: String? = null
 ) {
     /**
-     * Convierte GeoPoint a coordenadas para Room
+     * Convierte coordenadas a GeoPoint (puede ser null)
      */
-    fun toGeoPoint(): GeoPoint = GeoPoint(latitude, longitude)
+    fun toGeoPoint(): GeoPoint? {
+        return if (latitude != null && longitude != null) {
+            GeoPoint(latitude, longitude)
+        } else null
+    }
 
     companion object {
         /**
-         * Crea una VisitLocal desde coordenadas
+         * Crea una VisitLocal desde GeoPoint
          */
         fun fromGeoPoint(
             id: String,
             userId: String,
             userName: String,
             businessName: String,
-            businessType: String,
-            address: String,
-            geoPoint: GeoPoint,
-            photoUrl: String? = null,
-            notes: String? = null,
+            comments: String = "",
+            geoPoint: GeoPoint?,
+            imageUrl: String? = null,
+            accuracy: Float = 0f,
             status: String,
-            timestamp: Long = System.currentTimeMillis()
+            timestampMillis: Long = System.currentTimeMillis(),
+            prospectoId: String? = null,
+            esProspectoAviva: Boolean = false,
+            probabilidadOriginal: Double? = null
         ): VisitLocal {
             return VisitLocal(
                 id = id,
                 userId = userId,
                 userName = userName,
                 businessName = businessName,
-                businessType = businessType,
-                address = address,
-                latitude = geoPoint.latitude,
-                longitude = geoPoint.longitude,
-                photoUrl = photoUrl,
-                notes = notes,
+                comments = comments,
+                latitude = geoPoint?.latitude,
+                longitude = geoPoint?.longitude,
+                accuracy = accuracy,
+                imageUrl = imageUrl,
+                timestampMillis = timestampMillis,
                 status = status,
-                timestamp = timestamp,
-                createdAt = timestamp,
-                updatedAt = timestamp
+                createdAt = timestampMillis,
+                updatedAt = timestampMillis,
+                prospectoId = prospectoId,
+                esProspectoAviva = esProspectoAviva,
+                probabilidadOriginal = probabilidadOriginal
             )
         }
     }
