@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var locationManager: LocationManager
 
     // Sistema de roles basado en User model
-    private var currentUser: models.User? = null
+    internal var currentUser: models.User? = null // Accessible by fragments
     private var navigationManager: com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager? = null
 
     companion object {
