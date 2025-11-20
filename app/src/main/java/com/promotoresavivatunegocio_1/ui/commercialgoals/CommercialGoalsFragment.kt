@@ -54,9 +54,9 @@ class CommercialGoalsFragment : Fragment() {
 
     private fun navigateToMetrics() {
         try {
-            findNavController().navigate(R.id.navigation_metrics)
+            findNavController().navigate(R.id.navigation_metas_bono)
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Error al navegar a Métricas", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Error al navegar a Metas & Bono", Toast.LENGTH_SHORT).show()
         }
     }
 

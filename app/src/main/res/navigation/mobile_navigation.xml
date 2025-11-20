@@ -19,6 +19,13 @@
         android:label="Mis metas comerciales"
         tools:layout="@layout/fragment_commercial_goals" />
 
+    <!-- Metas & Bono - Front -->
+    <fragment
+        android:id="@+id/navigation_metas_bono"
+        android:name="com.promotoresavivatunegocio_1.ui.metasbono.MetasBonoFragment"
+        android:label="Metas &amp; Bono"
+        tools:layout="@layout/fragment_metas_bono" />
+
     <!-- Registro (Menú con 3 opciones) -->
     <fragment
         android:id="@+id/navigation_registro"
