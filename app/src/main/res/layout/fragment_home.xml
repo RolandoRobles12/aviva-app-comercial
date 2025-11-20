@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView
-    android:id="@+id/scrollView"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
-    android:splitMotionEvents="false"
     android:fillViewport="true"
     tools:context=".ui.home.HomeFragment">
 
@@ -15,9 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp"
-        android:splitMotionEvents="false"
-        android:descendantFocusability="beforeDescendants">
+        android:padding="20dp">
 
         <!-- Header moderno con gradiente -->
         <com.google.android.material.card.MaterialCardView
@@ -32,7 +28,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="24dp"
+                android:padding="28dp"
                 android:background="@drawable/gradient_primary">
 
                 <TextView
@@ -40,7 +36,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="¡Bienvenido!"
-                    android:textSize="28sp"
+                    android:textSize="32sp"
                     android:textStyle="bold"
                     android:textColor="@color/white"
                     android:gravity="center"
@@ -49,547 +45,375 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Gestiona tu trabajo de promoción"
+                    android:text="Panel de Inicio"
                     android:textSize="16sp"
                     android:textColor="@color/white"
                     android:gravity="center"
                     android:layout_marginTop="8dp"
-                    android:alpha="0.9"
+                    android:alpha="0.95"
                     android:fontFamily="sans-serif-light" />
 
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== SECCIÓN: AVIVA TU NEGOCIO CON BOTÓN AOS ===== -->
+        <!-- Card 1: Mis metas comerciales -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/avivaCard"
+            android:id="@+id/cardMetasComerciales"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:layout_height="140dp"
+            android:layout_marginBottom="16dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="8dp"
             app:cardBackgroundColor="@color/surface"
             app:strokeColor="@color/primary_container"
-            app:strokeWidth="2dp">
+            app:strokeWidth="2dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- Header con icono -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="12dp">
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="4dp"
-                        app:cardBackgroundColor="@color/primary_container"
-                        android:layout_marginEnd="16dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text="🚀"
-                            android:textSize="20sp"
-                            android:gravity="center" />
-
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Aviva Tu Negocio"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text"
-                        android:fontFamily="sans-serif-medium" />
-
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tvProspectosInfo"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Encuentra negocios elegibles para Aviva Tu Negocio"
-                    android:textSize="15sp"
-                    android:textColor="@color/secondary_text"
-                    android:gravity="center"
-                    android:lineSpacingExtra="2dp"
-                    android:layout_marginBottom="20dp" />
-
-                <!-- Primera fila de botones: Buscar y Ver Lista -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal"
-                    android:gravity="center">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnBuscarProspectos"
-                        android:layout_width="0dp"
-                        android:layout_height="56dp"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="8dp"
-                        android:text="🔍 Buscar Ahora"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        app:backgroundTint="@color/primary"
-                        app:cornerRadius="16dp"
-                        app:elevation="4dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnVerProspectos"
-                        android:layout_width="0dp"
-                        android:layout_height="56dp"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:text="📋 Ver Lista"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        app:backgroundTint="@color/secondary"
-                        app:cornerRadius="16dp"
-                        app:elevation="4dp" />
-
-                </LinearLayout>
-
-                <!-- NUEVO: Botón para crear solicitud en AOS -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnCrearSolicitudAOS"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="16dp"
-                    android:text="📝 Crear Solicitud en AOS"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:background="@drawable/gradient_light"
-                    android:textColor="@color/primary_dark"
-                    app:cornerRadius="16dp"
-                    app:elevation="6dp" />
-
-                <!-- Indicador de progreso para búsqueda -->
-                <ProgressBar
-                    android:id="@+id/progressBarProspectos"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="8dp"
-                    android:visibility="gone" />
-
-                <!-- Info rápida de resultados -->
-                <TextView
-                    android:id="@+id/tvResultadosRapidos"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text=""
-                    android:textSize="12sp"
-                    android:textColor="#2E7D32"
-                    android:gravity="center"
-                    android:visibility="gone" />
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- ===== ESTADÍSTICAS RÁPIDAS ===== -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="12dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="6dp"
-                app:cardBackgroundColor="@color/surface"
-                app:strokeColor="@color/success_background"
-                app:strokeWidth="2dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp"
-                    android:gravity="center">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🎯"
-                        android:textSize="24sp"
-                        android:layout_marginBottom="8dp" />
-
-                    <TextView
-                        android:id="@+id/tvProspectosHoy"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary"
-                        android:fontFamily="sans-serif-medium" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Prospectos"
-                        android:textSize="14sp"
-                        android:textColor="@color/secondary_text"
-                        android:fontFamily="sans-serif-light" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="12dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="6dp"
-                app:cardBackgroundColor="@color/surface"
-                app:strokeColor="@color/secondary_container"
-                app:strokeWidth="2dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp"
-                    android:gravity="center">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="📞"
-                        android:textSize="24sp"
-                        android:layout_marginBottom="8dp" />
-
-                    <TextView
-                        android:id="@+id/tvLlamadasHoy"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/secondary"
-                        android:fontFamily="sans-serif-medium" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Llamadas"
-                        android:textSize="14sp"
-                        android:textColor="@color/secondary_text"
-                        android:fontFamily="sans-serif-light" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-        </LinearLayout>
-
-        <!-- Mapa -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:layout_marginBottom="24dp"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="8dp"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
-
-            <fragment
-                android:id="@+id/map"
-                android:name="com.google.android.gms.maps.SupportMapFragment"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:clickable="true"
-                android:focusable="true"
-                android:focusableInTouchMode="true" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Botón para registrar visita -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRegisterVisit"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="✨ Registrar Nueva Visita"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:background="@drawable/gradient_primary"
-            android:textColor="@color/white"
-            app:cornerRadius="16dp"
-            app:elevation="6dp"
-            android:layout_marginBottom="20dp" />
-
-        <!-- Formulario de visita CON SELECTOR DE STATUS -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/visitFormCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:layout_marginBottom="24dp"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="8dp"
-            app:cardBackgroundColor="@color/surface"
-            app:strokeColor="@color/primary_container"
-            app:strokeWidth="2dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="24dp"
+                android:gravity="center">
 
-                <!-- Header del formulario -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="24dp">
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="4dp"
-                        app:cardBackgroundColor="@color/primary_container"
-                        android:layout_marginEnd="16dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text="📋"
-                            android:textSize="20sp"
-                            android:gravity="center" />
-
-                    </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/primary_container"
+                    android:layout_marginBottom="12dp">
 
                     <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Registrar Nueva Visita"
-                        android:textSize="22sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text"
-                        android:fontFamily="sans-serif-medium" />
-
-                </LinearLayout>
-
-                <!-- Nombre del negocio -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/businessNameInput"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Nombre del negocio" />
+                        android:layout_height="match_parent"
+                        android:text="🎯"
+                        android:textSize="28sp"
+                        android:gravity="center" />
 
-                </com.google.android.material.textfield.TextInputLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                <!-- NUEVO: Selector de Status con Spinner tradicional -->
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Estado de la visita"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"
-                    android:textColor="@android:color/black" />
-
-                <Spinner
-                    android:id="@+id/statusSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginBottom="16dp"
-                    android:background="@android:drawable/btn_dropdown"
-                    android:padding="12dp" />
-
-                <!-- Comentarios -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/commentsInput"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Comentarios"
-                        android:lines="3"
-                        android:gravity="top" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Botones de imagen -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="16dp">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnTakePhoto"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:text="📷 Tomar Foto"
-                        android:layout_marginEnd="8dp"
-                        app:strokeColor="@color/primary"
-                        app:strokeWidth="2dp"
-                        android:textColor="@color/primary"
-                        app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSelectPhoto"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:text="🖼️ Seleccionar"
-                        android:layout_marginStart="8dp"
-                        app:strokeColor="@color/secondary"
-                        app:strokeWidth="2dp"
-                        android:textColor="@color/secondary"
-                        app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
-
-                </LinearLayout>
-
-                <!-- Vista previa de imagen -->
-                <ImageView
-                    android:id="@+id/imagePreview"
-                    android:layout_width="200dp"
-                    android:layout_height="200dp"
-                    android:layout_gravity="center"
-                    android:layout_marginBottom="16dp"
-                    android:scaleType="centerCrop"
-                    android:visibility="gone"
-                    android:background="@android:color/darker_gray" />
-
-                <!-- Barra de progreso -->
-                <ProgressBar
-                    android:id="@+id/progressBar"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginBottom="16dp"
-                    android:visibility="gone" />
-
-                <!-- Botones de acción -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnCancelVisit"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:text="❌ Cancelar"
-                        android:layout_marginEnd="8dp"
-                        app:strokeColor="@color/error_color"
-                        app:strokeWidth="2dp"
-                        android:textColor="@color/error_color"
-                        app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSubmitVisit"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:text="✅ Guardar Visita"
-                        android:layout_marginStart="8dp"
-                        app:backgroundTint="@color/primary"
-                        app:cornerRadius="12dp" />
-
-                </LinearLayout>
-
-                <!-- NUEVO: Botón AOS en formulario también -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnCrearSolicitudAOSForm"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="16dp"
-                    android:text="📝 Crear Solicitud en AOS"
-                    android:textSize="14sp"
-                    android:background="@drawable/gradient_light"
-                    android:textColor="@color/primary_dark"
-                    app:cornerRadius="12dp" />
+                    android:text="Mis metas comerciales"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_text"
+                    android:fontFamily="sans-serif-medium" />
 
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Título de visitas recientes -->
+        <!-- Card 2: Mi carrera -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardMiCarrera"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@color/surface"
+            app:strokeColor="@color/secondary_container"
+            app:strokeWidth="2dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:gravity="center">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/secondary_container"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="🚀"
+                        android:textSize="28sp"
+                        android:gravity="center" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Mi carrera"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_text"
+                    android:fontFamily="sans-serif-medium" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Fila 3: Registro y Mi camino de aprendizaje -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
             android:layout_marginBottom="16dp">
 
+            <!-- Card 3: Registro -->
             <com.google.android.material.card.MaterialCardView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:id="@+id/cardRegistro"
+                android:layout_width="0dp"
+                android:layout_height="160dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                app:cardBackgroundColor="@color/primary_container"
-                android:layout_marginEnd="12dp">
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/primary_light"
+                app:strokeWidth="2dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:text="📊"
-                    android:textSize="18sp"
-                    android:gravity="center" />
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/primary_light"
+                        android:layout_marginBottom="12dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="📝"
+                            android:textSize="24sp"
+                            android:gravity="center" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Registro"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Turnos + Rutas"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:gravity="center"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif-light" />
+
+                </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <TextView
+            <!-- Card 4: Mi camino de aprendizaje -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAprendizaje"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="160dp"
                 android:layout_weight="1"
-                android:text="Visitas Recientes"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/primary_text"
-                android:fontFamily="sans-serif-medium" />
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/primary_light"
+                app:strokeWidth="2dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/primary_light"
+                        android:layout_marginBottom="12dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="📚"
+                            android:textSize="24sp"
+                            android:gravity="center" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mi camino de"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="aprendizaje"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 
-        <!-- Lista de visitas recientes -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recentVisitsRecyclerView"
+        <!-- Fila 4: Ayuda y Trámites -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
-            tools:listitem="@layout/item_visit" />
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <!-- Card 5: Ayuda -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAyuda"
+                android:layout_width="0dp"
+                android:layout_height="140dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/divider"
+                app:strokeWidth="2dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:cardCornerRadius="22dp"
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/accent_light"
+                        android:layout_marginBottom="10dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="❓"
+                            android:textSize="22sp"
+                            android:gravity="center" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ayuda"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 6: Trámites -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardTramites"
+                android:layout_width="0dp"
+                android:layout_height="140dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="@color/surface"
+                app:strokeColor="@color/divider"
+                app:strokeWidth="2dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:cardCornerRadius="22dp"
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/accent_light"
+                        android:layout_marginBottom="10dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="📄"
+                            android:textSize="22sp"
+                            android:gravity="center" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Trámites"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:gravity="center"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
 
     </LinearLayout>
 

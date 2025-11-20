@@ -12,6 +12,13 @@
         android:label="Inicio"
         tools:layout="@layout/fragment_home" />
 
+    <!-- Metas Comerciales -->
+    <fragment
+        android:id="@+id/navigation_commercial_goals"
+        android:name="com.promotoresavivatunegocio_1.ui.commercialgoals.CommercialGoalsFragment"
+        android:label="Mis metas comerciales"
+        tools:layout="@layout/fragment_commercial_goals" />
+
     <!-- Métricas y Reportería -->
     <fragment
         android:id="@+id/navigation_metrics"
