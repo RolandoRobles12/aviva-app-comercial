@@ -19,6 +19,13 @@
         android:label="Mis metas comerciales"
         tools:layout="@layout/fragment_commercial_goals" />
 
+    <!-- Registro (Menú con 3 opciones) -->
+    <fragment
+        android:id="@+id/navigation_registro"
+        android:name="com.promotoresavivatunegocio_1.ui.registro.RegistroFragment"
+        android:label="Registro"
+        tools:layout="@layout/fragment_registro" />
+
     <!-- Métricas y Reportería -->
     <fragment
         android:id="@+id/navigation_metrics"
