@@ -67,7 +67,7 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardAsistencia"
             android:layout_width="match_parent"
-            android:layout_height="160dp"
+            android:layout_height="100dp"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="8dp"
@@ -81,9 +81,9 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:padding="24dp"
-                android:gravity="center">
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="60dp"
@@ -91,7 +91,7 @@
                     app:cardCornerRadius="30dp"
                     app:cardElevation="4dp"
                     app:cardBackgroundColor="@color/primary_container"
-                    android:layout_marginBottom="16dp">
+                    android:layout_marginEnd="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -102,25 +102,31 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Registrar entradas,"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:gravity="center"
-                    android:fontFamily="sans-serif-medium" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="comidas y salidas"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:gravity="center"
-                    android:fontFamily="sans-serif-medium" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Registrar entradas,"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="comidas y salidas"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -130,7 +136,7 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardProspectos"
             android:layout_width="match_parent"
-            android:layout_height="160dp"
+            android:layout_height="100dp"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="8dp"
@@ -144,9 +150,9 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:padding="24dp"
-                android:gravity="center">
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="60dp"
@@ -154,7 +160,7 @@
                     app:cardCornerRadius="30dp"
                     app:cardElevation="4dp"
                     app:cardBackgroundColor="@color/secondary_container"
-                    android:layout_marginBottom="16dp">
+                    android:layout_marginEnd="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -165,25 +171,31 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Buscar prospectos y"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:gravity="center"
-                    android:fontFamily="sans-serif-medium" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="levantar solicitudes"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:gravity="center"
-                    android:fontFamily="sans-serif-medium" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Buscar prospectos y"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="levantar solicitudes"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -193,7 +205,7 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardAdvertencias"
             android:layout_width="match_parent"
-            android:layout_height="160dp"
+            android:layout_height="100dp"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="8dp"
@@ -207,9 +219,9 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:padding="24dp"
-                android:gravity="center">
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="60dp"
@@ -217,7 +229,7 @@
                     app:cardCornerRadius="30dp"
                     app:cardElevation="4dp"
                     app:cardBackgroundColor="@color/warning_background"
-                    android:layout_marginBottom="16dp">
+                    android:layout_marginEnd="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -228,25 +240,31 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Advertencias de"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:gravity="center"
-                    android:fontFamily="sans-serif-medium" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="retrasos y faltas"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:gravity="center"
-                    android:fontFamily="sans-serif-medium" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Advertencias de"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="retrasos y faltas"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
