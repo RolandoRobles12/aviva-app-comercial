@@ -47,6 +47,13 @@
         android:label="Perfil"
         tools:layout="@layout/fragment_profile" />
 
+    <!-- Aviva Tu Negocio (búsqueda de prospectos, visitas, mapa) -->
+    <fragment
+        android:id="@+id/navigation_aviva_tu_negocio"
+        android:name="com.promotoresavivatunegocio_1.ui.avivatunegocio.AvivaTuNegocioFragment"
+        android:label="Aviva Tu Negocio"
+        tools:layout="@layout/fragment_aviva_tu_negocio" />
+
     <!-- Admin (oculto en bottom nav, accesible para admins) -->
     <fragment
         android:id="@+id/navigation_admin"
