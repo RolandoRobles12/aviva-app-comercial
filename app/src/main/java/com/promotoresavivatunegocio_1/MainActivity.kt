@@ -277,44 +277,29 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Configurar navegación basada en el rol del usuario
-     * Usa RoleBasedNavigationManager para determinar qué elementos mostrar
+     * Bottom navigation eliminada - navegación ahora a través de la pantalla de inicio
      */
     private fun setupRoleBasedNavigation() {
         try {
             if (navigationManager == null || currentUser == null) {
-                Log.w(TAG, "⚠️ NavigationManager o currentUser es null, usando navegación por defecto")
-                setupDefaultNavigation()
+                Log.w(TAG, "⚠️ NavigationManager o currentUser es null")
                 return
             }
 
-            Log.d(TAG, "🎯 Configurando navegación basada en rol: ${currentUser!!.getRoleDisplayName()}")
-
-            // Configurar visibilidad del menú usando el NavigationManager
-            navigationManager!!.configureBottomNavigation(binding.navView.menu)
-
-            Log.d(TAG, "✅ Navegación configurada correctamente para ${currentUser!!.getRoleDisplayName()}")
+            Log.d(TAG, "🎯 Usuario configurado con rol: ${currentUser!!.getRoleDisplayName()}")
+            Log.d(TAG, "✅ Navegación configurada - usar Home screen para navegar")
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error configurando navegación basada en rol: ${e.message}", e)
-            setupDefaultNavigation()
         }
     }
 
     /**
      * Configurar navegación por defecto cuando no hay usuario o hay error
+     * Bottom navigation eliminada - ya no se usa
      */
     private fun setupDefaultNavigation() {
         try {
-            Log.d(TAG, "🔧 Configurando navegación por defecto...")
-
-            // Ocultar todo excepto lo básico
-            binding.navView.menu.findItem(R.id.navigation_home)?.isVisible = false
-            // Note: Admin removed from bottom nav (5-item limit), accessible via Profile
-            // binding.navView.menu.findItem(R.id.navigation_admin)?.isVisible = false
-            binding.navView.menu.findItem(R.id.navigation_metrics)?.isVisible = true
-            binding.navView.menu.findItem(R.id.navigation_attendance)?.isVisible = true
-            binding.navView.menu.findItem(R.id.navigation_leagues)?.isVisible = true
-            binding.navView.menu.findItem(R.id.navigation_profile)?.isVisible = true
-
+            Log.d(TAG, "🔧 Navegación por defecto - usar Home screen")
             Log.d(TAG, "✅ Navegación por defecto configurada")
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error configurando navegación por defecto: ${e.message}", e)
@@ -449,7 +434,6 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "🔐 Mostrando pantalla de login...")
 
             binding.loginContainer.visibility = View.VISIBLE
-            binding.navView.visibility = View.GONE
 
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.GONE
@@ -470,40 +454,12 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "🏠 Mostrando contenido principal...")
 
             binding.loginContainer.visibility = View.GONE
-            binding.navView.visibility = View.VISIBLE
 
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.VISIBLE
 
-            val navView: BottomNavigationView = binding.navView
-            val navController = findNavController(R.id.navHostFragment)
-
-            // MODIFICADO: Configurar navegación con validación de acceso
-            navView.setupWithNavController(navController)
-
-            // Agregar listener para controlar acceso basado en roles
-            navView.setOnItemSelectedListener { item ->
-                // Si hay navigationManager, usar su validación
-                if (navigationManager != null && !navigationManager!!.canNavigateTo(item.itemId)) {
-                    Log.w(TAG, "❌ Acceso denegado a destino: ${item.itemId}")
-                    Toast.makeText(
-                        this,
-                        "No tienes permisos para acceder a esta sección",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnItemSelectedListener false
-                }
-
-                // Navegación permitida
-                Log.d(TAG, "✅ Navegando a: ${item.itemId}")
-                try {
-                    navController.navigate(item.itemId)
-                    true
-                } catch (e: Exception) {
-                    Log.e(TAG, "💥 Error navegando a ${item.itemId}: ${e.message}", e)
-                    false
-                }
-            }
+            // Bottom navigation eliminada - navegación a través de Home screen
+            Log.d(TAG, "📱 Navegación configurada a través de Home screen")
 
             // Inicializar tracking de ubicación
             if (::locationManager.isInitialized) {
