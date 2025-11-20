@@ -70,7 +70,7 @@ class HomeFragment : Fragment() {
 
         // Card: Registro
         view.findViewById<MaterialCardView>(R.id.cardRegistro).setOnClickListener {
-            navigateToAttendance()
+            navigateToRegistro()
         }
 
         // Card: Mi camino de aprendizaje
@@ -105,9 +105,9 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun navigateToAttendance() {
+    private fun navigateToRegistro() {
         try {
-            findNavController().navigate(R.id.navigation_attendance)
+            findNavController().navigate(R.id.navigation_registro)
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
         }
