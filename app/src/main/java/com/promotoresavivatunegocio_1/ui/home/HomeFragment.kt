@@ -99,7 +99,7 @@ class HomeFragment : Fragment() {
 
     private fun navigateToProfile() {
         try {
-            findNavController().navigate(R.id.navigation_profile)
+            findNavController().navigate(R.id.navigation_mi_carrera)
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
         }
