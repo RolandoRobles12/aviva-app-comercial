@@ -26,6 +26,13 @@
         android:label="Metas &amp; Bono"
         tools:layout="@layout/fragment_metas_bono" />
 
+    <!-- Mi Carrera - Front -->
+    <fragment
+        android:id="@+id/navigation_mi_carrera"
+        android:name="com.promotoresavivatunegocio_1.ui.micarrera.MiCarreraFragment"
+        android:label="Mi Carrera"
+        tools:layout="@layout/fragment_mi_carrera" />
+
     <!-- Registro (Menú con 3 opciones) -->
     <fragment
         android:id="@+id/navigation_registro"
