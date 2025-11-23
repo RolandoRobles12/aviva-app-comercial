@@ -320,7 +320,6 @@ export class HubSpotService {
       }
 
       return {
-        success: true,
         contactId,
         dealId: dealResponse.id,
       };
