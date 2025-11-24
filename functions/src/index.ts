@@ -21,7 +21,12 @@ export const getHubSpotMetrics = functions.https.onRequest(async (req, res) => {
       // Validar autenticación
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "Unauthorized: Missing or invalid token" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized: Missing or invalid token",
+          message: null
+        });
         return;
       }
 
@@ -36,12 +41,22 @@ export const getHubSpotMetrics = functions.https.onRequest(async (req, res) => {
         const userData = userDoc.data();
 
         if (!userData || userData.role !== "admin") {
-          res.status(403).json({ error: "Forbidden: Admin access required" });
+          res.status(403).json({
+            success: false,
+            data: null,
+            error: "Forbidden: Admin access required",
+            message: null
+          });
           return;
         }
       } catch (authError) {
         console.error("Authentication error:", authError);
-        res.status(401).json({ error: "Unauthorized: Invalid token" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized: Invalid token",
+          message: null
+        });
         return;
       }
 
@@ -49,8 +64,10 @@ export const getHubSpotMetrics = functions.https.onRequest(async (req, res) => {
       const hubspotApiKey = functions.config().hubspot?.apikey;
       if (!hubspotApiKey) {
         res.status(500).json({
-          error: "HubSpot API key not configured",
-          hint: "Run: firebase functions:config:set hubspot.apikey=\"YOUR_API_KEY\"",
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured. Run: firebase functions:config:set hubspot.apikey=\"YOUR_API_KEY\"",
+          message: null,
         });
         return;
       }
@@ -73,12 +90,16 @@ export const getHubSpotMetrics = functions.https.onRequest(async (req, res) => {
       res.status(200).json({
         success: true,
         data: analytics,
+        message: null,
+        error: null
       });
     } catch (error: any) {
       console.error("Error getting HubSpot metrics:", error);
       res.status(500).json({
+        success: false,
+        data: null,
         error: "Failed to fetch HubSpot metrics",
-        details: error.message,
+        message: error.message,
       });
     }
   });
@@ -94,7 +115,12 @@ export const getDealsMetrics = functions.https.onRequest(async (req, res) => {
       // Validar autenticación
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized",
+          message: null
+        });
         return;
       }
 
@@ -106,13 +132,23 @@ export const getDealsMetrics = functions.https.onRequest(async (req, res) => {
       const userData = userDoc.data();
 
       if (!userData || userData.role !== "admin") {
-        res.status(403).json({ error: "Forbidden: Admin access required" });
+        res.status(403).json({
+          success: false,
+          data: null,
+          error: "Forbidden: Admin access required",
+          message: null
+        });
         return;
       }
 
       const hubspotApiKey = functions.config().hubspot?.apikey;
       if (!hubspotApiKey) {
-        res.status(500).json({ error: "HubSpot API key not configured" });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured",
+          message: null
+        });
         return;
       }
 
@@ -128,12 +164,16 @@ export const getDealsMetrics = functions.https.onRequest(async (req, res) => {
       res.status(200).json({
         success: true,
         data: dealsMetrics,
+        message: null,
+        error: null
       });
     } catch (error: any) {
       console.error("Error getting deals metrics:", error);
       res.status(500).json({
+        success: false,
+        data: null,
         error: "Failed to fetch deals metrics",
-        details: error.message,
+        message: error.message,
       });
     }
   });
@@ -148,7 +188,12 @@ export const getContactsMetrics = functions.https.onRequest(async (req, res) => 
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized",
+          message: null
+        });
         return;
       }
 
@@ -159,13 +204,23 @@ export const getContactsMetrics = functions.https.onRequest(async (req, res) => 
       const userData = userDoc.data();
 
       if (!userData || userData.role !== "admin") {
-        res.status(403).json({ error: "Forbidden: Admin access required" });
+        res.status(403).json({
+          success: false,
+          data: null,
+          error: "Forbidden: Admin access required",
+          message: null
+        });
         return;
       }
 
       const hubspotApiKey = functions.config().hubspot?.apikey;
       if (!hubspotApiKey) {
-        res.status(500).json({ error: "HubSpot API key not configured" });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured",
+          message: null
+        });
         return;
       }
 
@@ -181,12 +236,16 @@ export const getContactsMetrics = functions.https.onRequest(async (req, res) => 
       res.status(200).json({
         success: true,
         data: contactsMetrics,
+        message: null,
+        error: null
       });
     } catch (error: any) {
       console.error("Error getting contacts metrics:", error);
       res.status(500).json({
+        success: false,
+        data: null,
         error: "Failed to fetch contacts metrics",
-        details: error.message,
+        message: error.message,
       });
     }
   });
@@ -202,7 +261,12 @@ export const syncVisitToHubSpot = functions.https.onRequest(async (req, res) => 
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized",
+          message: null
+        });
         return;
       }
 
@@ -213,32 +277,57 @@ export const syncVisitToHubSpot = functions.https.onRequest(async (req, res) => 
       const userData = userDoc.data();
 
       if (!userData || userData.role !== "admin") {
-        res.status(403).json({ error: "Forbidden: Admin access required" });
+        res.status(403).json({
+          success: false,
+          data: null,
+          error: "Forbidden: Admin access required",
+          message: null
+        });
         return;
       }
 
       const { visitId } = req.body;
       if (!visitId) {
-        res.status(400).json({ error: "Missing visitId" });
+        res.status(400).json({
+          success: false,
+          data: null,
+          error: "Missing visitId",
+          message: null
+        });
         return;
       }
 
       // Obtener datos de la visita desde Firestore
       const visitDoc = await admin.firestore().collection("visits").doc(visitId).get();
       if (!visitDoc.exists) {
-        res.status(404).json({ error: "Visit not found" });
+        res.status(404).json({
+          success: false,
+          data: null,
+          error: "Visit not found",
+          message: null
+        });
         return;
       }
 
       const visitData = visitDoc.data();
       if (!visitData) {
-        res.status(404).json({ error: "Visit data is empty" });
+        res.status(404).json({
+          success: false,
+          data: null,
+          error: "Visit data is empty",
+          message: null
+        });
         return;
       }
 
       const hubspotApiKey = functions.config().hubspot?.apikey;
       if (!hubspotApiKey) {
-        res.status(500).json({ error: "HubSpot API key not configured" });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured",
+          message: null
+        });
         return;
       }
 
@@ -269,14 +358,19 @@ export const syncVisitToHubSpot = functions.https.onRequest(async (req, res) => 
 
       res.status(200).json({
         success: true,
-        data: syncResult,
+        data: {
+          contactId: syncResult.contactId,
+          dealId: syncResult.dealId,
+        },
         message: "Visit synced to HubSpot successfully",
       });
     } catch (error: any) {
       console.error("Error syncing visit to HubSpot:", error);
       res.status(500).json({
+        success: false,
+        data: null,
         error: "Failed to sync visit to HubSpot",
-        details: error.message,
+        message: error.message,
       });
     }
   });
@@ -292,7 +386,12 @@ export const batchSyncVisits = functions.https.onRequest(async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized",
+          message: null
+        });
         return;
       }
 
@@ -303,19 +402,34 @@ export const batchSyncVisits = functions.https.onRequest(async (req, res) => {
       const userData = userDoc.data();
 
       if (!userData || userData.role !== "admin") {
-        res.status(403).json({ error: "Forbidden: Admin access required" });
+        res.status(403).json({
+          success: false,
+          data: null,
+          error: "Forbidden: Admin access required",
+          message: null
+        });
         return;
       }
 
       const { visitIds } = req.body;
       if (!visitIds || !Array.isArray(visitIds) || visitIds.length === 0) {
-        res.status(400).json({ error: "Missing or invalid visitIds array" });
+        res.status(400).json({
+          success: false,
+          data: null,
+          error: "Missing or invalid visitIds array",
+          message: null
+        });
         return;
       }
 
       const hubspotApiKey = functions.config().hubspot?.apikey;
       if (!hubspotApiKey) {
-        res.status(500).json({ error: "HubSpot API key not configured" });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured",
+          message: null
+        });
         return;
       }
 
@@ -373,14 +487,20 @@ export const batchSyncVisits = functions.https.onRequest(async (req, res) => {
 
       res.status(200).json({
         success: true,
-        data: results,
+        data: {
+          success: results.success,
+          failed: results.failed,
+          errors: results.errors,
+        },
         message: `Synced ${results.success} visits, ${results.failed} failed`,
       });
     } catch (error: any) {
       console.error("Error in batch sync:", error);
       res.status(500).json({
+        success: false,
+        data: null,
         error: "Failed to batch sync visits",
-        details: error.message,
+        message: error.message,
       });
     }
   });
@@ -395,7 +515,12 @@ export const getPipelineMetrics = functions.https.onRequest(async (req, res) => 
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized",
+          message: null
+        });
         return;
       }
 
@@ -406,13 +531,23 @@ export const getPipelineMetrics = functions.https.onRequest(async (req, res) => 
       const userData = userDoc.data();
 
       if (!userData || userData.role !== "admin") {
-        res.status(403).json({ error: "Forbidden: Admin access required" });
+        res.status(403).json({
+          success: false,
+          data: null,
+          error: "Forbidden: Admin access required",
+          message: null
+        });
         return;
       }
 
       const hubspotApiKey = functions.config().hubspot?.apikey;
       if (!hubspotApiKey) {
-        res.status(500).json({ error: "HubSpot API key not configured" });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured",
+          message: null
+        });
         return;
       }
 
@@ -422,12 +557,16 @@ export const getPipelineMetrics = functions.https.onRequest(async (req, res) => 
       res.status(200).json({
         success: true,
         data: pipelineMetrics,
+        message: null,
+        error: null
       });
     } catch (error: any) {
       console.error("Error getting pipeline metrics:", error);
       res.status(500).json({
+        success: false,
+        data: null,
         error: "Failed to fetch pipeline metrics",
-        details: error.message,
+        message: error.message,
       });
     }
   });
