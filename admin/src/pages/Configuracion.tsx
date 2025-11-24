@@ -21,24 +21,48 @@ import {
 import { db } from '../config/firebase';
 
 interface SystemConfig {
-  // URLs
+  // URLs críticas (actualmente hardcodeadas)
+  denueApiUrl?: string;
+  denueToken?: string;
+  attendanceWebUrl?: string;
+  aosLoginUrl?: string;
+  lookerDashboardUrl?: string;
   helpUrl?: string;
   privacyPolicyUrl?: string;
   termsOfServiceUrl?: string;
+
+  // Parámetros de Búsqueda DENUE
+  denueSearchRadius?: number; // en metros (actualmente inconsistente: 3000, 2000, 1500)
+  denueMaxResults?: number;
+  denueRequestDelay?: number; // en ms
+
+  // Configuración de Prospección
+  maxProspectosPorDia?: number;
+  maxDistanciaProspecto?: number; // en metros
+  tiempoMinimoEntreBusquedas?: number; // en segundos
+
+  // Location Tracking
+  locationUpdateInterval?: number; // en minutos
+  locationFastestInterval?: number; // en minutos
+  locationMinDisplacement?: number; // en metros
+  locationTimeout?: number; // en segundos
 
   // Features
   enableAttendance?: boolean;
   enableMetrics?: boolean;
   enableHubSpotSync?: boolean;
   enableNotifications?: boolean;
+  enableDenueSearch?: boolean;
 
   // Attendance
   attendanceCheckInRadius?: number;
   attendanceRequirePhoto?: boolean;
   attendanceGracePeriodMinutes?: number;
 
-  // Metrics
-  metricsUpdateIntervalMinutes?: number;
+  // Imágenes
+  maxImageSizeMB?: number;
+  maxImageResolution?: number;
+  imageCompressionQuality?: number;
 
   // General
   appMaintenanceMode?: boolean;
@@ -65,19 +89,51 @@ const Configuracion: React.FC = () => {
       if (docSnap.exists()) {
         setConfig(docSnap.data() as SystemConfig);
       } else {
-        // Configuración por defecto
+        // Configuración por defecto basada en valores actuales del código
         setConfig({
+          // URLs actualmente hardcodeadas
+          denueApiUrl: 'https://www.inegi.org.mx/app/api/denue/v1/consulta',
+          attendanceWebUrl: 'https://registro-aviva.web.app/',
+          aosLoginUrl: 'https://aos.cloudaviva.com/auth/azure/sign-in?returnTo=%2Fdashboard%2Fcustomer',
+          lookerDashboardUrl: 'https://lookerstudio.google.com/u/0/reporting/5f4ab63e-bea9-4726-96f3-078ffd1ff9cb',
           helpUrl: 'https://ayuda.avivacredito.com',
           privacyPolicyUrl: 'https://avivacredito.com/privacidad',
           termsOfServiceUrl: 'https://avivacredito.com/terminos',
+
+          // Parámetros DENUE (actualmente: 3000 en AvivaConfig, 2000 en ProspeccionService, 1500 en DenueService)
+          denueSearchRadius: 3000,
+          denueMaxResults: 50,
+          denueRequestDelay: 500,
+
+          // Prospección
+          maxProspectosPorDia: 5,
+          maxDistanciaProspecto: 75,
+          tiempoMinimoEntreBusquedas: 8,
+
+          // Location
+          locationUpdateInterval: 15,
+          locationFastestInterval: 5,
+          locationMinDisplacement: 75,
+          locationTimeout: 12,
+
+          // Features
           enableAttendance: true,
           enableMetrics: true,
           enableHubSpotSync: true,
           enableNotifications: true,
+          enableDenueSearch: true,
+
+          // Attendance
           attendanceCheckInRadius: 100,
           attendanceRequirePhoto: true,
           attendanceGracePeriodMinutes: 15,
-          metricsUpdateIntervalMinutes: 60,
+
+          // Imágenes
+          maxImageSizeMB: 5,
+          maxImageResolution: 1920,
+          imageCompressionQuality: 85,
+
+          // General
           appMaintenanceMode: false,
           appMinimumVersion: '1.0.0',
           forceUpdate: false
