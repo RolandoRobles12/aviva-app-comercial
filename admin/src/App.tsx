@@ -5,7 +5,8 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Kioscos from './pages/Kioscos';
-import TextosDinamicos from './pages/TextosDinamicos';
+import Giros from './pages/Giros';
+import Administradores from './pages/Administradores';
 import Configuracion from './pages/Configuracion';
 
 const theme = createTheme({
@@ -48,7 +49,8 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="kioscos" element={<Kioscos />} />
-        <Route path="textos" element={<TextosDinamicos />} />
+        <Route path="giros" element={<Giros />} />
+        <Route path="administradores" element={<Administradores />} />
         <Route path="config" element={<Configuracion />} />
       </Route>
     </Routes>

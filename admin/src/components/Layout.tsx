@@ -19,7 +19,8 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import StoreIcon from '@mui/icons-material/Store';
-import TextFieldsIcon from '@mui/icons-material/TextFields';
+import CategoryIcon from '@mui/icons-material/Category';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
@@ -30,7 +31,8 @@ const DRAWER_WIDTH = 240;
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Kioscos', icon: <StoreIcon />, path: '/kioscos' },
-  { text: 'Textos Dinámicos', icon: <TextFieldsIcon />, path: '/textos' },
+  { text: 'Catálogo de Giros', icon: <CategoryIcon />, path: '/giros' },
+  { text: 'Administradores', icon: <AdminPanelSettingsIcon />, path: '/administradores' },
   { text: 'Configuración', icon: <SettingsIcon />, path: '/config' }
 ];
 
