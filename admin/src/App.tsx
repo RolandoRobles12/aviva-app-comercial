@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Kioscos from './pages/Kioscos';
 import Giros from './pages/Giros';
 import Administradores from './pages/Administradores';
 import Configuracion from './pages/Configuracion';
@@ -48,7 +47,6 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
-        <Route path="kioscos" element={<Kioscos />} />
         <Route path="giros" element={<Giros />} />
         <Route path="administradores" element={<Administradores />} />
         <Route path="config" element={<Configuracion />} />
