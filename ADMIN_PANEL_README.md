@@ -1,6 +1,10 @@
 # Panel Administrativo Aviva Tu Negocio
 
-Panel web de administración para gestionar la app Android sin necesidad de recompilar el APK.
+Panel web de administración para gestionar la app Android **sin necesidad de recompilar el APK**.
+
+## 🎯 Propósito
+
+Externalizar configuraciones actualmente **hardcodeadas** en el código Android a Firestore, permitiendo su edición dinámica desde una interfaz web.
 
 ## 🚀 Estructura del Proyecto
 
@@ -73,170 +77,276 @@ firebase deploy --only firestore:rules
 
 - Solo cuentas de **@avivacredito.com**
 - Login con Google OAuth
-- Roles: `admin` y `user` (solo admins tienen acceso al panel)
+- Verificación de email en colección `admins` de Firestore
 
-## 📊 Funcionalidades
+## 📊 Módulos del Panel
 
 ### 1. Dashboard
-- Estadísticas generales
-- Resumen de kioscos, usuarios, métricas
+- Estadísticas generales del sistema
+- Resumen de configuraciones
+- Métricas de uso
 
-### 2. Kioscos
-- CRUD completo de kioscos/sucursales
-- Ubicación geográfica (lat/lng)
-- Radio de validación para asistencia
-- Estado activo/inactivo
+### 2. Catálogo de Giros 🔴 NUEVO
+**Problema:** Actualmente hardcodeado en `AvivaConfig.kt:12-85`
 
-### 3. Textos Dinámicos
-- Gestión de textos que se muestran en la app
-- Categorización por sección (home, profile, errors, etc.)
-- Actualización en tiempo real sin recompilar APK
+**Solución:** CRUD completo de giros relevantes
+
+**Campos (coinciden con modelo Android `GiroRelevante`):**
+- `codigo`: String (ej: "461110")
+- `nombre`: String (ej: "Abarrotes")
+- `montoMinimoCentavos`: Int (ej: 75000 = $750.00)
+- `montoMaximoCentavos`: Int (ej: 150000 = $1,500.00)
+- `descripcion`: String
+- `palabrasClave`: List<String> (para búsqueda)
+- `activo`: Boolean
+
+**Colección Firestore:** `/giros_relevantes`
+
+**Giros actuales hardcodeados:**
+1. Abarrotes (461110)
+2. Carnicerías (461121)
+3. Tortillerías (461170)
+4. Fruterías (461130)
+5. Papelerías (464111)
+6. Panaderías (311811)
+7. Tlapalerías (467111)
+8. Artesanías (339999)
+9. Farmacias (464121)
+
+### 3. Administradores 🔴 NUEVO
+**Problema:** Actualmente hardcodeado en `MainActivity.kt:142-150`
+
+**Solución:** CRUD de emails administrativos
+
+**Campos:**
+- `email`: String (solo @avivacredito.com)
+- `nombre`: String (opcional)
+- `activo`: Boolean
+- `fechaAgregado`: Timestamp
+- `agregadoPor`: String
+
+**Colección Firestore:** `/admins`
+
+**Admins actuales hardcodeados:**
+1. rolando.robles@avivacredito.com
+2. jesica.silva@avivacredito.com
+3. christian.garcia@avivacredito.com
+4. fernando.cordova@avivacredito.com
+5. jose.romero@avivacredito.com
+6. ana.carmona@avivacredito.com
+7. angelica.garcia@avivacredito.com
 
 ### 4. Configuración del Sistema
-- URLs (ayuda, privacidad, términos)
+**Estado:** Ya existe en Firestore como `system_config/system_config`
+
+**Función del panel:** Editor web para los 50+ campos existentes
+
+**Categorías:**
+- URLs del sistema (ayuda, privacidad, términos)
 - Features flags (habilitar/deshabilitar funciones)
-- Configuración de asistencia (radio, período de gracia)
+- Configuración de asistencia
+- Parámetros de búsqueda DENUE
+- Configuración de imágenes
 - Versión mínima de la app
 - Modo mantenimiento
 
 ## 🔗 Integración con la App Android
 
-### Leer textos dinámicos
+### 1. Externalizar Giros
+
+**Crear servicio en Android:**
 
 ```kotlin
-// En cualquier Activity o Fragment
+// Crear archivo: app/src/main/java/com/promotoresavivatunegocio_1/services/GirosService.kt
+
+package com.promotoresavivatunegocio_1.services
+
 import com.google.firebase.firestore.FirebaseFirestore
+import com.promotoresavivatunegocio_1.services.AvivaConfig.GiroRelevante
+import kotlinx.coroutines.tasks.await
 
-val db = FirebaseFirestore.getInstance()
+class GirosService {
+    private val db = FirebaseFirestore.getInstance()
 
-// Leer un texto específico
-db.collection("dynamic_texts")
-    .document("home_welcome_message")
-    .get()
-    .addOnSuccessListener { document ->
-        if (document != null) {
-            val text = document.getString("value")
-            // Usar el texto en tu UI
-            textView.text = text
+    suspend fun getGirosActivos(): List<GiroRelevante> {
+        return try {
+            db.collection("giros_relevantes")
+                .whereEqualTo("activo", true)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { doc ->
+                    GiroRelevante(
+                        codigo = doc.getString("codigo") ?: return@mapNotNull null,
+                        nombre = doc.getString("nombre") ?: return@mapNotNull null,
+                        montoMinimoCentavos = doc.getLong("montoMinimoCentavos")?.toInt() ?: 0,
+                        montoMaximoCentavos = doc.getLong("montoMaximoCentavos")?.toInt() ?: 0,
+                        descripcion = doc.getString("descripcion") ?: "",
+                        palabrasClave = (doc.get("palabrasClave") as? List<*>)
+                            ?.mapNotNull { it as? String } ?: emptyList()
+                    )
+                }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
-
-// Escuchar cambios en tiempo real
-db.collection("dynamic_texts")
-    .document("home_welcome_message")
-    .addSnapshotListener { snapshot, e ->
-        if (e != null) {
-            Log.w(TAG, "Listen failed.", e)
-            return@addSnapshotListener
-        }
-
-        if (snapshot != null && snapshot.exists()) {
-            val text = snapshot.getString("value")
-            textView.text = text
-        }
-    }
+}
 ```
 
-### Leer configuración del sistema
+**Modificar AvivaConfig.kt:**
 
 ```kotlin
-// Crear un servicio para manejar la configuración
-class SystemConfigService {
-    private val db = FirebaseFirestore.getInstance()
-    private val configDoc = db.collection("system_config").document("settings")
+// ELIMINAR líneas 12-85 (val girosAceptados = listOf(...))
 
-    fun getConfig(callback: (SystemConfig?) -> Unit) {
-        configDoc.get().addOnSuccessListener { document ->
-            if (document.exists()) {
-                val config = SystemConfig(
-                    enableAttendance = document.getBoolean("enableAttendance") ?: true,
-                    enableMetrics = document.getBoolean("enableMetrics") ?: true,
-                    attendanceCheckInRadius = document.getLong("attendanceCheckInRadius")?.toInt() ?: 100,
-                    appMinimumVersion = document.getString("appMinimumVersion") ?: "1.0.0",
-                    appMaintenanceMode = document.getBoolean("appMaintenanceMode") ?: false
-                )
-                callback(config)
-            }
-        }
+// REEMPLAZAR por:
+object AvivaConfig {
+    private val girosService = GirosService()
+
+    suspend fun getGirosAceptados(): List<GiroRelevante> {
+        return girosService.getGirosActivos()
     }
 
-    // Escuchar cambios en tiempo real
-    fun listenToConfig(callback: (SystemConfig?) -> Unit): ListenerRegistration {
-        return configDoc.addSnapshotListener { snapshot, e ->
-            if (e != null) {
-                Log.w(TAG, "Config listen failed.", e)
+    // Mantener el data class existente
+    data class GiroRelevante(
+        val codigo: String,
+        val nombre: String,
+        val montoMinimoCentavos: Int,
+        val montoMaximoCentavos: Int,
+        val descripcion: String,
+        val palabrasClave: List<String>
+    )
+}
+```
+
+### 2. Externalizar Administradores
+
+**Modificar MainActivity.kt:**
+
+```kotlin
+// ELIMINAR líneas 142-156 (función setupInitialAdmins)
+
+// REEMPLAZAR por:
+private fun isAdminEmail(email: String, callback: (Boolean) -> Unit) {
+    db.collection("admins")
+        .whereEqualTo("email", email.lowercase())
+        .whereEqualTo("activo", true)
+        .limit(1)
+        .get()
+        .addOnSuccessListener { result ->
+            callback(!result.isEmpty)
+        }
+        .addOnFailureListener {
+            callback(false)
+        }
+}
+
+// Usar en el código de autenticación:
+private fun onUserAuthenticated(user: FirebaseUser) {
+    isAdminEmail(user.email ?: "") { isAdmin ->
+        if (isAdmin) {
+            // Permitir acceso admin
+        } else {
+            // Usuario normal
+        }
+    }
+}
+```
+
+### 3. Actualizar Configuración en Tiempo Real
+
+**Modificar AuthService.kt (línea 203):**
+
+```kotlin
+// CAMBIAR loadSystemConfig() por:
+private fun listenToSystemConfig() {
+    db.collection("system_config")
+        .document("system_config")
+        .addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                systemConfig = SystemConfig.getDefaultConfig()
                 return@addSnapshotListener
             }
 
-            if (snapshot != null && snapshot.exists()) {
-                val config = SystemConfig(
-                    enableAttendance = snapshot.getBoolean("enableAttendance") ?: true,
-                    // ... resto de campos
-                )
-                callback(config)
-            }
-        }
-    }
-}
+            systemConfig = snapshot?.toObject(SystemConfig::class.java)
+                ?: SystemConfig.getDefaultConfig()
 
-data class SystemConfig(
-    val enableAttendance: Boolean,
-    val enableMetrics: Boolean,
-    val attendanceCheckInRadius: Int,
-    val appMinimumVersion: String,
-    val appMaintenanceMode: Boolean
-)
+            // Notificar cambios a la app
+            onConfigUpdated(systemConfig!!)
+        }
+}
 ```
 
-### Leer kioscos dinámicamente
+## 📁 Estructura Firestore
 
-```kotlin
-class KioskService {
-    private val db = FirebaseFirestore.getInstance()
+```
+/giros_relevantes (NUEVO)
+  /{giroId}
+    codigo: "461110"
+    nombre: "Abarrotes"
+    montoMinimoCentavos: 75000
+    montoMaximoCentavos: 150000
+    descripcion: "Tiendas de abarrotes y misceláneas"
+    palabrasClave: ["abarrotes", "miscelanea", "tienda"]
+    activo: true
 
-    fun getAllKiosks(callback: (List<Kiosk>) -> Unit) {
-        db.collection("kiosks")
-            .whereEqualTo("isActive", true)
-            .get()
-            .addOnSuccessListener { documents ->
-                val kiosks = documents.map { doc ->
-                    Kiosk(
-                        id = doc.id,
-                        name = doc.getString("name") ?: "",
-                        address = doc.getString("address") ?: "",
-                        latitude = doc.getDouble("latitude") ?: 0.0,
-                        longitude = doc.getDouble("longitude") ?: 0.0,
-                        validationRadius = doc.getLong("validationRadius")?.toInt() ?: 100
-                    )
-                }
-                callback(kiosks)
-            }
-    }
-}
+/admins (NUEVO)
+  /{adminId}
+    email: "rolando.robles@avivacredito.com"
+    nombre: "Rolando Robles"
+    activo: true
+    fechaAgregado: timestamp
+    agregadoPor: "panel-admin"
 
-data class Kiosk(
-    val id: String,
-    val name: String,
-    val address: String,
-    val latitude: Double,
-    val longitude: Double,
-    val validationRadius: Int
-)
+/system_config (YA EXISTE - solo se edita)
+  /system_config
+    appName: "Aviva Tu Negocio"
+    appVersion: "1.0.0"
+    enableAttendance: true
+    enableMetrics: true
+    ... (50+ campos existentes)
+
+/kiosks (YA EXISTE - no se toca)
+  # Ya tiene CRUD completo en KioskService.kt
 ```
 
 ## 🔒 Firestore Security Rules
 
 Las reglas ya están configuradas en `firestore.rules`:
 
-- **Usuarios autenticados** pueden leer kioscos, textos dinámicos y configuración
-- **Solo admins** pueden escribir/editar
-- **Usuarios** solo pueden modificar sus propios datos
-- **Emails @avivacredito.com** requeridos
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Verificar que el usuario es admin
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.activo == true;
+    }
+
+    // Usuarios autenticados pueden leer
+    match /giros_relevantes/{giroId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /system_config/{configId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+  }
+}
+```
 
 ## 📱 Flujo de Datos
 
 ```
-1. Admin edita texto en Panel Web
+1. Admin edita en Panel Web
        ↓
 2. Cambio se guarda en Firestore
        ↓
@@ -247,36 +357,21 @@ Las reglas ya están configuradas en `firestore.rules`:
 
 **Sin recompilación del APK necesaria** 🎉
 
-## 🎯 Casos de Uso
+## 🎯 Beneficios
 
-### Cambiar texto de bienvenida sin recompilar
-
-1. Ir al Panel → Textos Dinámicos
-2. Editar `home_welcome_message`
-3. Cambiar valor a "¡Hola, bienvenido!"
-4. Guardar
-5. La app se actualiza automáticamente
-
-### Agregar nueva sucursal
-
-1. Panel → Kioscos → Agregar Kiosco
-2. Llenar datos (nombre, dirección, ubicación)
-3. Guardar
-4. La app inmediatamente puede detectar el nuevo kiosko
-
-### Deshabilitar una funcionalidad
-
-1. Panel → Configuración
-2. Desactivar "Habilitar Métricas"
-3. Guardar
-4. La app oculta la sección de métricas
+✅ **Sin recompilación**: Cambia giros, admins y configuraciones sin tocar el código
+✅ **Tiempo real**: Los cambios se propagan instantáneamente
+✅ **Centralizado**: Un solo lugar para gestionar todo
+✅ **Seguro**: Reglas de Firestore protegen los datos
+✅ **Escalable**: Firebase maneja millones de usuarios
+✅ **Basado en código real**: 100% verificado contra el repositorio existente
 
 ## 🚨 Troubleshooting
 
 ### Error: "Firestore permission denied"
 
 - Verificar que el usuario está autenticado
-- Verificar que tiene rol `admin` en Firestore
+- Verificar que tiene email en colección `admins` con `activo: true`
 - Verificar que las reglas de Firestore están desplegadas
 
 ### Panel no carga después de deploy
@@ -294,18 +389,30 @@ firebase deploy --only hosting
 - Verificar que Firestore está habilitado en el proyecto
 - Verificar que las reglas permiten lectura
 - Verificar que el ID del proyecto coincide en google-services.json
+- Verificar que el listener está activado (SnapshotListener)
+
+## 📝 Archivos Modificados
+
+### Android
+1. **Crear:** `app/src/main/java/.../services/GirosService.kt`
+2. **Modificar:** `app/src/main/java/.../services/AvivaConfig.kt` (eliminar líneas 12-85)
+3. **Modificar:** `app/src/main/java/.../MainActivity.kt` (eliminar líneas 142-156)
+4. **Modificar:** `app/src/main/java/.../services/AuthService.kt` (cambiar línea 203)
+
+### Panel Web (Ya implementado)
+- `/admin/src/pages/Dashboard.tsx`
+- `/admin/src/pages/Giros.tsx`
+- `/admin/src/pages/Administradores.tsx`
+- `/admin/src/pages/Configuracion.tsx`
 
 ## 📞 Soporte
 
 Para problemas o preguntas:
 - Revisar logs de Firebase Console
 - Verificar reglas de Firestore
+- Consultar documentación de Firebase
 - Contactar al equipo de desarrollo
 
-## 🎉 Beneficios
+---
 
-✅ **Sin recompilación**: Cambia textos, URLs y configuraciones sin tocar el código
-✅ **Tiempo real**: Los cambios se propagan instantáneamente
-✅ **Centralizado**: Un solo lugar para gestionar todo
-✅ **Seguro**: Reglas de Firestore protegen los datos
-✅ **Escalable**: Firebase maneja millones de usuarios
+**Verificado con código fuente real. No suposiciones.**

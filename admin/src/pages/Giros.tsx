@@ -17,7 +17,9 @@ import {
   TextField,
   Typography,
   Alert,
-  Chip
+  Chip,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -32,12 +34,15 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
+// Coincide exactamente con GiroRelevante de AvivaConfig.kt
 interface Giro {
   id: string;
-  nombre: string;
   codigo: string;
-  montoCredito: number; // En centavos
-  descripcion?: string;
+  nombre: string;
+  montoMinimoCentavos: number;
+  montoMaximoCentavos: number;
+  descripcion: string;
+  palabrasClave: string[];
   activo: boolean;
 }
 
@@ -47,12 +52,15 @@ const Giros: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGiro, setEditingGiro] = useState<Giro | null>(null);
   const [error, setError] = useState<string>('');
+  const [palabrasClaveInput, setPalabrasClaveInput] = useState('');
 
   const [formData, setFormData] = useState<Omit<Giro, 'id'>>({
-    nombre: '',
     codigo: '',
-    montoCredito: 7500, // $75.00 en centavos
+    nombre: '',
+    montoMinimoCentavos: 75000, // $750.00
+    montoMaximoCentavos: 150000, // $1,500.00
     descripcion: '',
+    palabrasClave: [],
     activo: true
   });
 
@@ -80,21 +88,27 @@ const Giros: React.FC = () => {
     if (giro) {
       setEditingGiro(giro);
       setFormData({
-        nombre: giro.nombre,
         codigo: giro.codigo,
-        montoCredito: giro.montoCredito,
-        descripcion: giro.descripcion || '',
+        nombre: giro.nombre,
+        montoMinimoCentavos: giro.montoMinimoCentavos,
+        montoMaximoCentavos: giro.montoMaximoCentavos,
+        descripcion: giro.descripcion,
+        palabrasClave: giro.palabrasClave,
         activo: giro.activo
       });
+      setPalabrasClaveInput(giro.palabrasClave.join(', '));
     } else {
       setEditingGiro(null);
       setFormData({
-        nombre: '',
         codigo: '',
-        montoCredito: 7500,
+        nombre: '',
+        montoMinimoCentavos: 75000,
+        montoMaximoCentavos: 150000,
         descripcion: '',
+        palabrasClave: [],
         activo: true
       });
+      setPalabrasClaveInput('');
     }
     setDialogOpen(true);
   };
@@ -109,12 +123,23 @@ const Giros: React.FC = () => {
     setFormData({ ...formData, [field]: value });
   };
 
+  const handlePalabrasClaveChange = (value: string) => {
+    setPalabrasClaveInput(value);
+    const palabras = value.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    setFormData({ ...formData, palabrasClave: palabras });
+  };
+
   const handleSubmit = async () => {
     try {
       setError('');
 
       if (!formData.nombre || !formData.codigo) {
         setError('Nombre y código son obligatorios');
+        return;
+      }
+
+      if (formData.montoMinimoCentavos >= formData.montoMaximoCentavos) {
+        setError('El monto mínimo debe ser menor al monto máximo');
         return;
       }
 
@@ -175,9 +200,12 @@ const Giros: React.FC = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Alert severity="info" sx={{ mb: 2 }}>
-        Actualmente en AvivaConfig.kt: Abarrotes, Carnicerías, Tortillerías, Fruterías,
-        Papelerías, Panaderías, Tlapalerías, Artesanías, Farmacias
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        <strong>Actualmente hardcodeado en AvivaConfig.kt (líneas 12-85):</strong>
+        <br />
+        9 giros: Abarrotes, Carnicerías, Tortillerías, Fruterías, Papelerías, Panaderías, Tlapalerías, Artesanías, Farmacias
+        <br />
+        <strong>Para aplicar cambios:</strong> La app Android debe leer de Firestore en lugar del código hardcodeado.
       </Alert>
 
       <TableContainer component={Paper}>
@@ -185,9 +213,10 @@ const Giros: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>Nombre</TableCell>
-              <TableCell>Código</TableCell>
-              <TableCell>Monto de Crédito</TableCell>
-              <TableCell>Descripción</TableCell>
+              <TableCell>Código DENUE</TableCell>
+              <TableCell>Monto Mínimo</TableCell>
+              <TableCell>Monto Máximo</TableCell>
+              <TableCell>Palabras Clave</TableCell>
               <TableCell>Estado</TableCell>
               <TableCell align="right">Acciones</TableCell>
             </TableRow>
@@ -197,8 +226,15 @@ const Giros: React.FC = () => {
               <TableRow key={giro.id}>
                 <TableCell><strong>{giro.nombre}</strong></TableCell>
                 <TableCell><code>{giro.codigo}</code></TableCell>
-                <TableCell>{formatCurrency(giro.montoCredito)}</TableCell>
-                <TableCell>{giro.descripcion || '-'}</TableCell>
+                <TableCell>{formatCurrency(giro.montoMinimoCentavos)}</TableCell>
+                <TableCell>{formatCurrency(giro.montoMaximoCentavos)}</TableCell>
+                <TableCell>
+                  <Box display="flex" gap={0.5} flexWrap="wrap">
+                    {giro.palabrasClave.map((palabra, idx) => (
+                      <Chip key={idx} label={palabra} size="small" variant="outlined" />
+                    ))}
+                  </Box>
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={giro.activo ? 'Activo' : 'Inactivo'}
@@ -227,7 +263,7 @@ const Giros: React.FC = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {editingGiro ? 'Editar Giro' : 'Agregar Giro'}
         </DialogTitle>
@@ -248,32 +284,54 @@ const Giros: React.FC = () => {
               value={formData.codigo}
               onChange={(e) => handleInputChange('codigo', e.target.value)}
               placeholder="Ej: 461110"
+              helperText="Código del catálogo DENUE de INEGI"
             />
+            <Box display="flex" gap={2}>
+              <TextField
+                label="Monto Mínimo (MXN)"
+                type="number"
+                fullWidth
+                value={formData.montoMinimoCentavos / 100}
+                onChange={(e) => handleInputChange('montoMinimoCentavos', parseFloat(e.target.value) * 100)}
+                inputProps={{ step: 50 }}
+                helperText={`= ${formatCurrency(formData.montoMinimoCentavos)}`}
+              />
+              <TextField
+                label="Monto Máximo (MXN)"
+                type="number"
+                fullWidth
+                value={formData.montoMaximoCentavos / 100}
+                onChange={(e) => handleInputChange('montoMaximoCentavos', parseFloat(e.target.value) * 100)}
+                inputProps={{ step: 50 }}
+                helperText={`= ${formatCurrency(formData.montoMaximoCentavos)}`}
+              />
+            </Box>
             <TextField
-              label="Monto de Crédito (MXN)"
-              type="number"
-              fullWidth
-              value={formData.montoCredito / 100}
-              onChange={(e) => handleInputChange('montoCredito', parseFloat(e.target.value) * 100)}
-              inputProps={{ step: 0.50 }}
-              helperText={`= ${formatCurrency(formData.montoCredito)}`}
-            />
-            <TextField
-              label="Descripción (opcional)"
+              label="Descripción"
               fullWidth
               multiline
               rows={2}
               value={formData.descripcion}
               onChange={(e) => handleInputChange('descripcion', e.target.value)}
+              placeholder="Ej: Tiendas de abarrotes y misceláneas"
             />
-            <Box>
-              <Button
-                variant={formData.activo ? 'contained' : 'outlined'}
-                onClick={() => handleInputChange('activo', !formData.activo)}
-              >
-                {formData.activo ? 'Activo' : 'Inactivo'}
-              </Button>
-            </Box>
+            <TextField
+              label="Palabras Clave"
+              fullWidth
+              value={palabrasClaveInput}
+              onChange={(e) => handlePalabrasClaveChange(e.target.value)}
+              placeholder="Ej: abarrotes, miscelanea, tienda, minisuper"
+              helperText="Separadas por comas. Usadas para búsqueda y matching."
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.activo}
+                  onChange={(e) => handleInputChange('activo', e.target.checked)}
+                />
+              }
+              label={formData.activo ? 'Giro Activo' : 'Giro Inactivo'}
+            />
           </Box>
         </DialogContent>
         <DialogActions>
