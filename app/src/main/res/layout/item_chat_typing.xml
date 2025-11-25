@@ -25,7 +25,7 @@
                 style="?android:attr/progressBarStyleSmall"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:indeterminateTint="@color/colorPrimary" />
+                android:indeterminateTint="@color/primary" />
 
             <TextView
                 android:layout_width="wrap_content"
