@@ -3,6 +3,9 @@ import * as admin from "firebase-admin";
 import cors from "cors";
 import { HubSpotService } from "./hubspot.service";
 
+// Importar función de chat
+export { chat } from "./chatAssistant";
+
 // Inicializar Firebase Admin
 admin.initializeApp();
 
