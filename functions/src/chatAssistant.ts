@@ -235,7 +235,7 @@ export const chat = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const { message, userId, userName, userRole, threadId } = req.body as ChatRequest;
+    const { message, userId, userName, threadId } = req.body as ChatRequest;
 
     // Validaciones
     if (!message || !userId) {
