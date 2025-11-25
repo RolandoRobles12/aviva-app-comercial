@@ -82,4 +82,11 @@
         android:label="Admin"
         tools:layout="@layout/fragment_admin" />
 
+    <!-- Asistente de Ayuda (Chatbot) -->
+    <fragment
+        android:id="@+id/navigation_help_assistant"
+        android:name="com.promotoresavivatunegocio_1.HelpAssistantFragment"
+        android:label="Asistente de Ayuda"
+        tools:layout="@layout/fragment_help_assistant" />
+
 </navigation>
