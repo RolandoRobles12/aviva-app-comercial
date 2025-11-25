@@ -78,9 +78,9 @@ class HomeFragment : Fragment() {
             showComingSoon("Mi camino de aprendizaje")
         }
 
-        // Card: Ayuda
+        // Card: Ayuda - Chatbot Asistente
         view.findViewById<MaterialCardView>(R.id.cardAyuda).setOnClickListener {
-            showComingSoon("Ayuda")
+            navigateToHelpAssistant()
         }
 
         // Card: Trámites
@@ -110,6 +110,14 @@ class HomeFragment : Fragment() {
             findNavController().navigate(R.id.navigation_registro)
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun navigateToHelpAssistant() {
+        try {
+            findNavController().navigate(R.id.navigation_help_assistant)
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Error al navegar al asistente", Toast.LENGTH_SHORT).show()
         }
     }
 
