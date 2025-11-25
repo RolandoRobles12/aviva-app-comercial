@@ -55,4 +55,9 @@
     <string name="probabilidad_placeholder">Probabilidad de éxito</string>
     <string name="distancia_placeholder">Distancia desde tu ubicación</string>
     <string name="navegar_a_prospecto">Navegar a prospecto</string>
+
+    <!-- Chatbot / Help Assistant -->
+    <string name="help_assistant">Asistente de Ayuda</string>
+    <string name="send_message">Enviar mensaje</string>
+    <string name="chat_icon">Icono de chat</string>
 </resources>
