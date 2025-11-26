@@ -14,19 +14,24 @@ import java.util.*
 
 /**
  * Fragment para el Scorecard de Incentivos
- * Muestra el desempeño del promotor en 4 categorías: CAC, CALIDAD, NIM, CRECIMIENTO
+ * Muestra el desempeño del promotor en formato de tabla con 4 métricas:
+ * CAC, CALIDAD, NIM, CRECIMIENTO
+ *
+ * Diseñado para tablets en orientación horizontal
  */
 class ScorecardFragment : Fragment() {
 
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
 
-    // Views del scorecard
-    private lateinit var tvUsuarioMes: TextView
-    private lateinit var tvPuntajeTotal: TextView
+    // Views del encabezado
+    private lateinit var tvNombreUsuario: TextView
     private lateinit var tvMultiplicador: TextView
     private lateinit var tvGananciaMensual: TextView
     private lateinit var tvMes: TextView
+
+    // Views de la tabla
+    private lateinit var tvPuntajeTotal: TextView
 
     // Views de CAC
     private lateinit var tvCacDescripcion: TextView
@@ -75,12 +80,12 @@ class ScorecardFragment : Fragment() {
     }
 
     private fun initializeViews(view: View) {
-        // Usuario y mes
-        tvUsuarioMes = view.findViewById(R.id.tvUsuarioMes)
-        tvPuntajeTotal = view.findViewById(R.id.tvPuntajeTotal)
+        // Encabezado
+        tvNombreUsuario = view.findViewById(R.id.tvNombreUsuario)
         tvMultiplicador = view.findViewById(R.id.tvMultiplicador)
         tvGananciaMensual = view.findViewById(R.id.tvGananciaMensual)
         tvMes = view.findViewById(R.id.tvMes)
+        tvPuntajeTotal = view.findViewById(R.id.tvPuntajeTotal)
 
         // CAC
         tvCacDescripcion = view.findViewById(R.id.tvCacDescripcion)
@@ -119,78 +124,58 @@ class ScorecardFragment : Fragment() {
         }
 
         // En producción, estos datos vendrían de Firestore
-        // Por ahora mostramos datos de ejemplo
+        // Por ahora mostramos los datos exactos de la especificación
         // TODO: Implementar carga desde Firestore (colección 'scorecards')
 
-        val userName = currentUser.displayName ?: "Usuario"
-        val currentMonth = getCurrentMonth()
+        val userName = currentUser.displayName ?: "USUARIO"
+        val currentMonth = "Octubre 2025"
 
-        tvUsuarioMes.text = "$userName - MES: $currentMonth"
-        tvMes.text = "Mes: $currentMonth"
+        tvNombreUsuario.text = userName.uppercase()
+        tvMes.text = "MES: $currentMonth"
 
-        // Datos de ejemplo
+        // Datos exactos de la especificación
         loadExampleData()
     }
 
     private fun loadExampleData() {
-        // CAC
-        tvCacDescripcion.text = "Descripción: Costo de adquisición de cliente"
-        tvCacMetricas.text = "- Colocación: ${formatCurrency(150000)}\n- Llamadas: 60\n- Tasa de cierre: 25%"
-        tvCacResultado.text = formatCurrency(2500)
-        tvCacCategoria.text = "CAC B"
-        tvCacPuntaje.text = "15"
+        // CAC - Datos exactos de la especificación
+        tvCacDescripcion.text = "Costo Operativo / Venta Mensual"
+        tvCacMetricas.text = "$68,520/\n$553,000"
+        tvCacResultado.text = "12.4%"
+        tvCacCategoria.text = "B"
+        tvCacPuntaje.text = "25"
 
-        // CALIDAD
-        tvCalidadDescripcion.text = "Descripción: Calidad de las visitas y seguimiento"
-        tvCalidadMetricas.text = "- Visitas completadas: 45\n- Seguimientos efectivos: 38\n- Prospectos calificados: 28"
-        tvCalidadResultado.text = "84%"
-        tvCalidadCategoria.text = "Excelente"
+        // CALIDAD - Datos exactos de la especificación
+        tvCalidadDescripcion.text = "Calificación entre los clientes que hacen sus primeros pagos y los clientes que no pagan."
+        tvCalidadMetricas.text = "Pagos completados: 73%\nPrimeros pagos no hechos: 7.6%"
+        tvCalidadResultado.text = "8.0"
+        tvCalidadCategoria.text = "B"
         tvCalidadPuntaje.text = "15"
 
-        // NIM
-        tvNimDescripcion.text = "Descripción: Número de interacciones mensuales"
-        tvNimMetricas.text = "- Llamadas realizadas: 180\n- Emails enviados: 95\n- Reuniones: 32"
-        tvNimResultado.text = "307 interacciones"
-        tvNimCategoria.text = "Alto"
-        tvNimPuntaje.text = "10"
+        // NIM - Datos exactos de la especificación
+        tvNimDescripcion.text = "Pagos hechos por los clientes menos el costo de fondeo y las pérdidas de crédito."
+        tvNimMetricas.text = "Ingresos: $382,111\nPérdidas: $143,041\nFondeo: $70,766"
+        tvNimResultado.text = "44%"
+        tvNimCategoria.text = "B"
+        tvNimPuntaje.text = "5"
 
-        // CRECIMIENTO
-        tvCrecimientoDescripcion.text = "Descripción: Crecimiento vs mes anterior"
-        tvCrecimientoMetricas.text = "- Ventas mes anterior: ${formatCurrency(120000)}\n- Ventas mes actual: ${formatCurrency(150000)}\n- Nuevos clientes: +12"
-        tvCrecimientoResultado.text = "+25%"
-        tvCrecimientoCategoria.text = "Destacado"
-        tvCrecimientoPuntaje.text = "10"
+        // CRECIMIENTO - Datos exactos de la especificación
+        tvCrecimientoDescripcion.text = "Crecimiento del portafolio contra el mes anterior."
+        tvCrecimientoMetricas.text = "Portafolio Sep: 4.5M\nPortafolio Oct: 4.9M"
+        tvCrecimientoResultado.text = "9.0%"
+        tvCrecimientoCategoria.text = "2"
+        tvCrecimientoPuntaje.text = "5"
 
-        // Totales
-        val puntajeTotal = 15 + 15 + 10 + 10 // CAC + CALIDAD + NIM + CRECIMIENTO
-        val multiplicador = 0.5
-        val gananciaMensual = (puntajeTotal * multiplicador * 270.72).toInt() // Fórmula de ejemplo
-
-        tvPuntajeTotal.text = puntajeTotal.toString()
-        tvMultiplicador.text = "${multiplicador}x"
-        tvGananciaMensual.text = formatCurrency(gananciaMensual)
+        // Totales - Datos exactos de la especificación
+        tvPuntajeTotal.text = "50"
+        tvMultiplicador.text = "0.5X"
+        tvGananciaMensual.text = "$6,768"
     }
 
     private fun showDefaultData() {
-        tvUsuarioMes.text = "Usuario - MES: ${getCurrentMonth()}"
-        tvMes.text = "Mes: ${getCurrentMonth()}"
+        tvNombreUsuario.text = "[NOMBRE_DEL_USUARIO]"
+        tvMes.text = "MES: Octubre 2025"
         loadExampleData()
-    }
-
-    private fun getCurrentMonth(): String {
-        val calendar = Calendar.getInstance()
-        val months = arrayOf(
-            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-        )
-        val month = months[calendar.get(Calendar.MONTH)]
-        val year = calendar.get(Calendar.YEAR)
-        return "$month $year"
-    }
-
-    private fun formatCurrency(amount: Int): String {
-        val format = NumberFormat.getCurrencyInstance(Locale("es", "MX"))
-        return format.format(amount)
     }
 
     companion object {
@@ -199,44 +184,42 @@ class ScorecardFragment : Fragment() {
          */
         data class ScorecardData(
             val userId: String = "",
+            val nombreUsuario: String = "",
             val mes: String = "",
 
             // CAC
-            val cacColocacion: Int = 0,
-            val cacLlamadas: Int = 0,
-            val cacTasaCierre: Double = 0.0,
-            val cacResultado: Int = 0,
+            val cacCostoOperativo: Int = 0,
+            val cacVentaMensual: Int = 0,
+            val cacResultado: String = "",
             val cacCategoria: String = "",
             val cacPuntaje: Int = 0,
 
             // CALIDAD
-            val calidadVisitas: Int = 0,
-            val calidadSeguimientos: Int = 0,
-            val calidadProspectos: Int = 0,
-            val calidadResultado: Double = 0.0,
+            val calidadPagosCompletados: Double = 0.0,
+            val calidadPrimerosPagosNoHechos: Double = 0.0,
+            val calidadResultado: String = "",
             val calidadCategoria: String = "",
             val calidadPuntaje: Int = 0,
 
             // NIM
-            val nimLlamadas: Int = 0,
-            val nimEmails: Int = 0,
-            val nimReuniones: Int = 0,
-            val nimResultado: Int = 0,
+            val nimIngresos: Int = 0,
+            val nimPerdidas: Int = 0,
+            val nimFondeo: Int = 0,
+            val nimResultado: String = "",
             val nimCategoria: String = "",
             val nimPuntaje: Int = 0,
 
             // CRECIMIENTO
-            val crecimientoMesAnterior: Int = 0,
-            val crecimientoMesActual: Int = 0,
-            val crecimientoNuevosClientes: Int = 0,
-            val crecimientoResultado: Double = 0.0,
+            val crecimientoPortafolioAnterior: String = "",
+            val crecimientoPortafolioActual: String = "",
+            val crecimientoResultado: String = "",
             val crecimientoCategoria: String = "",
             val crecimientoPuntaje: Int = 0,
 
             // Totales
             val puntajeTotal: Int = 0,
-            val multiplicador: Double = 0.0,
-            val gananciaMensual: Int = 0
+            val multiplicador: String = "",
+            val gananciaMensual: String = ""
         )
     }
 }
