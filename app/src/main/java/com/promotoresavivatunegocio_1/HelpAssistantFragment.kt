@@ -31,7 +31,6 @@ class HelpAssistantFragment : Fragment() {
     private lateinit var editTextMessage: TextInputEditText
     private lateinit var buttonSend: ImageButton
     private lateinit var buttonBack: ImageButton
-    private lateinit var emptyState: View
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -61,7 +60,6 @@ class HelpAssistantFragment : Fragment() {
         editTextMessage = view.findViewById(R.id.editTextMessage)
         buttonSend = view.findViewById(R.id.buttonSend)
         buttonBack = view.findViewById(R.id.buttonBack)
-        emptyState = view.findViewById(R.id.emptyState)
 
         // Configurar botón de regreso
         buttonBack.setOnClickListener {
@@ -118,9 +116,6 @@ class HelpAssistantFragment : Fragment() {
         // Agregar mensaje del usuario
         val userMessage = ChatMessage.fromUser(messageText)
         addMessage(userMessage)
-
-        // Ocultar empty state
-        hideEmptyState()
 
         // Mostrar indicador de "escribiendo..."
         val typingIndicator = ChatMessage.typingIndicator()
@@ -189,10 +184,6 @@ class HelpAssistantFragment : Fragment() {
             messages.removeAt(typingIndex)
             chatAdapter.submitList(messages.toList())
         }
-    }
-
-    private fun hideEmptyState() {
-        emptyState.visibility = View.GONE
     }
 
     override fun onDestroyView() {
