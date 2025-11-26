@@ -1,7 +1,5 @@
 package com.promotoresavivatunegocio_1.ui.home
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -87,7 +85,7 @@ class HomeFragment : Fragment() {
 
         // Card: Trámites
         view.findViewById<MaterialCardView>(R.id.cardTramites).setOnClickListener {
-            openHRSoftware()
+            navigateToTramites()
         }
     }
 
@@ -123,24 +121,19 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun navigateToTramites() {
+        try {
+            findNavController().navigate(R.id.navigation_tramites)
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Error al navegar a trámites", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun showComingSoon(feature: String) {
         Toast.makeText(
             requireContext(),
             "$feature - Próximamente disponible",
             Toast.LENGTH_SHORT
         ).show()
-    }
-
-    private fun openHRSoftware() {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://app.humand.co/vacations"))
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(
-                requireContext(),
-                "No se pudo abrir el navegador",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
     }
 }
