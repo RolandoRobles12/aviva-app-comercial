@@ -409,6 +409,16 @@
                         android:gravity="center"
                         android:fontFamily="sans-serif-medium" />
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Vacaciones, Aviva days e incapacidad"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:gravity="center"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif-light" />
+
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
