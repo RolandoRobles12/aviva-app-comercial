@@ -1,5 +1,7 @@
 package com.promotoresavivatunegocio_1.ui.home
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -85,7 +87,7 @@ class HomeFragment : Fragment() {
 
         // Card: Trámites
         view.findViewById<MaterialCardView>(R.id.cardTramites).setOnClickListener {
-            showComingSoon("Trámites")
+            openHRSoftware()
         }
     }
 
@@ -127,5 +129,18 @@ class HomeFragment : Fragment() {
             "$feature - Próximamente disponible",
             Toast.LENGTH_SHORT
         ).show()
+    }
+
+    private fun openHRSoftware() {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://app.humand.co/vacations"))
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(
+                requireContext(),
+                "No se pudo abrir el navegador",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 }
