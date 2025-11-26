@@ -61,6 +61,13 @@
         android:label="Ligas"
         tools:layout="@layout/fragment_leagues" />
 
+    <!-- Scorecard de Bonos -->
+    <fragment
+        android:id="@+id/navigation_scorecard"
+        android:name="com.promotoresavivatunegocio_1.ui.scorecard.ScorecardFragment"
+        android:label="Scorecard de Bonos"
+        tools:layout="@layout/fragment_scorecard" />
+
     <!-- Perfil con Insignias y Plan de Carrera -->
     <fragment
         android:id="@+id/navigation_profile"
