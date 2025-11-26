@@ -43,7 +43,7 @@ class CommercialGoalsFragment : Fragment() {
 
         // Card Bonos
         view.findViewById<MaterialCardView>(R.id.cardBonos).setOnClickListener {
-            showComingSoon("Bonos")
+            navigateToScorecard()
         }
 
         // Card Premios
@@ -65,6 +65,14 @@ class CommercialGoalsFragment : Fragment() {
             findNavController().navigate(R.id.navigation_leagues)
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Error al navegar a Ligas", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun navigateToScorecard() {
+        try {
+            findNavController().navigate(R.id.navigation_scorecard)
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Error al navegar a Scorecard", Toast.LENGTH_SHORT).show()
         }
     }
 
