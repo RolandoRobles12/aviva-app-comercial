@@ -250,7 +250,7 @@ export const chat = functions.https.onRequest(async (req, res) => {
     }
 
     // Verificar configuración
-    if (!ASSISTANT_ID || !process.env.OPENAI_API_KEY) {
+    if (!ASSISTANT_ID || !config.openai?.apikey) {
       res.status(500).json({
         success: false,
         data: null,
