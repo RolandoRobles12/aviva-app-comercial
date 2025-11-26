@@ -74,9 +74,18 @@ class ChatService {
 
             Log.d(TAG, "Respuesta recibida: ${result.data}")
 
-            // Parsear respuesta
+            // Cuando usas getHttpsCallable(), Firebase desenvuelve la respuesta
+            // y result.data contiene directamente el objeto ChatData, no ChatResponse
             val responseJson = gson.toJson(result.data)
-            val chatResponse = gson.fromJson(responseJson, ChatResponse::class.java)
+            val chatData = gson.fromJson(responseJson, ChatData::class.java)
+
+            // Construir ChatResponse manualmente
+            val chatResponse = ChatResponse(
+                success = true,
+                data = chatData,
+                error = null,
+                message = null
+            )
 
             // Guardar thread ID para próximas conversaciones
             chatResponse.data?.threadId?.let { newThreadId ->
@@ -84,15 +93,10 @@ class ChatService {
                 Log.d(TAG, "Thread ID actualizado: $threadId")
             }
 
-            if (chatResponse.success) {
-                Log.d(TAG, "✅ Mensaje procesado exitosamente")
-                Log.d(TAG, "Tipo de consulta: ${chatResponse.data?.queryType}")
-                Log.d(TAG, "Es HubSpot query: ${chatResponse.data?.isHubSpotQuery}")
-                return Result.success(chatResponse)
-            } else {
-                Log.e(TAG, "❌ Error en respuesta: ${chatResponse.error}")
-                return Result.failure(Exception(chatResponse.error ?: "Error desconocido"))
-            }
+            Log.d(TAG, "✅ Mensaje procesado exitosamente")
+            Log.d(TAG, "Tipo de consulta: ${chatResponse.data?.queryType}")
+            Log.d(TAG, "Es HubSpot query: ${chatResponse.data?.isHubSpotQuery}")
+            return Result.success(chatResponse)
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error llamando al chatbot", e)
