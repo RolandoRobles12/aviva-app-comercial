@@ -9,8 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.floatingactionbutton.FloatingActionButton
+import android.widget.ImageButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.promotoresavivatunegocio_1.adapters.ChatAdapter
@@ -30,8 +29,8 @@ class HelpAssistantFragment : Fragment() {
     // Views
     private lateinit var recyclerView: RecyclerView
     private lateinit var editTextMessage: TextInputEditText
-    private lateinit var buttonSend: FloatingActionButton
-    private lateinit var toolbar: MaterialToolbar
+    private lateinit var buttonSend: ImageButton
+    private lateinit var buttonBack: ImageButton
     private lateinit var emptyState: View
 
     override fun onCreateView(
@@ -61,11 +60,11 @@ class HelpAssistantFragment : Fragment() {
         recyclerView = view.findViewById(R.id.recyclerViewMessages)
         editTextMessage = view.findViewById(R.id.editTextMessage)
         buttonSend = view.findViewById(R.id.buttonSend)
-        toolbar = view.findViewById(R.id.toolbar)
+        buttonBack = view.findViewById(R.id.buttonBack)
         emptyState = view.findViewById(R.id.emptyState)
 
-        // Configurar toolbar
-        toolbar.setNavigationOnClickListener {
+        // Configurar botón de regreso
+        buttonBack.setOnClickListener {
             requireActivity().onBackPressed()
         }
     }
@@ -95,7 +94,7 @@ class HelpAssistantFragment : Fragment() {
     private fun showWelcomeMessage() {
         if (messages.isEmpty()) {
             val welcomeMessage = ChatMessage.fromBot(
-                "¡Hola! Soy tu asistente virtual de Aviva. Puedo ayudarte con:\n\n" +
+                "¡Hola! Soy Ro-Bot Aviva, tu asistente virtual. Puedo ayudarte con:\n\n" +
                 "• Consultas sobre deals y llamadas en HubSpot\n" +
                 "• Información sobre procesos y procedimientos\n" +
                 "• Preguntas frecuentes sobre Aviva Tu Negocio\n\n" +

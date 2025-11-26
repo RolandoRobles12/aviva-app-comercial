@@ -13,10 +13,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:layout_marginStart="64dp"
-        app:cardBackgroundColor="@color/primary"
+        android:layout_marginStart="48dp"
+        app:cardBackgroundColor="@color/chat_user_bubble"
         app:cardCornerRadius="20dp"
-        app:cardElevation="4dp">
+        app:cardElevation="2dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -28,11 +28,11 @@
                 android:id="@+id/textViewMessage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/on_primary"
+                android:textColor="@color/white"
                 android:textSize="@dimen/text_medium"
                 android:lineSpacingExtra="4dp"
-                android:letterSpacing="0.01"
-                tools:text="Hola, ¿cómo estás?" />
+                android:letterSpacing="0.005"
+                tools:text="¿Cómo puedo ver mis metas comerciales?" />
 
             <TextView
                 android:id="@+id/textViewTime"
@@ -40,9 +40,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
                 android:layout_marginTop="@dimen/spacing_tiny"
-                android:textColor="@color/on_primary"
+                android:textColor="@color/white"
                 android:textSize="@dimen/text_small"
-                android:alpha="0.8"
+                android:alpha="0.85"
                 tools:text="12:34 PM" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
