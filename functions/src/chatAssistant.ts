@@ -236,7 +236,9 @@ export const chat = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const { message, userId, userName, threadId } = req.body as ChatRequest;
+    // Cuando se usa getHttpsCallable() desde el cliente, los datos vienen en req.body.data
+    const requestData = (req.body as any).data || req.body;
+    const { message, userId, userName, threadId } = requestData as ChatRequest;
 
     // Validaciones
     if (!message || !userId) {

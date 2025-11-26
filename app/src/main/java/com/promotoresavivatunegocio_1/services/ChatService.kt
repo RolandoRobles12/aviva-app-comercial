@@ -88,10 +88,10 @@ class ChatService {
                 Log.d(TAG, "✅ Mensaje procesado exitosamente")
                 Log.d(TAG, "Tipo de consulta: ${chatResponse.data?.queryType}")
                 Log.d(TAG, "Es HubSpot query: ${chatResponse.data?.isHubSpotQuery}")
-                Result.success(chatResponse)
+                return Result.success(chatResponse)
             } else {
                 Log.e(TAG, "❌ Error en respuesta: ${chatResponse.error}")
-                Result.failure(Exception(chatResponse.error ?: "Error desconocido"))
+                return Result.failure(Exception(chatResponse.error ?: "Error desconocido"))
             }
 
         } catch (e: Exception) {
