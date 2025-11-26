@@ -8,6 +8,13 @@
     <color name="on_primary">#FFFFFF</color>
     <color name="on_primary_container">#026149</color>
 
+    <!-- Colores específicos de Aviva para chatbot -->
+    <color name="aviva_green">#009768</color>
+    <color name="aviva_green_light">#E8F6EC</color>
+    <color name="chat_bot_bubble">#E8F6EC</color>
+    <color name="chat_user_bubble">#009768</color>
+    <color name="chat_text_secondary">#6B7280</color>
+
     <!-- Secondary Brand Colors -->
     <color name="secondary">#026149</color>
     <color name="secondary_dark">#074739</color>

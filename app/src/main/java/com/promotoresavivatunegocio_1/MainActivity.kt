@@ -434,7 +434,6 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "🔐 Mostrando pantalla de login...")
 
             binding.loginContainer.visibility = View.VISIBLE
-            binding.fabHelp.visibility = View.GONE
 
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.GONE
@@ -459,25 +458,6 @@ class MainActivity : AppCompatActivity() {
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.VISIBLE
 
-            // Mostrar botón de ayuda
-            binding.fabHelp.visibility = View.VISIBLE
-            binding.fabHelp.setOnClickListener {
-                Log.d(TAG, "💬 Abriendo asistente de ayuda...")
-                openHelpAssistant()
-            }
-
-            // Listener para mostrar/ocultar FAB según el back stack
-            supportFragmentManager.addOnBackStackChangedListener {
-                val count = supportFragmentManager.backStackEntryCount
-                if (count == 0) {
-                    // No hay fragments en el back stack, mostrar FAB
-                    binding.fabHelp.visibility = View.VISIBLE
-                } else {
-                    // Hay fragments en el back stack, ocultar FAB
-                    binding.fabHelp.visibility = View.GONE
-                }
-            }
-
             // Bottom navigation eliminada - navegación a través de Home screen
             Log.d(TAG, "📱 Navegación configurada a través de Home screen")
 
@@ -494,27 +474,6 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "✅ Contenido principal configurado")
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error en showMainContent: ${e.message}", e)
-        }
-    }
-
-    /**
-     * Abre el fragmento del asistente de ayuda
-     */
-    private fun openHelpAssistant() {
-        try {
-            val fragment = HelpAssistantFragment.newInstance()
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.navHostFragment, fragment)
-                .addToBackStack("help_assistant")
-                .commit()
-
-            // Ocultar FAB mientras está en el chat
-            binding.fabHelp.visibility = View.GONE
-
-            Log.d(TAG, "✅ Asistente de ayuda abierto")
-        } catch (e: Exception) {
-            Log.e(TAG, "💥 Error abriendo asistente: ${e.message}", e)
-            Toast.makeText(this, "Error abriendo el asistente", Toast.LENGTH_SHORT).show()
         }
     }
 

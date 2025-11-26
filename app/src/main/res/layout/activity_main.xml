@@ -141,18 +141,5 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:navGraph="@navigation/mobile_navigation" />
 
-    <!-- Botón flotante de Ayuda -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabHelp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:visibility="gone"
-        android:src="@drawable/ic_help"
-        android:contentDescription="@string/help_assistant"
-        app:tint="@android:color/white"
-        app:backgroundTint="@color/primary"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
