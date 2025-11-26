@@ -134,9 +134,9 @@ const Usuarios: React.FC = () => {
 
       // Filtrar gerentes para el selector
       const managersData = usersData.filter(u =>
-        u.role === UserRole.GERENTE_AVIVA_CONTIGO ||
-        u.role === UserRole.ADMIN ||
-        u.role === UserRole.SUPER_ADMIN
+        u.role === 'GERENTE_AVIVA_CONTIGO' ||
+        u.role === 'ADMIN' ||
+        u.role === 'SUPER_ADMIN'
       );
       setManagers(managersData);
     } catch (err) {

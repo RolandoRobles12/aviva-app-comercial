@@ -113,13 +113,11 @@ const Metas: React.FC = () => {
 
   // Metas
   const [metas, setMetas] = useState<Meta[]>([]);
-  const [metasLoading, setMetasLoading] = useState(true);
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
 
   // Bonos
   const [bonos, setBonos] = useState<ConfiguracionBono[]>([]);
-  const [bonosLoading, setBonosLoading] = useState(true);
   const [bonoDialogOpen, setBonoDialogOpen] = useState(false);
   const [editingBono, setEditingBono] = useState<ConfiguracionBono | null>(null);
 
@@ -166,8 +164,6 @@ const Metas: React.FC = () => {
     } catch (err) {
       setError('Error al cargar metas');
       console.error(err);
-    } finally {
-      setMetasLoading(false);
     }
   };
 
@@ -182,8 +178,6 @@ const Metas: React.FC = () => {
     } catch (err) {
       setError('Error al cargar configuración de bonos');
       console.error(err);
-    } finally {
-      setBonosLoading(false);
     }
   };
 
