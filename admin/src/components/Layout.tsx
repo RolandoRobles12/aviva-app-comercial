@@ -27,10 +27,21 @@ import { useAuth } from '../contexts/AuthContext';
 
 const DRAWER_WIDTH = 240;
 
+import PeopleIcon from '@mui/icons-material/People';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import HubIcon from '@mui/icons-material/Hub';
+import HistoryIcon from '@mui/icons-material/History';
+
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+  { text: 'Usuarios', icon: <PeopleIcon />, path: '/usuarios' },
+  { text: 'Metas Comerciales', icon: <TrendingUpIcon />, path: '/metas' },
+  { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas' },
   { text: 'Catálogo de Giros', icon: <CategoryIcon />, path: '/giros' },
+  { text: 'HubSpot', icon: <HubIcon />, path: '/hubspot' },
   { text: 'Administradores', icon: <AdminPanelSettingsIcon />, path: '/administradores' },
+  { text: 'Auditoría', icon: <HistoryIcon />, path: '/auditoria' },
   { text: 'Configuración', icon: <SettingsIcon />, path: '/config' }
 ];
 
