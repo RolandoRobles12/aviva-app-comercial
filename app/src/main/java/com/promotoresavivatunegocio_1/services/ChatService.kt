@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.gson.Gson
+import com.promotoresavivatunegocio_1.models.ChatData
 import com.promotoresavivatunegocio_1.models.ChatRequest
 import com.promotoresavivatunegocio_1.models.ChatResponse
 import kotlinx.coroutines.tasks.await
