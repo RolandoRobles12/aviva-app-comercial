@@ -22,12 +22,13 @@ interface ChatResponse {
   message: string | null;
 }
 
-// Cliente OpenAI
+// Cliente OpenAI - Usando Firebase Functions Config
+const config = functions.config();
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
+  apiKey: config.openai?.apikey || '',
 });
 
-const ASSISTANT_ID = process.env.ASSISTANT_ID || '';
+const ASSISTANT_ID = config.openai?.assistantid || '';
 
 // Thread storage (en producción, usar Firestore)
 const threadStore: Map<string, string> = new Map();
