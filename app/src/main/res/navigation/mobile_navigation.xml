@@ -89,4 +89,11 @@
         android:label="Asistente de Ayuda"
         tools:layout="@layout/fragment_help_assistant" />
 
+    <!-- Trámites (Software de HR) -->
+    <fragment
+        android:id="@+id/navigation_tramites"
+        android:name="com.promotoresavivatunegocio_1.ui.tramites.TramitesFragment"
+        android:label="Trámites"
+        tools:layout="@layout/fragment_tramites" />
+
 </navigation>
