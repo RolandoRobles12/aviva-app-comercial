@@ -5,7 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@color/surface_variant">
 
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
@@ -28,7 +28,10 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:padding="8dp"
+        android:paddingTop="@dimen/spacing_normal"
+        android:paddingBottom="@dimen/spacing_normal"
+        android:paddingStart="@dimen/spacing_small"
+        android:paddingEnd="@dimen/spacing_small"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         tools:listitem="@layout/item_chat_message_user"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
@@ -79,7 +82,7 @@
         android:id="@+id/divider"
         android:layout_width="0dp"
         android:layout_height="1dp"
-        android:background="@android:color/darker_gray"
+        android:background="@color/divider"
         app:layout_constraintBottom_toTopOf="@id/inputContainer"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -90,9 +93,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp"
+        android:padding="@dimen/spacing_medium"
         android:gravity="center_vertical"
-        android:background="@android:color/white"
+        android:background="@color/surface"
+        android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -119,7 +123,9 @@
                 android:minHeight="48dp"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
-                android:textSize="14sp" />
+                android:textSize="@dimen/text_medium"
+                android:textColor="@color/on_surface"
+                android:lineSpacingExtra="4dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
