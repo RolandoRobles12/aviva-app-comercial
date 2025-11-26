@@ -26,8 +26,7 @@ import {
   Card,
   CardContent,
   Tabs,
-  Tab,
-  Divider
+  Tab
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -41,31 +40,17 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  query,
-  where,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // Tipos de metas
-enum MetaPeriodo {
-  SEMANAL = 'SEMANAL',
-  MENSUAL = 'MENSUAL',
-  TRIMESTRAL = 'TRIMESTRAL'
-}
+type MetaPeriodo = 'SEMANAL' | 'MENSUAL' | 'TRIMESTRAL';
 
-enum MetaTipo {
-  GLOBAL = 'GLOBAL',
-  INDIVIDUAL = 'INDIVIDUAL',
-  EQUIPO = 'EQUIPO'
-}
+type MetaTipo = 'GLOBAL' | 'INDIVIDUAL' | 'EQUIPO';
 
 // Categorías de bonos
-enum CategoriaBono {
-  CAC_A = 'CAC_A',
-  CAC_B = 'CAC_B',
-  CAC_C = 'CAC_C'
-}
+type CategoriaBono = 'CAC_A' | 'CAC_B' | 'CAC_C';
 
 interface ConfiguracionBono {
   id: string;
@@ -106,21 +91,21 @@ interface Meta {
 }
 
 const periodoLabels: Record<MetaPeriodo, string> = {
-  [MetaPeriodo.SEMANAL]: 'Semanal',
-  [MetaPeriodo.MENSUAL]: 'Mensual',
-  [MetaPeriodo.TRIMESTRAL]: 'Trimestral'
+  'SEMANAL': 'Semanal',
+  'MENSUAL': 'Mensual',
+  'TRIMESTRAL': 'Trimestral'
 };
 
 const tipoLabels: Record<MetaTipo, string> = {
-  [MetaTipo.GLOBAL]: 'Global (Todos)',
-  [MetaTipo.INDIVIDUAL]: 'Individual',
-  [MetaTipo.EQUIPO]: 'Por Equipo'
+  'GLOBAL': 'Global (Todos)',
+  'INDIVIDUAL': 'Individual',
+  'EQUIPO': 'Por Equipo'
 };
 
 const categoriaBonoLabels: Record<CategoriaBono, string> = {
-  [CategoriaBono.CAC_A]: 'CAC A - Premium',
-  [CategoriaBono.CAC_B]: 'CAC B - Estándar',
-  [CategoriaBono.CAC_C]: 'CAC C - Básico'
+  'CAC_A': 'CAC A - Premium',
+  'CAC_B': 'CAC B - Estándar',
+  'CAC_C': 'CAC C - Básico'
 };
 
 const Metas: React.FC = () => {
@@ -128,13 +113,11 @@ const Metas: React.FC = () => {
 
   // Metas
   const [metas, setMetas] = useState<Meta[]>([]);
-  const [metasLoading, setMetasLoading] = useState(true);
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
 
   // Bonos
   const [bonos, setBonos] = useState<ConfiguracionBono[]>([]);
-  const [bonosLoading, setBonosLoading] = useState(true);
   const [bonoDialogOpen, setBonoDialogOpen] = useState(false);
   const [editingBono, setEditingBono] = useState<ConfiguracionBono | null>(null);
 
@@ -143,8 +126,8 @@ const Metas: React.FC = () => {
   const [metaFormData, setMetaFormData] = useState<Omit<Meta, 'id'>>({
     nombre: '',
     descripcion: '',
-    tipo: MetaTipo.GLOBAL,
-    periodo: MetaPeriodo.SEMANAL,
+    tipo: 'GLOBAL',
+    periodo: 'SEMANAL',
     llamadasObjetivo: 60,
     colocacionObjetivo: 15000000, // $150,000 MXN
     tasaCierreObjetivo: 25,
@@ -154,7 +137,7 @@ const Metas: React.FC = () => {
   });
 
   const [bonoFormData, setBonoFormData] = useState<Omit<ConfiguracionBono, 'id'>>({
-    categoria: CategoriaBono.CAC_C,
+    categoria: 'CAC_C',
     nombre: '',
     colocacionMinima: 0,
     colocacionMaxima: 15000000,
@@ -181,8 +164,6 @@ const Metas: React.FC = () => {
     } catch (err) {
       setError('Error al cargar metas');
       console.error(err);
-    } finally {
-      setMetasLoading(false);
     }
   };
 
@@ -197,8 +178,6 @@ const Metas: React.FC = () => {
     } catch (err) {
       setError('Error al cargar configuración de bonos');
       console.error(err);
-    } finally {
-      setBonosLoading(false);
     }
   };
 
@@ -225,8 +204,8 @@ const Metas: React.FC = () => {
       setMetaFormData({
         nombre: '',
         descripcion: '',
-        tipo: MetaTipo.GLOBAL,
-        periodo: MetaPeriodo.SEMANAL,
+        tipo: 'GLOBAL',
+        periodo: 'SEMANAL',
         llamadasObjetivo: 60,
         colocacionObjetivo: 15000000,
         tasaCierreObjetivo: 25,
@@ -307,7 +286,7 @@ const Metas: React.FC = () => {
     } else {
       setEditingBono(null);
       setBonoFormData({
-        categoria: CategoriaBono.CAC_C,
+        categoria: 'CAC_C',
         nombre: '',
         colocacionMinima: 0,
         colocacionMaxima: 15000000,
@@ -442,7 +421,7 @@ const Metas: React.FC = () => {
                     Metas Globales
                   </Typography>
                   <Typography variant="h4">
-                    {metas.filter(m => m.tipo === MetaTipo.GLOBAL).length}
+                    {metas.filter(m => m.tipo === 'GLOBAL').length}
                   </Typography>
                 </CardContent>
               </Card>
@@ -454,7 +433,7 @@ const Metas: React.FC = () => {
                     Metas Individuales
                   </Typography>
                   <Typography variant="h4">
-                    {metas.filter(m => m.tipo === MetaTipo.INDIVIDUAL).length}
+                    {metas.filter(m => m.tipo === 'INDIVIDUAL').length}
                   </Typography>
                 </CardContent>
               </Card>
@@ -562,8 +541,8 @@ const Metas: React.FC = () => {
                         label={categoriaBonoLabels[bono.categoria]}
                         size="small"
                         color={
-                          bono.categoria === CategoriaBono.CAC_A ? 'success' :
-                          bono.categoria === CategoriaBono.CAC_B ? 'primary' : 'default'
+                          bono.categoria === 'CAC_A' ? 'success' :
+                          bono.categoria === 'CAC_B' ? 'primary' : 'default'
                         }
                       />
                     </TableCell>

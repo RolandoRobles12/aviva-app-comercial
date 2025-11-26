@@ -22,8 +22,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid,
-  Autocomplete
+  Grid
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -36,35 +35,16 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  query,
-  where,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // Coincide con User.kt de Android
-enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  ADMIN = 'ADMIN',
-  GERENTE_AVIVA_CONTIGO = 'GERENTE_AVIVA_CONTIGO',
-  PROMOTOR_AVIVA_TU_NEGOCIO = 'PROMOTOR_AVIVA_TU_NEGOCIO',
-  EMBAJADOR_AVIVA_TU_COMPRA = 'EMBAJADOR_AVIVA_TU_COMPRA',
-  PROMOTOR_AVIVA_TU_CASA = 'PROMOTOR_AVIVA_TU_CASA'
-}
+type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'GERENTE_AVIVA_CONTIGO' | 'PROMOTOR_AVIVA_TU_NEGOCIO' | 'EMBAJADOR_AVIVA_TU_COMPRA' | 'PROMOTOR_AVIVA_TU_CASA';
 
-enum ProductLine {
-  AVIVA_TU_NEGOCIO = 'AVIVA_TU_NEGOCIO',
-  AVIVA_CONTIGO = 'AVIVA_CONTIGO',
-  AVIVA_TU_COMPRA = 'AVIVA_TU_COMPRA',
-  AVIVA_TU_CASA = 'AVIVA_TU_CASA'
-}
+type ProductLine = 'AVIVA_TU_NEGOCIO' | 'AVIVA_CONTIGO' | 'AVIVA_TU_COMPRA' | 'AVIVA_TU_CASA';
 
-enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  SUSPENDED = 'SUSPENDED',
-  PENDING_ACTIVATION = 'PENDING_ACTIVATION'
-}
+type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_ACTIVATION';
 
 interface User {
   id: string;
@@ -87,33 +67,33 @@ interface User {
 }
 
 const roleLabels: Record<UserRole, string> = {
-  [UserRole.SUPER_ADMIN]: 'Super Administrador',
-  [UserRole.ADMIN]: 'Administrador',
-  [UserRole.GERENTE_AVIVA_CONTIGO]: 'Gerente Aviva Contigo',
-  [UserRole.PROMOTOR_AVIVA_TU_NEGOCIO]: 'Promotor Aviva Tu Negocio',
-  [UserRole.EMBAJADOR_AVIVA_TU_COMPRA]: 'Embajador Aviva Tu Compra',
-  [UserRole.PROMOTOR_AVIVA_TU_CASA]: 'Promotor Aviva Tu Casa'
+  'SUPER_ADMIN': 'Super Administrador',
+  'ADMIN': 'Administrador',
+  'GERENTE_AVIVA_CONTIGO': 'Gerente Aviva Contigo',
+  'PROMOTOR_AVIVA_TU_NEGOCIO': 'Promotor Aviva Tu Negocio',
+  'EMBAJADOR_AVIVA_TU_COMPRA': 'Embajador Aviva Tu Compra',
+  'PROMOTOR_AVIVA_TU_CASA': 'Promotor Aviva Tu Casa'
 };
 
 const productLineLabels: Record<ProductLine, string> = {
-  [ProductLine.AVIVA_TU_NEGOCIO]: 'Aviva Tu Negocio',
-  [ProductLine.AVIVA_CONTIGO]: 'Aviva Contigo',
-  [ProductLine.AVIVA_TU_COMPRA]: 'Aviva Tu Compra',
-  [ProductLine.AVIVA_TU_CASA]: 'Aviva Tu Casa'
+  'AVIVA_TU_NEGOCIO': 'Aviva Tu Negocio',
+  'AVIVA_CONTIGO': 'Aviva Contigo',
+  'AVIVA_TU_COMPRA': 'Aviva Tu Compra',
+  'AVIVA_TU_CASA': 'Aviva Tu Casa'
 };
 
 const statusLabels: Record<UserStatus, string> = {
-  [UserStatus.ACTIVE]: 'Activo',
-  [UserStatus.INACTIVE]: 'Inactivo',
-  [UserStatus.SUSPENDED]: 'Suspendido',
-  [UserStatus.PENDING_ACTIVATION]: 'Pendiente de Activación'
+  'ACTIVE': 'Activo',
+  'INACTIVE': 'Inactivo',
+  'SUSPENDED': 'Suspendido',
+  'PENDING_ACTIVATION': 'Pendiente de Activación'
 };
 
 const statusColors: Record<UserStatus, "success" | "default" | "error" | "warning"> = {
-  [UserStatus.ACTIVE]: 'success',
-  [UserStatus.INACTIVE]: 'default',
-  [UserStatus.SUSPENDED]: 'error',
-  [UserStatus.PENDING_ACTIVATION]: 'warning'
+  'ACTIVE': 'success',
+  'INACTIVE': 'default',
+  'SUSPENDED': 'error',
+  'PENDING_ACTIVATION': 'warning'
 };
 
 const Usuarios: React.FC = () => {
@@ -127,9 +107,9 @@ const Usuarios: React.FC = () => {
   const [formData, setFormData] = useState<Omit<User, 'id'>>({
     email: '',
     displayName: '',
-    role: UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
-    productLine: ProductLine.AVIVA_TU_NEGOCIO,
-    status: UserStatus.ACTIVE,
+    role: 'PROMOTOR_AVIVA_TU_NEGOCIO',
+    productLine: 'AVIVA_TU_NEGOCIO',
+    status: 'ACTIVE',
     phoneNumber: '',
     employeeId: '',
     department: '',
@@ -154,9 +134,9 @@ const Usuarios: React.FC = () => {
 
       // Filtrar gerentes para el selector
       const managersData = usersData.filter(u =>
-        u.role === UserRole.GERENTE_AVIVA_CONTIGO ||
-        u.role === UserRole.ADMIN ||
-        u.role === UserRole.SUPER_ADMIN
+        u.role === 'GERENTE_AVIVA_CONTIGO' ||
+        u.role === 'ADMIN' ||
+        u.role === 'SUPER_ADMIN'
       );
       setManagers(managersData);
     } catch (err) {
@@ -189,9 +169,9 @@ const Usuarios: React.FC = () => {
       setFormData({
         email: '',
         displayName: '',
-        role: UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
-        productLine: ProductLine.AVIVA_TU_NEGOCIO,
-        status: UserStatus.ACTIVE,
+        role: 'PROMOTOR_AVIVA_TU_NEGOCIO',
+        productLine: 'AVIVA_TU_NEGOCIO',
+        status: 'ACTIVE',
         phoneNumber: '',
         employeeId: '',
         department: '',
@@ -295,8 +275,8 @@ const Usuarios: React.FC = () => {
       <Alert severity="info" sx={{ mb: 2 }}>
         <strong>Total de usuarios:</strong> {users.length}
         <br />
-        <strong>Activos:</strong> {users.filter(u => u.status === UserStatus.ACTIVE).length} |
-        <strong> Inactivos:</strong> {users.filter(u => u.status === UserStatus.INACTIVE).length}
+        <strong>Activos:</strong> {users.filter(u => u.status === 'ACTIVE').length} |
+        <strong> Inactivos:</strong> {users.filter(u => u.status === 'INACTIVE').length}
       </Alert>
 
       <TableContainer component={Paper}>

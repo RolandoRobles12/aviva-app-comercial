@@ -27,7 +27,6 @@ import {
   collection,
   getDocs,
   doc,
-  updateDoc,
   getDoc,
   setDoc
 } from 'firebase/firestore';

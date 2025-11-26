@@ -42,21 +42,9 @@ import {
 import { db } from '../config/firebase';
 
 // Coincide con League.kt
-enum LeagueTier {
-  BRONCE = 'BRONCE',
-  PLATA = 'PLATA',
-  ORO = 'ORO',
-  PLATINO = 'PLATINO',
-  DIAMANTE = 'DIAMANTE',
-  MASTER = 'MASTER',
-  LEYENDA = 'LEYENDA'
-}
+type LeagueTier = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE' | 'MASTER' | 'LEYENDA';
 
-enum LeagueStatus {
-  PENDING = 'PENDING',
-  ACTIVE = 'ACTIVE',
-  FINISHED = 'FINISHED'
-}
+type LeagueStatus = 'PENDING' | 'ACTIVE' | 'FINISHED';
 
 interface League {
   id: string;
@@ -73,45 +61,45 @@ interface League {
 }
 
 const tierLabels: Record<LeagueTier, string> = {
-  [LeagueTier.BRONCE]: 'Bronce',
-  [LeagueTier.PLATA]: 'Plata',
-  [LeagueTier.ORO]: 'Oro',
-  [LeagueTier.PLATINO]: 'Platino',
-  [LeagueTier.DIAMANTE]: 'Diamante',
-  [LeagueTier.MASTER]: 'Master',
-  [LeagueTier.LEYENDA]: 'Leyenda'
+  'BRONCE': 'Bronce',
+  'PLATA': 'Plata',
+  'ORO': 'Oro',
+  'PLATINO': 'Platino',
+  'DIAMANTE': 'Diamante',
+  'MASTER': 'Master',
+  'LEYENDA': 'Leyenda'
 };
 
 const tierColors: Record<LeagueTier, string> = {
-  [LeagueTier.BRONCE]: '#CD7F32',
-  [LeagueTier.PLATA]: '#C0C0C0',
-  [LeagueTier.ORO]: '#FFD700',
-  [LeagueTier.PLATINO]: '#E5E4E2',
-  [LeagueTier.DIAMANTE]: '#B9F2FF',
-  [LeagueTier.MASTER]: '#FF1744',
-  [LeagueTier.LEYENDA]: '#9C27B0'
+  'BRONCE': '#CD7F32',
+  'PLATA': '#C0C0C0',
+  'ORO': '#FFD700',
+  'PLATINO': '#E5E4E2',
+  'DIAMANTE': '#B9F2FF',
+  'MASTER': '#FF1744',
+  'LEYENDA': '#9C27B0'
 };
 
 const tierMinPoints: Record<LeagueTier, number> = {
-  [LeagueTier.BRONCE]: 0,
-  [LeagueTier.PLATA]: 1000,
-  [LeagueTier.ORO]: 2500,
-  [LeagueTier.PLATINO]: 5000,
-  [LeagueTier.DIAMANTE]: 10000,
-  [LeagueTier.MASTER]: 20000,
-  [LeagueTier.LEYENDA]: 50000
+  'BRONCE': 0,
+  'PLATA': 1000,
+  'ORO': 2500,
+  'PLATINO': 5000,
+  'DIAMANTE': 10000,
+  'MASTER': 20000,
+  'LEYENDA': 50000
 };
 
 const statusLabels: Record<LeagueStatus, string> = {
-  [LeagueStatus.PENDING]: 'Pendiente',
-  [LeagueStatus.ACTIVE]: 'Activa',
-  [LeagueStatus.FINISHED]: 'Finalizada'
+  'PENDING': 'Pendiente',
+  'ACTIVE': 'Activa',
+  'FINISHED': 'Finalizada'
 };
 
 const statusColors: Record<LeagueStatus, "warning" | "success" | "default"> = {
-  [LeagueStatus.PENDING]: 'warning',
-  [LeagueStatus.ACTIVE]: 'success',
-  [LeagueStatus.FINISHED]: 'default'
+  'PENDING': 'warning',
+  'ACTIVE': 'success',
+  'FINISHED': 'default'
 };
 
 const Ligas: React.FC = () => {
@@ -122,7 +110,7 @@ const Ligas: React.FC = () => {
   const [error, setError] = useState<string>('');
 
   const [formData, setFormData] = useState<Omit<League, 'id'>>({
-    tier: LeagueTier.BRONCE,
+    tier: 'BRONCE',
     season: 1,
     name: '',
     startDate: Timestamp.now(),
@@ -130,7 +118,7 @@ const Ligas: React.FC = () => {
     maxParticipants: 50,
     promotionSpots: 10,
     relegationSpots: 10,
-    status: LeagueStatus.PENDING
+    status: 'PENDING'
   });
 
   useEffect(() => {
@@ -171,7 +159,7 @@ const Ligas: React.FC = () => {
       setEditingLeague(null);
       const nextSeason = leagues.length > 0 ? Math.max(...leagues.map(l => l.season)) + 1 : 1;
       setFormData({
-        tier: LeagueTier.BRONCE,
+        tier: 'BRONCE',
         season: nextSeason,
         name: '',
         startDate: Timestamp.now(),
@@ -179,7 +167,7 @@ const Ligas: React.FC = () => {
         maxParticipants: 50,
         promotionSpots: 10,
         relegationSpots: 10,
-        status: LeagueStatus.PENDING
+        status: 'PENDING'
       });
     }
     setDialogOpen(true);
@@ -296,7 +284,7 @@ const Ligas: React.FC = () => {
                 Ligas Activas
               </Typography>
               <Typography variant="h4">
-                {leagues.filter(l => l.status === LeagueStatus.ACTIVE).length}
+                {leagues.filter(l => l.status === 'ACTIVE').length}
               </Typography>
             </CardContent>
           </Card>

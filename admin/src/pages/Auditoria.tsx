@@ -16,42 +16,17 @@ import {
   Select,
   MenuItem,
   Grid,
-  Card,
-  CardContent,
   Pagination
 } from '@mui/material';
-import HistoryIcon from '@mui/icons-material/History';
 import PersonIcon from '@mui/icons-material/Person';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  Timestamp
-} from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { Timestamp } from 'firebase/firestore';
 
-enum AuditAction {
-  CREATE = 'CREATE',
-  UPDATE = 'UPDATE',
-  DELETE = 'DELETE',
-  LOGIN = 'LOGIN',
-  LOGOUT = 'LOGOUT'
-}
+type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT';
 
-enum AuditModule {
-  USERS = 'USERS',
-  METAS = 'METAS',
-  LIGAS = 'LIGAS',
-  GIROS = 'GIROS',
-  BONOS = 'BONOS',
-  HUBSPOT = 'HUBSPOT',
-  CONFIG = 'CONFIG'
-}
+type AuditModule = 'USERS' | 'METAS' | 'LIGAS' | 'GIROS' | 'BONOS' | 'HUBSPOT' | 'CONFIG';
 
 interface AuditLog {
   id: string;
@@ -68,37 +43,37 @@ interface AuditLog {
 }
 
 const actionLabels: Record<AuditAction, string> = {
-  [AuditAction.CREATE]: 'Creación',
-  [AuditAction.UPDATE]: 'Actualización',
-  [AuditAction.DELETE]: 'Eliminación',
-  [AuditAction.LOGIN]: 'Inicio de sesión',
-  [AuditAction.LOGOUT]: 'Cierre de sesión'
+  'CREATE': 'Creación',
+  'UPDATE': 'Actualización',
+  'DELETE': 'Eliminación',
+  'LOGIN': 'Inicio de sesión',
+  'LOGOUT': 'Cierre de sesión'
 };
 
 const actionColors: Record<AuditAction, "success" | "info" | "error" | "default" | "primary"> = {
-  [AuditAction.CREATE]: 'success',
-  [AuditAction.UPDATE]: 'info',
-  [AuditAction.DELETE]: 'error',
-  [AuditAction.LOGIN]: 'primary',
-  [AuditAction.LOGOUT]: 'default'
+  'CREATE': 'success',
+  'UPDATE': 'info',
+  'DELETE': 'error',
+  'LOGIN': 'primary',
+  'LOGOUT': 'default'
 };
 
 const actionIcons: Record<AuditAction, React.ReactElement> = {
-  [AuditAction.CREATE]: <AddIcon fontSize="small" />,
-  [AuditAction.UPDATE]: <EditIcon fontSize="small" />,
-  [AuditAction.DELETE]: <DeleteIcon fontSize="small" />,
-  [AuditAction.LOGIN]: <PersonIcon fontSize="small" />,
-  [AuditAction.LOGOUT]: <PersonIcon fontSize="small" />
+  'CREATE': <AddIcon fontSize="small" />,
+  'UPDATE': <EditIcon fontSize="small" />,
+  'DELETE': <DeleteIcon fontSize="small" />,
+  'LOGIN': <PersonIcon fontSize="small" />,
+  'LOGOUT': <PersonIcon fontSize="small" />
 };
 
 const moduleLabels: Record<AuditModule, string> = {
-  [AuditModule.USERS]: 'Usuarios',
-  [AuditModule.METAS]: 'Metas',
-  [AuditModule.LIGAS]: 'Ligas',
-  [AuditModule.GIROS]: 'Giros',
-  [AuditModule.BONOS]: 'Bonos',
-  [AuditModule.HUBSPOT]: 'HubSpot',
-  [AuditModule.CONFIG]: 'Configuración'
+  'USERS': 'Usuarios',
+  'METAS': 'Metas',
+  'LIGAS': 'Ligas',
+  'GIROS': 'Giros',
+  'BONOS': 'Bonos',
+  'HUBSPOT': 'HubSpot',
+  'CONFIG': 'Configuración'
 };
 
 const Auditoria: React.FC = () => {
@@ -126,8 +101,8 @@ const Auditoria: React.FC = () => {
       const sampleLogs: AuditLog[] = [
         {
           id: '1',
-          module: AuditModule.USERS,
-          action: AuditAction.CREATE,
+          module: 'USERS',
+          action: 'CREATE',
           userId: 'admin1',
           userName: 'Admin Usuario',
           userEmail: 'admin@avivacredito.com',
@@ -138,8 +113,8 @@ const Auditoria: React.FC = () => {
         },
         {
           id: '2',
-          module: AuditModule.METAS,
-          action: AuditAction.UPDATE,
+          module: 'METAS',
+          action: 'UPDATE',
           userId: 'admin1',
           userName: 'Admin Usuario',
           userEmail: 'admin@avivacredito.com',
@@ -151,8 +126,8 @@ const Auditoria: React.FC = () => {
         },
         {
           id: '3',
-          module: AuditModule.LIGAS,
-          action: AuditAction.CREATE,
+          module: 'LIGAS',
+          action: 'CREATE',
           userId: 'admin2',
           userName: 'Otro Admin',
           userEmail: 'admin2@avivacredito.com',
@@ -163,8 +138,8 @@ const Auditoria: React.FC = () => {
         },
         {
           id: '4',
-          module: AuditModule.HUBSPOT,
-          action: AuditAction.UPDATE,
+          module: 'HUBSPOT',
+          action: 'UPDATE',
           userId: 'admin1',
           userName: 'Admin Usuario',
           userEmail: 'admin@avivacredito.com',
@@ -176,8 +151,8 @@ const Auditoria: React.FC = () => {
         },
         {
           id: '5',
-          module: AuditModule.GIROS,
-          action: AuditAction.DELETE,
+          module: 'GIROS',
+          action: 'DELETE',
           userId: 'admin1',
           userName: 'Admin Usuario',
           userEmail: 'admin@avivacredito.com',
@@ -253,12 +228,12 @@ const Auditoria: React.FC = () => {
   const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
 
   // Estadísticas
-  const statsByAction = Object.values(AuditAction).map(action => ({
+  const statsByAction = (['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT'] as AuditAction[]).map(action => ({
     action,
     count: logs.filter(log => log.action === action).length
   }));
 
-  const statsByModule = Object.values(AuditModule).map(module => ({
+  const statsByModule = (['USERS', 'METAS', 'LIGAS', 'GIROS', 'BONOS', 'HUBSPOT', 'CONFIG'] as AuditModule[]).map(module => ({
     module,
     count: logs.filter(log => log.module === module).length
   }));
