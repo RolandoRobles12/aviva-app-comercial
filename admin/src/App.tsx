@@ -4,8 +4,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Usuarios from './pages/Usuarios';
+import Metas from './pages/Metas';
+import Ligas from './pages/Ligas';
 import Giros from './pages/Giros';
+import HubSpot from './pages/HubSpot';
 import Administradores from './pages/Administradores';
+import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
 
 const theme = createTheme({
@@ -47,8 +52,13 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="usuarios" element={<Usuarios />} />
+        <Route path="metas" element={<Metas />} />
+        <Route path="ligas" element={<Ligas />} />
         <Route path="giros" element={<Giros />} />
+        <Route path="hubspot" element={<HubSpot />} />
         <Route path="administradores" element={<Administradores />} />
+        <Route path="auditoria" element={<Auditoria />} />
         <Route path="config" element={<Configuracion />} />
       </Route>
     </Routes>
