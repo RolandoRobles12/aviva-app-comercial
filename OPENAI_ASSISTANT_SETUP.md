@@ -22,9 +22,17 @@ search_hubspot_deals
 Busca deals/llamadas en HubSpot CRM. Usa esta función cuando el usuario pregunte sobre:
 - Status o información de clientes específicos (por nombre)
 - Deals en etapas específicas (castigo, aprobado, pagado)
-- Conteos de deals/llamadas (cuántos deals)
-- Métricas y análisis de deals
-- Consultas con filtros de fecha (hoy, ayer, este mes)
+- Conteos de deals/llamadas (cuántos deals, cuántas ventas)
+- Métricas y análisis de deals (top vendedores, montos totales)
+- Consultas con filtros de fecha (hoy, ayer, esta semana, este mes)
+- Consultas de ventas personales ("cuánto he vendido", "mis ventas")
+- Consultas por producto (Aviva Contigo, Aviva Tu Negocio, etc.)
+- Consultas de renovaciones y cross-selling
+
+IMPORTANTE:
+- Cuando el usuario usa "yo", "mi", "he vendido", "vendí", debes incluir el owner_id del usuario
+- Los nombres de owners y service owners deben mostrarse con nombres reales, no IDs
+- La fecha de venta es diferente a la fecha de solicitud (createdate)
 ```
 
 ### Parámetros (JSON Schema)
