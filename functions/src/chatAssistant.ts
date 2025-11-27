@@ -292,9 +292,9 @@ async function processWithAssistant(
 ): Promise<{ response: string; threadId: string }> {
   try {
     // Obtener o crear thread
-    let currentThreadId = threadId;
+    let currentThreadId: string = threadId || '';
     if (!currentThreadId) {
-      currentThreadId = threadStore.get(userId);
+      currentThreadId = threadStore.get(userId) || '';
       if (!currentThreadId) {
         const thread = await openai.beta.threads.create();
         currentThreadId = thread.id;
