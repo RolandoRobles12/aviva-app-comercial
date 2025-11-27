@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5"
+    android:background="#F4F4F4"
     android:fillViewport="true">
 
     <LinearLayout
@@ -13,571 +13,598 @@
         android:orientation="vertical">
 
         <!-- ============================================ -->
-        <!-- ENCABEZADO SUPERIOR (BANDA SUPERIOR) -->
+        <!-- ENCABEZADO SUPERIOR (SECCIÓN COMPLETA) -->
         <!-- ============================================ -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#EEEEEE"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical">
+            android:background="#FFFFFF"
+            android:orientation="vertical"
+            android:padding="24dp">
 
-            <!-- Lado izquierdo: Nombre y Subtitle -->
+            <!-- Primera fila: Nombre del usuario -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
 
-                <TextView
-                    android:id="@+id/tvNombreUsuario"
-                    android:layout_width="wrap_content"
+                <!-- Lado izquierdo: Nombre y subtítulo -->
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="[NOMBRE_DEL_USUARIO]"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:textAllCaps="true"
-                    android:fontFamily="sans-serif-black" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Scorecard Incentivos"
-                    android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="4dp" />
+                    <TextView
+                        android:id="@+id/tvNombreUsuario"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="[NOMBRE_DEL_USUARIO]"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:textAllCaps="true"
+                        android:fontFamily="sans-serif-black" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Scorecard Incentivos"
+                        android:textSize="17sp"
+                        android:textColor="#666666"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="sans-serif-light" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
-            <!-- Recuadro Multiplicador (verde oscuro) -->
+            <!-- Segunda fila: Cajas de multiplicador, ganancia y mes -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#2E7D32"
-                android:orientation="vertical"
-                android:padding="12dp"
-                android:layout_marginEnd="12dp"
-                android:gravity="center">
+                android:orientation="horizontal"
+                android:gravity="end|center_vertical">
 
-                <TextView
+                <!-- Caja del Multiplicador (verde oscuro) -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Multiplicador"
-                    android:textSize="11sp"
-                    android:textColor="#FFFFFF" />
+                    android:background="@drawable/rounded_green_dark_box"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:gravity="center">
 
-                <TextView
-                    android:id="@+id/tvMultiplicador"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Multiplicador"
+                        android:textSize="13sp"
+                        android:textColor="#FFFFFF" />
+
+                    <TextView
+                        android:id="@+id/tvMultiplicador"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.5X"
+                        android:textSize="26sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:layout_marginTop="8dp" />
+
+                </LinearLayout>
+
+                <!-- Caja de Ganancia mensual (verde brillante) -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0.5X"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="4dp" />
+                    android:background="@drawable/rounded_green_bright_box"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ganancia mensual"
+                        android:textSize="13sp"
+                        android:textColor="#FFFFFF" />
+
+                    <TextView
+                        android:id="@+id/tvGananciaMensual"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="$6,768"
+                        android:textSize="26sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:layout_marginTop="8dp" />
+
+                </LinearLayout>
+
+                <!-- Texto del mes -->
+                <TextView
+                    android:id="@+id/tvMes"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MES: Octubre 2025"
+                    android:textSize="16sp"
+                    android:textColor="#2C2C2C"
+                    android:textStyle="bold" />
 
             </LinearLayout>
-
-            <!-- Recuadro Ganancia mensual (verde brillante) -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="#4CAF50"
-                android:orientation="vertical"
-                android:padding="12dp"
-                android:layout_marginEnd="16dp"
-                android:gravity="center">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Ganancia mensual"
-                    android:textSize="11sp"
-                    android:textColor="#FFFFFF" />
-
-                <TextView
-                    android:id="@+id/tvGananciaMensual"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="$6,768"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginTop="4dp" />
-
-            </LinearLayout>
-
-            <!-- MES -->
-            <TextView
-                android:id="@+id/tvMes"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="MES: Octubre 2025"
-                android:textSize="13sp"
-                android:textColor="#000000" />
 
         </LinearLayout>
 
+        <!-- Espacio entre encabezado y tabla -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="16dp"
+            android:background="#F4F4F4" />
+
         <!-- ============================================ -->
-        <!-- TABLA PRINCIPAL -->
+        <!-- TABLA PRINCIPAL (VISTA VERTICAL Y LEGIBLE) -->
         <!-- ============================================ -->
-        <TableLayout
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:stretchColumns="*"
-            android:shrinkColumns="*"
+            android:scrollbars="horizontal"
             android:background="#FFFFFF"
-            android:padding="0dp">
+            android:padding="24dp">
 
-            <!-- FILA DE ENCABEZADOS (verde oscuro, texto blanco) -->
-            <TableRow
-                android:layout_width="match_parent"
+            <TableLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="#2E7D32"
-                android:padding="12dp">
+                android:stretchColumns="*">
 
-                <TextView
-                    android:layout_width="0dp"
+                <!-- FILA DE ENCABEZADOS (verde oscuro, texto blanco) -->
+                <TableRow
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Métrica"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    android:background="#006341"
+                    android:minHeight="70dp">
 
-                <TextView
-                    android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="Métrica"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:layout_width="220dp"
+                        android:layout_height="match_parent"
+                        android:text="Descripción"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:layout_width="240dp"
+                        android:layout_height="match_parent"
+                        android:text="Métricas"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="Resultado"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="match_parent"
+                        android:text="Categoría"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:text="Puntaje"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="@drawable/table_border" />
+
+                </TableRow>
+
+                <!-- FILA 1: CAC -->
+                <TableRow
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Descripción"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    android:background="#FFFFFF"
+                    android:minHeight="100dp">
 
-                <TextView
-                    android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="CAC"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCacDescripcion"
+                        android:layout_width="220dp"
+                        android:layout_height="match_parent"
+                        android:text="Costo Operativo / Venta Mensual"
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCacMetricas"
+                        android:layout_width="240dp"
+                        android:layout_height="match_parent"
+                        android:text="$68,520/\n$553,000"
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:lineSpacingExtra="4dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCacResultado"
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="12.4%"
+                        android:textSize="19sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCacCategoria"
+                        android:layout_width="120dp"
+                        android:layout_height="match_parent"
+                        android:text="B"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#F7A232"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCacPuntaje"
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:text="25"
+                        android:textSize="17sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                </TableRow>
+
+                <!-- FILA 2: CALIDAD -->
+                <TableRow
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Métricas"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    android:background="#FFFFFF"
+                    android:minHeight="100dp">
 
-                <TextView
-                    android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="CALIDAD"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCalidadDescripcion"
+                        android:layout_width="220dp"
+                        android:layout_height="match_parent"
+                        android:text="Calificación entre los clientes que hacen sus primeros pagos y los clientes que no pagan."
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCalidadMetricas"
+                        android:layout_width="240dp"
+                        android:layout_height="match_parent"
+                        android:text="Pagos completados: 73%\nPrimeros pagos no hechos: 7.6%"
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:lineSpacingExtra="4dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCalidadResultado"
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="8.0"
+                        android:textSize="19sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCalidadCategoria"
+                        android:layout_width="120dp"
+                        android:layout_height="match_parent"
+                        android:text="B"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#F7A232"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvCalidadPuntaje"
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:text="15"
+                        android:textSize="17sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                </TableRow>
+
+                <!-- FILA 3: NIM -->
+                <TableRow
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Resultado"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    android:background="#FFFFFF"
+                    android:minHeight="100dp">
 
-                <TextView
-                    android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="NIM"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvNimDescripcion"
+                        android:layout_width="220dp"
+                        android:layout_height="match_parent"
+                        android:text="Pagos hechos por los clientes menos el costo de fondeo y las pérdidas de crédito."
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvNimMetricas"
+                        android:layout_width="240dp"
+                        android:layout_height="match_parent"
+                        android:text="Ingresos: $382,111\nPérdidas: $143,041\nFondeo: $70,766"
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:lineSpacingExtra="4dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvNimResultado"
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="44%"
+                        android:textSize="19sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvNimCategoria"
+                        android:layout_width="120dp"
+                        android:layout_height="match_parent"
+                        android:text="B"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#F7A232"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                    <TextView
+                        android:id="@+id/tvNimPuntaje"
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:text="5"
+                        android:textSize="17sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
+
+                </TableRow>
+
+                <!-- FILA 4: CRECIMIENTO -->
+                <TableRow
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Categoría"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    android:background="#FFFFFF"
+                    android:minHeight="100dp">
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="Puntaje"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    <TextView
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="CRECIMIENTO"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        android:background="@drawable/table_border" />
 
-            </TableRow>
+                    <TextView
+                        android:id="@+id/tvCrecimientoDescripcion"
+                        android:layout_width="220dp"
+                        android:layout_height="match_parent"
+                        android:text="Crecimiento del portafolio contra el mes anterior."
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
 
-            <!-- FILA 1: CAC -->
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                android:padding="12dp">
+                    <TextView
+                        android:id="@+id/tvCrecimientoMetricas"
+                        android:layout_width="240dp"
+                        android:layout_height="match_parent"
+                        android:text="Portafolio Sep: 4.5M\nPortafolio Oct: 4.9M"
+                        android:textSize="15sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:lineSpacingExtra="4dp"
+                        android:background="@drawable/table_border" />
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="CAC"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    <TextView
+                        android:id="@+id/tvCrecimientoResultado"
+                        android:layout_width="140dp"
+                        android:layout_height="match_parent"
+                        android:text="9.0%"
+                        android:textSize="19sp"
+                        android:textStyle="bold"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
 
-                <TextView
-                    android:id="@+id/tvCacDescripcion"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Costo Operativo / Venta Mensual"
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    <TextView
+                        android:id="@+id/tvCrecimientoCategoria"
+                        android:layout_width="120dp"
+                        android:layout_height="match_parent"
+                        android:text="2"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#F7A232"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
 
-                <TextView
-                    android:id="@+id/tvCacMetricas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="$68,520/\n$553,000"
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                    <TextView
+                        android:id="@+id/tvCrecimientoPuntaje"
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:text="5"
+                        android:textSize="17sp"
+                        android:textColor="#2C2C2C"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/table_border" />
 
-                <TextView
-                    android:id="@+id/tvCacResultado"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="12.4%"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
+                </TableRow>
 
-                <TextView
-                    android:id="@+id/tvCacCategoria"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="B"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#FF9800"
-                    android:gravity="center"
-                    android:padding="8dp" />
+            </TableLayout>
 
-                <TextView
-                    android:id="@+id/tvCacPuntaje"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="25"
-                    android:textSize="13sp"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
+        </HorizontalScrollView>
 
-            </TableRow>
-
-            <!-- Línea divisoria -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#DDDDDD" />
-
-            <!-- FILA 2: CALIDAD -->
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="CALIDAD"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCalidadDescripcion"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Calificación entre los clientes que hacen sus primeros pagos y los clientes que no pagan."
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCalidadMetricas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Pagos completados: 73%\nPrimeros pagos no hechos: 7.6%"
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCalidadResultado"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="8.0"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCalidadCategoria"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="B"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#FF9800"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCalidadPuntaje"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="15"
-                    android:textSize="13sp"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-            </TableRow>
-
-            <!-- Línea divisoria -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#DDDDDD" />
-
-            <!-- FILA 3: NIM -->
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="NIM"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvNimDescripcion"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Pagos hechos por los clientes menos el costo de fondeo y las pérdidas de crédito."
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvNimMetricas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Ingresos: $382,111\nPérdidas: $143,041\nFondeo: $70,766"
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvNimResultado"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="44%"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvNimCategoria"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="B"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#FF9800"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvNimPuntaje"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="5"
-                    android:textSize="13sp"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-            </TableRow>
-
-            <!-- Línea divisoria -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#DDDDDD" />
-
-            <!-- FILA 4: CRECIMIENTO -->
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="CRECIMIENTO"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCrecimientoDescripcion"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Crecimiento del portafolio contra el mes anterior."
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCrecimientoMetricas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:text="Portafolio Sep: 4.5M\nPortafolio Oct: 4.9M"
-                    android:textSize="11sp"
-                    android:textColor="#333333"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCrecimientoResultado"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="9.0%"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCrecimientoCategoria"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="2"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#FF9800"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/tvCrecimientoPuntaje"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:text="5"
-                    android:textSize="13sp"
-                    android:textColor="#000000"
-                    android:gravity="center"
-                    android:padding="8dp" />
-
-            </TableRow>
-
-        </TableLayout>
+        <!-- Espacio entre tabla y logo -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:background="#F4F4F4" />
 
         <!-- ============================================ -->
-        <!-- PIE DE LA TABLA - Logo aviva -->
+        <!-- LOGO / TEXTO "aviva" -->
         <!-- ============================================ -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="aviva"
-            android:textSize="16sp"
+            android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#4CAF50"
+            android:textColor="#00A86B"
             android:gravity="center"
             android:padding="16dp"
-            android:background="#FFFFFF" />
+            android:background="#F4F4F4" />
 
         <!-- ============================================ -->
-        <!-- BARRA INFERIOR DE PUNTAJE TOTAL -->
+        <!-- BARRA DE PUNTAJE TOTAL (PARTE INFERIOR) -->
         <!-- ============================================ -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#4CAF50"
+            android:background="#00A86B"
             android:orientation="horizontal"
-            android:padding="20dp"
-            android:gravity="center_vertical">
+            android:padding="28dp"
+            android:gravity="center_vertical"
+            android:minHeight="100dp">
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="PUNTAJE TOTAL"
-                android:textSize="18sp"
+                android:textSize="24sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFF"
-                android:paddingStart="20dp" />
+                android:paddingStart="24dp" />
 
             <TextView
                 android:id="@+id/tvPuntajeTotal"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="50"
-                android:textSize="32sp"
+                android:textSize="40sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFF"
-                android:paddingEnd="20dp" />
+                android:paddingEnd="24dp" />
 
         </LinearLayout>
 
