@@ -38,26 +38,36 @@ const threadStore: Map<string, string> = new Map();
  */
 class HubSpotPatternDetector {
   private strictFaqBlockers = [
-    'cancelación', 'cancelacion', 'cancelar',
-    'proceso', 'procedimiento', 'pasos',
-    'tiempo', 'tardan', 'demora', 'cuanto tiempo', 'cuánto tiempo',
+    // Procesos y procedimientos
+    'cómo cancelar', 'como cancelar', 'proceso de cancelación', 'proceso de cancelacion',
+    'cuáles son los pasos', 'cuales son los pasos', 'qué pasos', 'que pasos',
+    'cuánto tiempo tarda', 'cuanto tiempo tarda', 'cuánto demora', 'cuanto demora',
     'cómo funciona', 'como funciona',
-    'requisitos', 'documentos', 'papeles',
-    'videollamada', 'video llamada',
-    'cuenta cashi', 'cuenta cash',
-    'saldo', 'desaparezca',
-    'aviva tu negocio', 'aviva contigo',
-    'crédito aviva', 'credito aviva',
-    'necesita', 'necesito', 'requiere',
-    'problema', 'error', 'falla',
-    'ayuda', 'apoyo', 'asistencia',
-    'información', 'informacion',
-    'explicar', 'explicación', 'explicacion',
-    'mi cliente', 'un cliente', 'el cliente',
-    'mi crédito', 'su crédito', 'el crédito',
+    // Requisitos y documentación
+    'qué requisitos', 'que requisitos', 'cuáles requisitos', 'cuales requisitos',
+    'qué documentos', 'que documentos', 'cuáles documentos', 'cuales documentos',
+    'qué necesita', 'que necesita', 'qué necesito', 'que necesito',
+    // Información general sobre productos
+    'qué es aviva', 'que es aviva',
+    'qué es crédito aviva', 'que es credito aviva',
+    'qué es cuenta cashi', 'que es cuenta cashi',
+    'cómo funciona aviva', 'como funciona aviva',
+    'cómo funciona el crédito', 'como funciona el credito',
+    // Preguntas de ayuda general
+    'cómo puedo ayudar', 'como puedo ayudar',
+    'qué puedes hacer', 'que puedes hacer',
+    'en qué me ayudas', 'en que me ayudas',
+    // Problemas técnicos generales
+    'tengo un problema con', 'tengo un error',
+    'no funciona', 'no puedo',
+    'por qué no', 'porque no',
+    // Videollamadas (proceso general)
+    'cómo hacer videollamada', 'como hacer videollamada',
+    'cómo agendar videollamada', 'como agendar videollamada',
   ];
 
   private preciseHubspotKeywords = [
+    // Consultas agregadas
     'cuántos deals', 'cuantos deals',
     'cuántas llamadas', 'cuantas llamadas',
     'cuántos clientes', 'cuantos clientes',
@@ -67,25 +77,60 @@ class HubSpotPatternDetector {
     'llamadas creadas', 'llamadas generadas',
     'quién creó más deals', 'quien creo mas deals',
     'deals en castigo', 'deals aprobados', 'deals pagados',
+    // Consultas de clientes específicos
+    'status del cliente', 'estado del cliente',
+    'información del cliente', 'informacion del cliente',
+    'datos del cliente', 'dato del cliente',
+    'consultar cliente', 'buscar cliente',
+    'ver cliente', 'mostrar cliente',
+    'cliente llamado', 'cliente con nombre',
+    // Consultas de deals específicos
+    'status del deal', 'estado del deal',
+    'información del deal', 'informacion del deal',
+    'datos del deal', 'dato del deal',
+    'consultar deal', 'buscar deal',
+    // Consultas de créditos/prospectos
+    'status del crédito', 'estado del credito', 'estado del crédito',
+    'información del crédito', 'informacion del credito',
+    'crédito de', 'credito de',
+    'prospecto llamado', 'prospecto con nombre',
   ];
 
   detect(message: string): { isHubSpot: boolean; queryType: string } {
     const messageLower = message.toLowerCase();
 
-    // Bloquear FAQs
-    for (const blocker of this.strictFaqBlockers) {
-      if (messageLower.includes(blocker)) {
-        return { isHubSpot: false, queryType: 'faq_blocked' };
-      }
-    }
-
-    // Verificar keywords HubSpot
+    // PASO 1: Verificar keywords HubSpot específicos PRIMERO
     for (const keyword of this.preciseHubspotKeywords) {
       if (messageLower.includes(keyword)) {
         return { isHubSpot: true, queryType: 'hubspot_query' };
       }
     }
 
+    // PASO 2: Detectar nombres propios (indicador de consulta específica)
+    // Si el mensaje contiene 2 o más palabras que inician con mayúscula consecutivas,
+    // probablemente es un nombre de cliente/prospecto
+    const properNamePattern = /\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+/;
+    if (properNamePattern.test(message)) {
+      // Si tiene un nombre propio Y menciona cliente/crédito/deal/prospecto
+      if (
+        messageLower.includes('cliente') ||
+        messageLower.includes('crédito') ||
+        messageLower.includes('credito') ||
+        messageLower.includes('deal') ||
+        messageLower.includes('prospecto')
+      ) {
+        return { isHubSpot: true, queryType: 'hubspot_query' };
+      }
+    }
+
+    // PASO 3: Bloquear FAQs genéricas (solo si no pasó las verificaciones anteriores)
+    for (const blocker of this.strictFaqBlockers) {
+      if (messageLower.includes(blocker)) {
+        return { isHubSpot: false, queryType: 'faq_blocked' };
+      }
+    }
+
+    // PASO 4: Por defecto, permitir como FAQ
     return { isHubSpot: false, queryType: 'faq' };
   }
 }
