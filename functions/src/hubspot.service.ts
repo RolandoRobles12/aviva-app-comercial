@@ -392,7 +392,7 @@ export class HubSpotService {
         date_from,
         date_to,
         response_type = "summary",
-        limit = 20,
+        // limit se ignora por ahora - usamos paginación completa
       } = params;
 
       // Construir filtros
