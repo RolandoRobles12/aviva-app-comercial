@@ -89,12 +89,21 @@ class HubSpotPatternDetector {
     'llamadas creadas', 'llamadas generadas',
     'quién creó más deals', 'quien creo mas deals',
     'deals en castigo', 'deals aprobados', 'deals pagados',
-    // Consultas de ventas personales
+    // Consultas de ventas personales (AMPLIADAS)
     'cuánto he vendido', 'cuanto he vendido',
-    'cuántas ventas', 'cuantas ventas',
-    'mis ventas', 'mis deals',
-    'lo que he vendido', 'lo que vendí', 'lo que vendi',
+    'cuánto llevo vendido', 'cuanto llevo vendido',
     'cuánto vendí', 'cuanto vendi',
+    'lo que he vendido', 'lo que vendí', 'lo que vendi',
+    'lo que llevo vendido',
+    'cuántas ventas', 'cuantas ventas',
+    'cuántas llevo', 'cuantas llevo',
+    'mis ventas', 'mis deals', 'mi venta', 'mi deal',
+    'yo vendí', 'yo vendi', 'he vendido',
+    // Keywords que FUERZAN búsqueda HubSpot
+    'búsqueda en hubspot', 'busqueda en hubspot',
+    'buscar en hubspot', 'consulta en hubspot',
+    'haz la búsqueda', 'haz una búsqueda',
+    'deal owner', 'hubspot owner', 'service owner',
     // Consultas de clientes específicos
     'status del cliente', 'estado del cliente',
     'información del cliente', 'informacion del cliente',
@@ -120,6 +129,9 @@ class HubSpotPatternDetector {
     'cross selling', 'cross-selling', 'crossselling',
     'cuántas renovaciones', 'cuantas renovaciones',
     'incentivo por renovación', 'incentivo por renovacion',
+    // Links y datos específicos
+    'link de renovación', 'link de renovacion',
+    'link de pago', 'aos_customerlink',
   ];
 
   detect(message: string): { isHubSpot: boolean; queryType: string } {
@@ -234,8 +246,12 @@ async function handleToolCalls(toolCalls: any[], userId: string, message: string
           const personalKeywords = [
             'mis ventas', 'mis deals', 'mi venta', 'mi deal',
             'cuánto he vendido', 'cuanto he vendido',
+            'cuánto llevo vendido', 'cuanto llevo vendido',
             'cuánto vendí', 'cuanto vendi',
             'lo que he vendido', 'lo que vendí', 'lo que vendi',
+            'lo que llevo vendido',
+            'cuántas ventas', 'cuantas ventas',
+            'cuántas llevo', 'cuantas llevo',
             'mis llamadas', 'mi llamada',
             'yo vendí', 'yo vendi', 'he vendido',
           ];
