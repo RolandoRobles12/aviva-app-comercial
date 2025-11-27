@@ -6,6 +6,8 @@ import axios, { AxiosInstance } from "axios";
  */
 export class HubSpotService {
   private axiosInstance: AxiosInstance;
+  private ownerCache: Map<string, { name: string; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 86400000; // 24 horas en milisegundos
 
   constructor(apiKey: string) {
     this.axiosInstance = axios.create({
@@ -16,6 +18,69 @@ export class HubSpotService {
       },
       timeout: 15000,
     });
+  }
+
+  /**
+   * Mapea internal value de producto a label
+   */
+  private mapProductLabel(internalValue: string): string {
+    const productMap: { [key: string]: string } = {
+      "aviva_contigo": "Aviva Contigo",
+      "aviva_atn": "Aviva Tu Negocio",
+      "aviva_tucompra": "Aviva Tu Compra",
+      "aviva_tucasa": "Disensa Aviva Tu Casa",
+      "construrama_aviva_tucasa": "Construrama Aviva Tu Casa",
+      "casa_marchand": "Casa Marchand",
+      "salauno": "Sala Uno",
+    };
+    return productMap[internalValue] || internalValue;
+  }
+
+  /**
+   * Obtiene fecha de venta según el producto
+   */
+  private getSaleDate(deal: any): string | null {
+    const producto = deal.properties.producto_aviva;
+
+    if (producto === "aviva_tucompra") {
+      return deal.properties.hs_v2_date_entered_146336009 || null;
+    } else {
+      return deal.properties.hs_v2_date_entered_33823866 || null;
+    }
+  }
+
+  /**
+   * Obtiene nombre del owner desde HubSpot con cache
+   */
+  private async getOwnerName(ownerId: string): Promise<string> {
+    if (!ownerId) return "Sin asignar";
+
+    // Verificar cache
+    const cached = this.ownerCache.get(ownerId);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.name;
+    }
+
+    try {
+      const response = await this.axiosInstance.get(`/crm/v3/owners/${ownerId}`);
+      const data = response.data;
+
+      const firstName = data.firstName || "";
+      const lastName = data.lastName || "";
+      const fullName = `${firstName} ${lastName}`.trim();
+      const ownerName = fullName || data.email || `Usuario ${ownerId}`;
+
+      // Guardar en cache
+      this.ownerCache.set(ownerId, {
+        name: ownerName,
+        timestamp: Date.now(),
+      });
+
+      return ownerName;
+    } catch (error) {
+      console.error(`❌ Error obteniendo owner ${ownerId}:`, error);
+      return `Usuario ${ownerId}`;
+    }
   }
 
   /**
@@ -481,7 +546,7 @@ export class HubSpotService {
       }
 
       // Formatear respuesta
-      return this.formatResponse(totalCount, deals, response_type, date_from, date_to);
+      return await this.formatResponse(totalCount, deals, response_type, date_from, date_to);
     } catch (error: any) {
       console.error("Error in searchDeals:", error.response?.data || error.message);
       throw new Error(`Failed to search deals: ${error.message}`);
@@ -569,6 +634,8 @@ export class HubSpotService {
         "curb",
         "hs_v2_date_entered_33823866",
         "hs_v2_date_entered_146336009",
+        "hs_v2_date_entered_146251806",
+        "hs_v2_date_entered_36073275",
       ],
       limit: sampleSize,
       sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
@@ -587,13 +654,13 @@ export class HubSpotService {
   /**
    * Formatea respuesta según el tipo solicitado
    */
-  private formatResponse(
+  private async formatResponse(
     totalCount: number,
     deals: any[],
     responseType: string,
     dateFrom?: string,
     dateTo?: string
-  ): string {
+  ): Promise<string> {
     const dateStr = this.getDateString(dateFrom, dateTo);
 
     if (responseType === "count_only") {
@@ -604,8 +671,8 @@ export class HubSpotService {
       const lines = [`📊 ${totalCount} deals/llamadas encontrados${dateStr}\n`];
 
       if (deals.length > 0) {
-        // Análisis de owners
-        const ownersAnalysis = this.analyzeOwners(deals);
+        // Análisis de owners con nombres reales
+        const ownersAnalysis = await this.analyzeOwners(deals);
 
         // Monto total
         const totalAmount = deals.reduce((sum, deal) => {
@@ -630,28 +697,36 @@ export class HubSpotService {
     }
 
     // details
-    return this.formatDealsDetailed(deals, totalCount, dateStr);
+    return await this.formatDealsDetailed(deals, totalCount, dateStr);
   }
 
   /**
-   * Analiza owners y retorna ranking
+   * Analiza owners y retorna ranking con nombres reales
    */
-  private analyzeOwners(deals: any[]): Array<[string, number]> {
+  private async analyzeOwners(deals: any[]): Promise<Array<[string, number]>> {
     const ownersCount: { [key: string]: number } = {};
 
+    // Agrupar por owner ID
     deals.forEach((deal) => {
       const ownerId = deal.properties.hubspot_owner_id || "Sin asignar";
-      const ownerName = ownerId === "Sin asignar" ? "Sin asignar" : `Usuario ${ownerId}`;
-      ownersCount[ownerName] = (ownersCount[ownerName] || 0) + 1;
+      ownersCount[ownerId] = (ownersCount[ownerId] || 0) + 1;
     });
 
-    return Object.entries(ownersCount).sort((a, b) => b[1] - a[1]);
+    // Obtener nombres reales
+    const ownersWithNames: Array<[string, number]> = [];
+
+    for (const [ownerId, count] of Object.entries(ownersCount)) {
+      const ownerName = await this.getOwnerName(ownerId);
+      ownersWithNames.push([ownerName, count]);
+    }
+
+    return ownersWithNames.sort((a, b) => b[1] - a[1]);
   }
 
   /**
-   * Formato detallado de deals
+   * Formato detallado de deals con toda la información
    */
-  private formatDealsDetailed(deals: any[], totalCount: number, dateStr: string): string {
+  private async formatDealsDetailed(deals: any[], totalCount: number, dateStr: string): Promise<string> {
     const lines = [`📊 ${totalCount} deals/llamadas encontrados${dateStr}:\n`];
 
     const displayCount = Math.min(5, deals.length);
@@ -660,23 +735,71 @@ export class HubSpotService {
       const deal = deals[i];
       const props = deal.properties;
 
+      // Información básica
       const amount = parseFloat(props.amount || "0");
       const amountFormatted = isNaN(amount) ? "$0" : `$${Math.round(amount).toLocaleString()}`;
 
-      let dateFormatted = "N/A";
-      if (props.createdate) {
+      // Fecha de venta (no createdate)
+      const saleDate = this.getSaleDate(deal);
+      let saleDateFormatted = "N/A";
+      if (saleDate) {
         try {
-          const date = new Date(props.createdate);
-          dateFormatted = date.toLocaleDateString("es-MX");
+          const date = new Date(parseInt(saleDate));
+          saleDateFormatted = date.toLocaleDateString("es-MX");
         } catch {
-          dateFormatted = "N/A";
+          saleDateFormatted = "N/A";
         }
       }
 
-      lines.push(`\nDeal ${i + 1}:`);
+      // Producto
+      const producto = props.producto_aviva
+        ? this.mapProductLabel(props.producto_aviva)
+        : "N/A";
+
+      // Vendedor (owner)
+      const ownerId = props.hubspot_owner_id || "";
+      const vendedor = await this.getOwnerName(ownerId);
+
+      // Videoagente (service owner)
+      const serviceOwnerId = props.service_owner || "";
+      const videoagente = await this.getOwnerName(serviceOwnerId);
+
+      // Información de períodos y pagos
+      const tipoPeriodo = props.tipo_de_periodo || "N/A";
+      const periodos = props.periodos || "N/A";
+      const pagoPorPeriodo = props.pago_por_periodo
+        ? `$${parseFloat(props.pago_por_periodo).toLocaleString()}`
+        : "N/A";
+
+      // Cross-selling
+      const isCrossSelling = props.aos_cross_selling === "true";
+
+      lines.push(`\n🔹 Deal ${i + 1}:`);
       lines.push(`• Cliente: ${props.dealname || "Sin nombre"}`);
+      lines.push(`• Producto: ${producto}`);
       lines.push(`• Monto: ${amountFormatted}`);
-      lines.push(`• Fecha: ${dateFormatted}`);
+      lines.push(`• Vendedor: ${vendedor}`);
+      lines.push(`• Videoagente: ${videoagente}`);
+      lines.push(`• Fecha de venta: ${saleDateFormatted}`);
+
+      if (periodos !== "N/A") {
+        lines.push(`• Períodos: ${periodos} (${tipoPeriodo})`);
+        lines.push(`• Pago por período: ${pagoPorPeriodo}`);
+      }
+
+      if (isCrossSelling) {
+        lines.push(`• 🔄 Es renovación cross-selling`);
+      }
+
+      // WhatsApp si existe
+      if (props.whatsapp_phone_number) {
+        lines.push(`• WhatsApp: ${props.whatsapp_phone_number}`);
+      }
+
+      // Link de pago si existe
+      if (props.aos_customerlink_pay) {
+        lines.push(`• Link de pago: ${props.aos_customerlink_pay}`);
+      }
     }
 
     if (deals.length > displayCount) {

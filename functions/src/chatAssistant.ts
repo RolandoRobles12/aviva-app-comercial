@@ -88,6 +88,12 @@ class HubSpotPatternDetector {
     'llamadas creadas', 'llamadas generadas',
     'quién creó más deals', 'quien creo mas deals',
     'deals en castigo', 'deals aprobados', 'deals pagados',
+    // Consultas de ventas personales
+    'cuánto he vendido', 'cuanto he vendido',
+    'cuántas ventas', 'cuantas ventas',
+    'mis ventas', 'mis deals',
+    'lo que he vendido', 'lo que vendí', 'lo que vendi',
+    'cuánto vendí', 'cuanto vendi',
     // Consultas de clientes específicos
     'status del cliente', 'estado del cliente',
     'información del cliente', 'informacion del cliente',
@@ -105,6 +111,14 @@ class HubSpotPatternDetector {
     'información del crédito', 'informacion del credito',
     'crédito de', 'credito de',
     'prospecto llamado', 'prospecto con nombre',
+    // Consultas por producto
+    'aviva contigo', 'aviva tu negocio', 'aviva tu compra',
+    'aviva tu casa', 'construrama', 'casa marchand', 'sala uno',
+    // Consultas de renovaciones y cross-selling
+    'renovaciones', 'renovación', 'renovacion',
+    'cross selling', 'cross-selling', 'crossselling',
+    'cuántas renovaciones', 'cuantas renovaciones',
+    'incentivo por renovación', 'incentivo por renovacion',
   ];
 
   detect(message: string): { isHubSpot: boolean; queryType: string } {
