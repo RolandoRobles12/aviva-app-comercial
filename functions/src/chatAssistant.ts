@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { OpenAI } from 'openai';
+import { HubSpotService } from './hubspot.service';
 
 // Tipos
 interface ChatRequest {
@@ -29,6 +30,16 @@ const openai = new OpenAI({
 });
 
 const ASSISTANT_ID = config.openai?.assistantid || '';
+
+// HubSpot Service (opcional, solo si está configurado)
+let hubspotService: HubSpotService | null = null;
+const hubspotApiKey = config.hubspot?.apikey;
+if (hubspotApiKey) {
+  hubspotService = new HubSpotService(hubspotApiKey);
+  console.log('✅ HubSpot service inicializado');
+} else {
+  console.log('⚠️ HubSpot no configurado');
+}
 
 // Thread storage (en producción, usar Firestore)
 const threadStore: Map<string, string> = new Map();
@@ -138,6 +149,72 @@ class HubSpotPatternDetector {
 const patternDetector = new HubSpotPatternDetector();
 
 /**
+ * Maneja las llamadas a herramientas del Assistant
+ */
+async function handleToolCalls(toolCalls: any[]): Promise<any[]> {
+  const toolOutputs = [];
+
+  for (const toolCall of toolCalls) {
+    const functionName = toolCall.function.name;
+    const args = JSON.parse(toolCall.function.arguments);
+
+    console.log(`🔧 Ejecutando herramienta: ${functionName}`);
+    console.log(`📋 Argumentos:`, args);
+
+    let result = '';
+
+    try {
+      if (functionName === 'search_hubspot_deals') {
+        // Verificar si HubSpot está configurado
+        if (!hubspotService) {
+          result = 'HubSpot no está configurado en el sistema.';
+        } else {
+          // Limpiar argumentos - solo pasar parámetros soportados
+          const cleanArgs: any = {};
+          const supportedParams = [
+            'deal_name',
+            'deal_stage',
+            'owner_ids',
+            'date_from',
+            'date_to',
+            'response_type',
+            'limit',
+          ];
+
+          for (const key of supportedParams) {
+            if (args[key] !== undefined) {
+              cleanArgs[key] = args[key];
+            }
+          }
+
+          console.log(`🚀 Ejecutando búsqueda HubSpot con:`, cleanArgs);
+
+          // Ejecutar búsqueda
+          result = await hubspotService.searchDeals(cleanArgs);
+
+          console.log(`✅ Resultado HubSpot: ${result.substring(0, 200)}...`);
+        }
+      } else {
+        result = `Función ${functionName} no implementada`;
+        console.warn(`⚠️ Función desconocida: ${functionName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error ejecutando ${functionName}:`, error);
+      result = `Error ejecutando la búsqueda: ${
+        error instanceof Error ? error.message : 'Error desconocido'
+      }`;
+    }
+
+    toolOutputs.push({
+      tool_call_id: toolCall.id,
+      output: result,
+    });
+  }
+
+  return toolOutputs;
+}
+
+/**
  * Procesa mensaje con OpenAI Assistant
  */
 async function processWithAssistant(
@@ -195,8 +272,20 @@ async function processWithAssistant(
 
       // Manejar tool calls si es necesario
       if (runStatus.status === 'requires_action') {
-        // Aquí se manejarían las herramientas del assistant
-        // Por ahora, solo continuamos
+        console.log('🔧 Assistant requiere ejecutar herramientas');
+
+        const toolCalls = runStatus.required_action?.submit_tool_outputs?.tool_calls;
+
+        if (toolCalls && toolCalls.length > 0) {
+          const toolOutputs = await handleToolCalls(toolCalls);
+
+          // Enviar resultados de herramientas al assistant
+          await openai.beta.threads.runs.submitToolOutputs(
+            currentThreadId,
+            run.id,
+            { tool_outputs: toolOutputs }
+          );
+        }
       }
     }
 
@@ -227,33 +316,46 @@ async function processWithAssistant(
 
 /**
  * Limpia la respuesta de markdown y referencias
+ * Implementación agresiva como el bot de Python
  */
 function cleanResponse(response: string): string {
-  // Limpiar markdown
-  let cleaned = response.replace(/\*\*(.*?)\*\*/g, '$1');
-  cleaned = cleaned.replace(/\*(.*?)\*/g, '$1');
+  let cleaned = response;
 
-  // Limpiar referencias
+  // Limpiar markdown (bold y cursiva)
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '$1');
+  cleaned = cleaned.replace(/\*(.*?)\*/g, '$1');
+  cleaned = cleaned.replace(/__(.*?)__/g, '$1');
+  cleaned = cleaned.replace(/_(.*?)_/g, '$1');
+
+  // Limpiar referencias y citaciones
   const citationPatterns = [
-    /\[.*?\]/g,
-    /<cite>.*?<\/cite>/g,
+    /\[.*?\]/g, // Referencias [1], [2], etc.
+    /\【.*?\】/g, // Referencias especiales
+    /<cite>.*?<\/cite>/g, // Tags cite
     /según\s+(?:hubspot|el\s+sistema|la\s+información|los\s+datos)/gi,
     /de\s+acuerdo\s+(?:a|con)\s+(?:hubspot|el\s+sistema)/gi,
     /basado\s+en\s+(?:hubspot|la\s+información|los\s+datos)/gi,
     /fuente:\s*\w+/gi,
     /en\s+(?:nuestro\s+)?(?:sistema|base\s+de\s+datos|crm)/gi,
+    /consultando\s+(?:hubspot|el\s+sistema|la\s+base\s+de\s+datos)/gi,
+    /en\s+la\s+base\s+de\s+datos/gi,
   ];
 
   for (const pattern of citationPatterns) {
     cleaned = cleaned.replace(pattern, '');
   }
 
-  // Limpiar espacios extra
+  // Limpiar espacios extra, puntos y comas duplicados
   cleaned = cleaned.replace(/\s+/g, ' ');
   cleaned = cleaned.replace(/\.+/g, '.');
   cleaned = cleaned.replace(/,+/g, ',');
+  cleaned = cleaned.replace(/\s+\./g, '.');
+  cleaned = cleaned.replace(/\s+,/g, ',');
 
-  return cleaned.trim();
+  // Limpiar espacios antes/después de puntuación
+  cleaned = cleaned.trim();
+
+  return cleaned;
 }
 
 /**
