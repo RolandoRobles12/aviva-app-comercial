@@ -79,6 +79,15 @@ Copia y pega el siguiente JSON Schema en el campo de parámetros:
       "type": "integer",
       "description": "Límite de resultados a retornar",
       "default": 20
+    },
+    "producto_aviva": {
+      "type": "string",
+      "description": "Filtrar por producto específico. Valores válidos: 'aviva_contigo', 'aviva_atn', 'aviva_tucompra', 'aviva_tucasa', 'construrama_aviva_tucasa', 'casa_marchand', 'salauno'",
+      "enum": ["aviva_contigo", "aviva_atn", "aviva_tucompra", "aviva_tucasa", "construrama_aviva_tucasa", "casa_marchand", "salauno"]
+    },
+    "aos_cross_selling": {
+      "type": "boolean",
+      "description": "Filtrar por renovaciones/cross-selling. true = solo renovaciones, false = solo ventas nuevas"
     }
   },
   "required": []
@@ -145,6 +154,21 @@ Prueba con mensajes como:
 - "Total de deals este mes"
 - "Resumen de llamadas"
 
+### Consultas por producto:
+- "¿Cuántos Aviva Tu Negocio vendí esta semana?"
+- "Deals de Aviva Contigo"
+- "Mostrar ventas de Casa Marchand"
+
+### Consultas de renovaciones:
+- "¿Cuántas renovaciones tengo?"
+- "Deals de cross-selling este mes"
+- "Mis renovaciones aprobadas"
+
+### Consultas personales:
+- "¿Cuánto he vendido hoy?"
+- "Mis ventas esta semana"
+- "Lo que vendí ayer"
+
 ## Mapeo de Etapas
 
 El sistema mapea automáticamente:
@@ -198,17 +222,28 @@ Busca estos indicadores:
 1. **Sin límites artificiales**: El sistema obtiene el conteo completo real de deals (hasta 20,000)
 2. **Clasificación inteligente**: El detector de patrones ya está configurado para reconocer consultas de HubSpot
 3. **Respuestas limpias**: Las respuestas se limpian de markdown y referencias técnicas automáticamente
-4. **Permisos**: Por ahora, todos los usuarios pueden ver todos los deals. Para implementar permisos por usuario, necesitarás extender el sistema.
+4. **Permisos automáticos**: El sistema detecta consultas personales ("mis ventas", "cuánto he vendido") y automáticamente filtra por el `hubspotOwnerId` del usuario almacenado en Firestore
+5. **Filtros de producto**: Soporta filtrar por cualquiera de los 7 productos Aviva
+6. **Filtros de renovaciones**: Puede filtrar solo renovaciones/cross-selling con `aos_cross_selling=true`
+7. **Fechas aproximadas**: Los filtros de fecha usan `createdate` por optimización. Las fechas de venta reales se muestran en los resultados pero no se usan para filtrar.
+
+## Configuración Requerida en Firestore
+
+### Colección de Usuarios
+
+Para que el sistema de permisos funcione, cada usuario debe tener configurado su `hubspotOwnerId` en Firestore:
+
+```
+/users/{userId}/
+  - hubspotOwnerId: "123456789" (ID numérico de HubSpot)
+  - name: "Juan Pérez"
+  - email: "[email protected]"
+  - role: "vendedor"
+```
+
+**IMPORTANTE**: Sin el `hubspotOwnerId` configurado, las consultas personales ("mis ventas") no funcionarán correctamente.
 
 ## Próximos Pasos (Opcional)
-
-### Sistema de Permisos por Usuario
-
-Para implementar permisos (como en el bot de Python), necesitarías:
-
-1. Crear una colección de usuarios en Firestore con sus HubSpot IDs
-2. Modificar `handleToolCalls` para filtrar por `owner_ids` según el usuario
-3. Validar permisos antes de ejecutar búsquedas
 
 ### Caché de Resultados
 

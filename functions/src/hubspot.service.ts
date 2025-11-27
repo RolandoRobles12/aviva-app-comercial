@@ -446,6 +446,8 @@ export class HubSpotService {
     date_to?: string;
     response_type?: "count_only" | "summary" | "details";
     limit?: number;
+    producto_aviva?: string;
+    aos_cross_selling?: boolean;
   }): Promise<string> {
     try {
       console.log("🔍 HubSpot searchDeals:", JSON.stringify(params, null, 2));
@@ -457,6 +459,8 @@ export class HubSpotService {
         date_from,
         date_to,
         response_type = "summary",
+        producto_aviva,
+        aos_cross_selling,
         // limit se ignora por ahora - usamos paginación completa
       } = params;
 
@@ -479,6 +483,11 @@ export class HubSpotService {
         });
       }
 
+      // IMPORTANTE: Filtros de fecha
+      // Usamos createdate para el filtro inicial por optimización de la API.
+      // Las fechas de venta reales (hs_v2_date_entered_*) se usan solo para MOSTRAR,
+      // no para filtrar, porque cada producto usa un campo diferente.
+      // Esto significa que los filtros de fecha son aproximados (basados en fecha de solicitud).
       if (date_from) {
         const dateObj = new Date(date_from);
         const timestamp = dateObj.getTime();
@@ -497,6 +506,24 @@ export class HubSpotService {
           propertyName: "createdate",
           operator: "LTE",
           value: timestamp.toString(),
+        });
+      }
+
+      // Filtro por producto
+      if (producto_aviva) {
+        filters.push({
+          propertyName: "producto_aviva",
+          operator: "EQ",
+          value: producto_aviva,
+        });
+      }
+
+      // Filtro por cross-selling
+      if (aos_cross_selling !== undefined) {
+        filters.push({
+          propertyName: "aos_cross_selling",
+          operator: "EQ",
+          value: aos_cross_selling ? "true" : "false",
         });
       }
 

@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 import { OpenAI } from 'openai';
 import { HubSpotService } from './hubspot.service';
 
@@ -163,9 +164,35 @@ class HubSpotPatternDetector {
 const patternDetector = new HubSpotPatternDetector();
 
 /**
+ * Obtiene el hubspot_owner_id del usuario desde Firestore
+ */
+async function getUserHubSpotOwnerId(userId: string): Promise<string | null> {
+  try {
+    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      console.warn(`⚠️ Usuario ${userId} no encontrado en Firestore`);
+      return null;
+    }
+
+    const userData = userDoc.data();
+    const hubspotOwnerId = userData?.hubspotOwnerId || userData?.hubspot_owner_id;
+
+    if (!hubspotOwnerId) {
+      console.warn(`⚠️ Usuario ${userId} no tiene hubspotOwnerId configurado`);
+      return null;
+    }
+
+    return hubspotOwnerId;
+  } catch (error) {
+    console.error(`❌ Error obteniendo hubspotOwnerId para ${userId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Maneja las llamadas a herramientas del Assistant
  */
-async function handleToolCalls(toolCalls: any[]): Promise<any[]> {
+async function handleToolCalls(toolCalls: any[], userId: string, message: string): Promise<any[]> {
   const toolOutputs = [];
 
   for (const toolCall of toolCalls) {
@@ -193,11 +220,37 @@ async function handleToolCalls(toolCalls: any[]): Promise<any[]> {
             'date_to',
             'response_type',
             'limit',
+            'producto_aviva',
+            'aos_cross_selling',
           ];
 
           for (const key of supportedParams) {
             if (args[key] !== undefined) {
               cleanArgs[key] = args[key];
+            }
+          }
+
+          // Detectar consultas personales y auto-inyectar owner_ids
+          const personalKeywords = [
+            'mis ventas', 'mis deals', 'mi venta', 'mi deal',
+            'cuánto he vendido', 'cuanto he vendido',
+            'cuánto vendí', 'cuanto vendi',
+            'lo que he vendido', 'lo que vendí', 'lo que vendi',
+            'mis llamadas', 'mi llamada',
+            'yo vendí', 'yo vendi', 'he vendido',
+          ];
+
+          const messageLower = message.toLowerCase();
+          const isPersonalQuery = personalKeywords.some((keyword) => messageLower.includes(keyword));
+
+          // Si es consulta personal y NO tiene owner_ids, inyectar el del usuario
+          if (isPersonalQuery && !cleanArgs.owner_ids) {
+            const userHubSpotOwnerId = await getUserHubSpotOwnerId(userId);
+            if (userHubSpotOwnerId) {
+              cleanArgs.owner_ids = [userHubSpotOwnerId];
+              console.log(`🔐 Consulta personal detectada. Auto-inyectando owner_ids: [${userHubSpotOwnerId}]`);
+            } else {
+              console.warn(`⚠️ Consulta personal detectada pero usuario sin hubspotOwnerId`);
             }
           }
 
@@ -291,7 +344,7 @@ async function processWithAssistant(
         const toolCalls = runStatus.required_action?.submit_tool_outputs?.tool_calls;
 
         if (toolCalls && toolCalls.length > 0) {
-          const toolOutputs = await handleToolCalls(toolCalls);
+          const toolOutputs = await handleToolCalls(toolCalls, userId, message);
 
           // Enviar resultados de herramientas al assistant
           await openai.beta.threads.runs.submitToolOutputs(
