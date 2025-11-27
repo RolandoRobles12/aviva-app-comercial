@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { OpenAI } from 'openai';
+import { HubSpotService } from './hubspot.service';
 
 // Tipos
 interface ChatRequest {
@@ -30,6 +31,16 @@ const openai = new OpenAI({
 
 const ASSISTANT_ID = config.openai?.assistantid || '';
 
+// HubSpot Service (opcional, solo si está configurado)
+let hubspotService: HubSpotService | null = null;
+const hubspotApiKey = config.hubspot?.apikey;
+if (hubspotApiKey) {
+  hubspotService = new HubSpotService(hubspotApiKey);
+  console.log('✅ HubSpot service inicializado');
+} else {
+  console.log('⚠️ HubSpot no configurado');
+}
+
 // Thread storage (en producción, usar Firestore)
 const threadStore: Map<string, string> = new Map();
 
@@ -38,26 +49,36 @@ const threadStore: Map<string, string> = new Map();
  */
 class HubSpotPatternDetector {
   private strictFaqBlockers = [
-    'cancelación', 'cancelacion', 'cancelar',
-    'proceso', 'procedimiento', 'pasos',
-    'tiempo', 'tardan', 'demora', 'cuanto tiempo', 'cuánto tiempo',
+    // Procesos y procedimientos
+    'cómo cancelar', 'como cancelar', 'proceso de cancelación', 'proceso de cancelacion',
+    'cuáles son los pasos', 'cuales son los pasos', 'qué pasos', 'que pasos',
+    'cuánto tiempo tarda', 'cuanto tiempo tarda', 'cuánto demora', 'cuanto demora',
     'cómo funciona', 'como funciona',
-    'requisitos', 'documentos', 'papeles',
-    'videollamada', 'video llamada',
-    'cuenta cashi', 'cuenta cash',
-    'saldo', 'desaparezca',
-    'aviva tu negocio', 'aviva contigo',
-    'crédito aviva', 'credito aviva',
-    'necesita', 'necesito', 'requiere',
-    'problema', 'error', 'falla',
-    'ayuda', 'apoyo', 'asistencia',
-    'información', 'informacion',
-    'explicar', 'explicación', 'explicacion',
-    'mi cliente', 'un cliente', 'el cliente',
-    'mi crédito', 'su crédito', 'el crédito',
+    // Requisitos y documentación
+    'qué requisitos', 'que requisitos', 'cuáles requisitos', 'cuales requisitos',
+    'qué documentos', 'que documentos', 'cuáles documentos', 'cuales documentos',
+    'qué necesita', 'que necesita', 'qué necesito', 'que necesito',
+    // Información general sobre productos
+    'qué es aviva', 'que es aviva',
+    'qué es crédito aviva', 'que es credito aviva',
+    'qué es cuenta cashi', 'que es cuenta cashi',
+    'cómo funciona aviva', 'como funciona aviva',
+    'cómo funciona el crédito', 'como funciona el credito',
+    // Preguntas de ayuda general
+    'cómo puedo ayudar', 'como puedo ayudar',
+    'qué puedes hacer', 'que puedes hacer',
+    'en qué me ayudas', 'en que me ayudas',
+    // Problemas técnicos generales
+    'tengo un problema con', 'tengo un error',
+    'no funciona', 'no puedo',
+    'por qué no', 'porque no',
+    // Videollamadas (proceso general)
+    'cómo hacer videollamada', 'como hacer videollamada',
+    'cómo agendar videollamada', 'como agendar videollamada',
   ];
 
   private preciseHubspotKeywords = [
+    // Consultas agregadas
     'cuántos deals', 'cuantos deals',
     'cuántas llamadas', 'cuantas llamadas',
     'cuántos clientes', 'cuantos clientes',
@@ -67,30 +88,131 @@ class HubSpotPatternDetector {
     'llamadas creadas', 'llamadas generadas',
     'quién creó más deals', 'quien creo mas deals',
     'deals en castigo', 'deals aprobados', 'deals pagados',
+    // Consultas de clientes específicos
+    'status del cliente', 'estado del cliente',
+    'información del cliente', 'informacion del cliente',
+    'datos del cliente', 'dato del cliente',
+    'consultar cliente', 'buscar cliente',
+    'ver cliente', 'mostrar cliente',
+    'cliente llamado', 'cliente con nombre',
+    // Consultas de deals específicos
+    'status del deal', 'estado del deal',
+    'información del deal', 'informacion del deal',
+    'datos del deal', 'dato del deal',
+    'consultar deal', 'buscar deal',
+    // Consultas de créditos/prospectos
+    'status del crédito', 'estado del credito', 'estado del crédito',
+    'información del crédito', 'informacion del credito',
+    'crédito de', 'credito de',
+    'prospecto llamado', 'prospecto con nombre',
   ];
 
   detect(message: string): { isHubSpot: boolean; queryType: string } {
     const messageLower = message.toLowerCase();
 
-    // Bloquear FAQs
-    for (const blocker of this.strictFaqBlockers) {
-      if (messageLower.includes(blocker)) {
-        return { isHubSpot: false, queryType: 'faq_blocked' };
-      }
-    }
-
-    // Verificar keywords HubSpot
+    // PASO 1: Verificar keywords HubSpot específicos PRIMERO
     for (const keyword of this.preciseHubspotKeywords) {
       if (messageLower.includes(keyword)) {
         return { isHubSpot: true, queryType: 'hubspot_query' };
       }
     }
 
+    // PASO 2: Detectar nombres propios (indicador de consulta específica)
+    // Si el mensaje contiene 2 o más palabras que inician con mayúscula consecutivas,
+    // probablemente es un nombre de cliente/prospecto
+    const properNamePattern = /\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+/;
+    if (properNamePattern.test(message)) {
+      // Si tiene un nombre propio Y menciona cliente/crédito/deal/prospecto
+      if (
+        messageLower.includes('cliente') ||
+        messageLower.includes('crédito') ||
+        messageLower.includes('credito') ||
+        messageLower.includes('deal') ||
+        messageLower.includes('prospecto')
+      ) {
+        return { isHubSpot: true, queryType: 'hubspot_query' };
+      }
+    }
+
+    // PASO 3: Bloquear FAQs genéricas (solo si no pasó las verificaciones anteriores)
+    for (const blocker of this.strictFaqBlockers) {
+      if (messageLower.includes(blocker)) {
+        return { isHubSpot: false, queryType: 'faq_blocked' };
+      }
+    }
+
+    // PASO 4: Por defecto, permitir como FAQ
     return { isHubSpot: false, queryType: 'faq' };
   }
 }
 
 const patternDetector = new HubSpotPatternDetector();
+
+/**
+ * Maneja las llamadas a herramientas del Assistant
+ */
+async function handleToolCalls(toolCalls: any[]): Promise<any[]> {
+  const toolOutputs = [];
+
+  for (const toolCall of toolCalls) {
+    const functionName = toolCall.function.name;
+    const args = JSON.parse(toolCall.function.arguments);
+
+    console.log(`🔧 Ejecutando herramienta: ${functionName}`);
+    console.log(`📋 Argumentos:`, args);
+
+    let result = '';
+
+    try {
+      if (functionName === 'search_hubspot_deals') {
+        // Verificar si HubSpot está configurado
+        if (!hubspotService) {
+          result = 'HubSpot no está configurado en el sistema.';
+        } else {
+          // Limpiar argumentos - solo pasar parámetros soportados
+          const cleanArgs: any = {};
+          const supportedParams = [
+            'deal_name',
+            'deal_stage',
+            'owner_ids',
+            'date_from',
+            'date_to',
+            'response_type',
+            'limit',
+          ];
+
+          for (const key of supportedParams) {
+            if (args[key] !== undefined) {
+              cleanArgs[key] = args[key];
+            }
+          }
+
+          console.log(`🚀 Ejecutando búsqueda HubSpot con:`, cleanArgs);
+
+          // Ejecutar búsqueda
+          result = await hubspotService.searchDeals(cleanArgs);
+
+          console.log(`✅ Resultado HubSpot: ${result.substring(0, 200)}...`);
+        }
+      } else {
+        result = `Función ${functionName} no implementada`;
+        console.warn(`⚠️ Función desconocida: ${functionName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error ejecutando ${functionName}:`, error);
+      result = `Error ejecutando la búsqueda: ${
+        error instanceof Error ? error.message : 'Error desconocido'
+      }`;
+    }
+
+    toolOutputs.push({
+      tool_call_id: toolCall.id,
+      output: result,
+    });
+  }
+
+  return toolOutputs;
+}
 
 /**
  * Procesa mensaje con OpenAI Assistant
@@ -150,8 +272,20 @@ async function processWithAssistant(
 
       // Manejar tool calls si es necesario
       if (runStatus.status === 'requires_action') {
-        // Aquí se manejarían las herramientas del assistant
-        // Por ahora, solo continuamos
+        console.log('🔧 Assistant requiere ejecutar herramientas');
+
+        const toolCalls = runStatus.required_action?.submit_tool_outputs?.tool_calls;
+
+        if (toolCalls && toolCalls.length > 0) {
+          const toolOutputs = await handleToolCalls(toolCalls);
+
+          // Enviar resultados de herramientas al assistant
+          await openai.beta.threads.runs.submitToolOutputs(
+            currentThreadId,
+            run.id,
+            { tool_outputs: toolOutputs }
+          );
+        }
       }
     }
 
@@ -182,33 +316,46 @@ async function processWithAssistant(
 
 /**
  * Limpia la respuesta de markdown y referencias
+ * Implementación agresiva como el bot de Python
  */
 function cleanResponse(response: string): string {
-  // Limpiar markdown
-  let cleaned = response.replace(/\*\*(.*?)\*\*/g, '$1');
-  cleaned = cleaned.replace(/\*(.*?)\*/g, '$1');
+  let cleaned = response;
 
-  // Limpiar referencias
+  // Limpiar markdown (bold y cursiva)
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '$1');
+  cleaned = cleaned.replace(/\*(.*?)\*/g, '$1');
+  cleaned = cleaned.replace(/__(.*?)__/g, '$1');
+  cleaned = cleaned.replace(/_(.*?)_/g, '$1');
+
+  // Limpiar referencias y citaciones
   const citationPatterns = [
-    /\[.*?\]/g,
-    /<cite>.*?<\/cite>/g,
+    /\[.*?\]/g, // Referencias [1], [2], etc.
+    /\【.*?\】/g, // Referencias especiales
+    /<cite>.*?<\/cite>/g, // Tags cite
     /según\s+(?:hubspot|el\s+sistema|la\s+información|los\s+datos)/gi,
     /de\s+acuerdo\s+(?:a|con)\s+(?:hubspot|el\s+sistema)/gi,
     /basado\s+en\s+(?:hubspot|la\s+información|los\s+datos)/gi,
     /fuente:\s*\w+/gi,
     /en\s+(?:nuestro\s+)?(?:sistema|base\s+de\s+datos|crm)/gi,
+    /consultando\s+(?:hubspot|el\s+sistema|la\s+base\s+de\s+datos)/gi,
+    /en\s+la\s+base\s+de\s+datos/gi,
   ];
 
   for (const pattern of citationPatterns) {
     cleaned = cleaned.replace(pattern, '');
   }
 
-  // Limpiar espacios extra
+  // Limpiar espacios extra, puntos y comas duplicados
   cleaned = cleaned.replace(/\s+/g, ' ');
   cleaned = cleaned.replace(/\.+/g, '.');
   cleaned = cleaned.replace(/,+/g, ',');
+  cleaned = cleaned.replace(/\s+\./g, '.');
+  cleaned = cleaned.replace(/\s+,/g, ',');
 
-  return cleaned.trim();
+  // Limpiar espacios antes/después de puntuación
+  cleaned = cleaned.trim();
+
+  return cleaned;
 }
 
 /**

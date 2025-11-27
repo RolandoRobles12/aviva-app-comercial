@@ -368,4 +368,335 @@ export class HubSpotService {
       throw new Error(`Failed to fetch analytics: ${error.message}`);
     }
   }
+
+  /**
+   * Búsqueda avanzada de deals para el chatbot
+   * Similar al bot de Python/Slack
+   */
+  async searchDeals(params: {
+    deal_name?: string;
+    deal_stage?: string;
+    owner_ids?: string[];
+    date_from?: string;
+    date_to?: string;
+    response_type?: "count_only" | "summary" | "details";
+    limit?: number;
+  }): Promise<string> {
+    try {
+      console.log("🔍 HubSpot searchDeals:", JSON.stringify(params, null, 2));
+
+      const {
+        deal_name,
+        deal_stage,
+        owner_ids,
+        date_from,
+        date_to,
+        response_type = "summary",
+        limit = 20,
+      } = params;
+
+      // Construir filtros
+      const filters: any[] = [];
+
+      if (deal_name) {
+        filters.push({
+          propertyName: "dealname",
+          operator: "CONTAINS_TOKEN",
+          value: deal_name,
+        });
+      }
+
+      if (deal_stage) {
+        filters.push({
+          propertyName: "dealstage",
+          operator: "EQ",
+          value: deal_stage,
+        });
+      }
+
+      if (date_from) {
+        const dateObj = new Date(date_from);
+        const timestamp = dateObj.getTime();
+        filters.push({
+          propertyName: "createdate",
+          operator: "GTE",
+          value: timestamp.toString(),
+        });
+      }
+
+      if (date_to) {
+        const dateObj = new Date(date_to);
+        dateObj.setHours(23, 59, 59, 999);
+        const timestamp = dateObj.getTime();
+        filters.push({
+          propertyName: "createdate",
+          operator: "LTE",
+          value: timestamp.toString(),
+        });
+      }
+
+      // Construir filter groups
+      let filterGroups: any[] = [];
+
+      if (owner_ids && owner_ids.length > 1) {
+        // Múltiples owners - crear un filter group por cada uno
+        filterGroups = owner_ids.map((ownerId) => ({
+          filters: [
+            ...filters,
+            {
+              propertyName: "hubspot_owner_id",
+              operator: "EQ",
+              value: ownerId,
+            },
+          ],
+        }));
+      } else {
+        // Un solo owner o ninguno
+        if (owner_ids && owner_ids.length === 1) {
+          filters.push({
+            propertyName: "hubspot_owner_id",
+            operator: "EQ",
+            value: owner_ids[0],
+          });
+        }
+        filterGroups = [{ filters }];
+      }
+
+      // Obtener conteo total con paginación
+      const totalCount = await this.getDealsCount(filterGroups);
+
+      if (totalCount === 0) {
+        const dateStr = date_from && date_to
+          ? date_from === date_to
+            ? ` el ${this.formatDateSpanish(date_from)}`
+            : ` entre ${this.formatDateSpanish(date_from)} y ${this.formatDateSpanish(date_to)}`
+          : "";
+        return `No se encontraron deals/llamadas${dateStr}.`;
+      }
+
+      // Para análisis, obtener muestra de datos
+      let deals: any[] = [];
+      if (response_type === "summary" || response_type === "details") {
+        deals = await this.getDealsSample(filterGroups, Math.min(200, totalCount));
+      }
+
+      // Formatear respuesta
+      return this.formatResponse(totalCount, deals, response_type, date_from, date_to);
+    } catch (error: any) {
+      console.error("Error in searchDeals:", error.response?.data || error.message);
+      throw new Error(`Failed to search deals: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtiene conteo total de deals con paginación ilimitada
+   */
+  private async getDealsCount(filterGroups: any[]): Promise<number> {
+    let totalCount = 0;
+    let after: string | undefined;
+    let page = 1;
+
+    console.log("🚀 Iniciando paginación para conteo...");
+
+    while (true) {
+      const payload: any = {
+        filterGroups,
+        properties: ["hubspot_owner_id"],
+        limit: 100,
+        sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
+      };
+
+      if (after) {
+        payload.after = after;
+      }
+
+      const response = await this.axiosInstance.post(
+        "/crm/v3/objects/deals/search",
+        payload
+      );
+
+      const deals = response.data.results || [];
+      const pageCount = deals.length;
+      totalCount += pageCount;
+
+      console.log(`📄 Página ${page}: ${pageCount} deals (Total acumulado: ${totalCount})`);
+
+      const paging = response.data.paging || {};
+      after = paging.next?.after;
+
+      if (!after || pageCount === 0) {
+        console.log(`✅ Paginación completada. Total: ${totalCount} deals`);
+        break;
+      }
+
+      page++;
+
+      // Límite de seguridad (200 páginas = 20,000 deals)
+      if (page > 200) {
+        console.warn(`⚠️ Alcanzado límite de seguridad en página ${page}`);
+        break;
+      }
+    }
+
+    return totalCount;
+  }
+
+  /**
+   * Obtiene muestra de deals para análisis
+   */
+  private async getDealsSample(filterGroups: any[], sampleSize: number): Promise<any[]> {
+    const payload = {
+      filterGroups,
+      properties: [
+        "dealname",
+        "amount",
+        "dealstage",
+        "pipeline",
+        "closedate",
+        "createdate",
+        "hubspot_owner_id",
+        "hs_deal_stage_probability",
+        "description",
+      ],
+      limit: sampleSize,
+      sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
+    };
+
+    const response = await this.axiosInstance.post(
+      "/crm/v3/objects/deals/search",
+      payload
+    );
+
+    const deals = response.data.results || [];
+    console.log(`📊 Muestra obtenida: ${deals.length} deals`);
+    return deals;
+  }
+
+  /**
+   * Formatea respuesta según el tipo solicitado
+   */
+  private formatResponse(
+    totalCount: number,
+    deals: any[],
+    responseType: string,
+    dateFrom?: string,
+    dateTo?: string
+  ): string {
+    const dateStr = this.getDateString(dateFrom, dateTo);
+
+    if (responseType === "count_only") {
+      return `📊 ${totalCount} deals/llamadas encontrados${dateStr}.`;
+    }
+
+    if (responseType === "summary") {
+      const lines = [`📊 ${totalCount} deals/llamadas encontrados${dateStr}\n`];
+
+      if (deals.length > 0) {
+        // Análisis de owners
+        const ownersAnalysis = this.analyzeOwners(deals);
+
+        // Monto total
+        const totalAmount = deals.reduce((sum, deal) => {
+          const amount = parseFloat(deal.properties.amount || "0");
+          return sum + (isNaN(amount) ? 0 : amount);
+        }, 0);
+
+        if (totalAmount > 0) {
+          lines.push(`💰 Monto total (muestra): $${Math.round(totalAmount).toLocaleString()}`);
+        }
+
+        // Top creadores
+        if (ownersAnalysis.length > 0) {
+          lines.push("\n👥 Top creadores:");
+          ownersAnalysis.slice(0, 5).forEach(([owner, count], i) => {
+            lines.push(`${i + 1}. ${owner}: ${count} deals`);
+          });
+        }
+      }
+
+      return lines.join("\n");
+    }
+
+    // details
+    return this.formatDealsDetailed(deals, totalCount, dateStr);
+  }
+
+  /**
+   * Analiza owners y retorna ranking
+   */
+  private analyzeOwners(deals: any[]): Array<[string, number]> {
+    const ownersCount: { [key: string]: number } = {};
+
+    deals.forEach((deal) => {
+      const ownerId = deal.properties.hubspot_owner_id || "Sin asignar";
+      const ownerName = ownerId === "Sin asignar" ? "Sin asignar" : `Usuario ${ownerId}`;
+      ownersCount[ownerName] = (ownersCount[ownerName] || 0) + 1;
+    });
+
+    return Object.entries(ownersCount).sort((a, b) => b[1] - a[1]);
+  }
+
+  /**
+   * Formato detallado de deals
+   */
+  private formatDealsDetailed(deals: any[], totalCount: number, dateStr: string): string {
+    const lines = [`📊 ${totalCount} deals/llamadas encontrados${dateStr}:\n`];
+
+    const displayCount = Math.min(5, deals.length);
+
+    for (let i = 0; i < displayCount; i++) {
+      const deal = deals[i];
+      const props = deal.properties;
+
+      const amount = parseFloat(props.amount || "0");
+      const amountFormatted = isNaN(amount) ? "$0" : `$${Math.round(amount).toLocaleString()}`;
+
+      let dateFormatted = "N/A";
+      if (props.createdate) {
+        try {
+          const date = new Date(props.createdate);
+          dateFormatted = date.toLocaleDateString("es-MX");
+        } catch {
+          dateFormatted = "N/A";
+        }
+      }
+
+      lines.push(`\nDeal ${i + 1}:`);
+      lines.push(`• Cliente: ${props.dealname || "Sin nombre"}`);
+      lines.push(`• Monto: ${amountFormatted}`);
+      lines.push(`• Fecha: ${dateFormatted}`);
+    }
+
+    if (deals.length > displayCount) {
+      const remaining = totalCount - displayCount;
+      lines.push(`\n... y ${remaining} deals más`);
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Obtiene string de fecha formateado
+   */
+  private getDateString(dateFrom?: string, dateTo?: string): string {
+    if (!dateFrom || !dateTo) return "";
+
+    if (dateFrom === dateTo) {
+      return ` el ${this.formatDateSpanish(dateFrom)}`;
+    }
+
+    return ` entre ${this.formatDateSpanish(dateFrom)} y ${this.formatDateSpanish(dateTo)}`;
+  }
+
+  /**
+   * Formatea fecha a español
+   */
+  private formatDateSpanish(dateStr: string): string {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("es-MX");
+    } catch {
+      return dateStr;
+    }
+  }
 }
