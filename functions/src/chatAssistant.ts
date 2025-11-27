@@ -80,66 +80,117 @@ class HubSpotPatternDetector {
 
   private preciseHubspotKeywords = [
     // Consultas agregadas
-    'cuántos deals', 'cuantos deals',
-    'cuántas llamadas', 'cuantas llamadas',
-    'cuántos clientes', 'cuantos clientes',
+    'cuántos deals', 'cuantos deals', 'quantos deals',
+    'cuántas llamadas', 'cuantas llamadas', 'quantas llamadas',
+    'cuántos clientes', 'cuantos clientes', 'quantos clientes',
     'total de deals', 'total deals',
     'cantidad de deals', 'cantidad deals',
     'deals creados', 'deals generados',
     'llamadas creadas', 'llamadas generadas',
     'quién creó más deals', 'quien creo mas deals',
     'deals en castigo', 'deals aprobados', 'deals pagados',
-    // Consultas de ventas personales (AMPLIADAS)
-    'cuánto he vendido', 'cuanto he vendido',
-    'cuánto llevo vendido', 'cuanto llevo vendido',
-    'cuánto vendí', 'cuanto vendi',
-    'lo que he vendido', 'lo que vendí', 'lo que vendi',
-    'lo que llevo vendido',
-    'cuántas ventas', 'cuantas ventas',
-    'cuántas llevo', 'cuantas llevo',
+    // Consultas de ventas personales (AMPLIADAS con errores ortográficos)
+    'cuánto he vendido', 'cuanto he vendido', 'quanto e vendido', 'cuanto e vendido',
+    'cuánto llevo vendido', 'cuanto llevo vendido', 'quanto llevo vendido',
+    'cuánto vendí', 'cuanto vendi', 'quanto vendi',
+    'lo que he vendido', 'lo que vendí', 'lo que vendi', 'lo q he vendido', 'lo q vendi',
+    'lo que llevo vendido', 'lo q llevo vendido',
+    'cuántas ventas', 'cuantas ventas', 'quantas ventas',
+    'cuántas llevo', 'cuantas llevo', 'quantas llevo',
     'mis ventas', 'mis deals', 'mi venta', 'mi deal',
-    'yo vendí', 'yo vendi', 'he vendido',
+    'yo vendí', 'yo vendi', 'he vendido', 'e vendido',
+    // Variantes con "vendí/vendi/vendido"
+    'vendí esta semana', 'vendi esta semana', 'vendido esta semana',
+    'vendí hoy', 'vendi hoy', 'vendido hoy',
+    'vendí ayer', 'vendi ayer', 'vendido ayer',
     // Keywords que FUERZAN búsqueda HubSpot
-    'búsqueda en hubspot', 'busqueda en hubspot',
-    'buscar en hubspot', 'consulta en hubspot',
-    'haz la búsqueda', 'haz una búsqueda',
-    'deal owner', 'hubspot owner', 'service owner',
+    'búsqueda en hubspot', 'busqueda en hubspot', 'busca en hubspot',
+    'buscar en hubspot', 'consulta en hubspot', 'consultame en hubspot',
+    'haz la búsqueda', 'haz una búsqueda', 'has la busqueda',
+    'deal owner', 'hubspot owner', 'service owner', 'videoagente',
     // Consultas de clientes específicos
-    'status del cliente', 'estado del cliente',
-    'información del cliente', 'informacion del cliente',
+    'status del cliente', 'estado del cliente', 'estatus del cliente',
+    'información del cliente', 'informacion del cliente', 'info del cliente',
     'datos del cliente', 'dato del cliente',
-    'consultar cliente', 'buscar cliente',
-    'ver cliente', 'mostrar cliente',
+    'consultar cliente', 'buscar cliente', 'consulta cliente', 'busca cliente',
+    'ver cliente', 'mostrar cliente', 'muestra cliente',
     'cliente llamado', 'cliente con nombre',
+    // Variantes de "etapa"
+    'en qué etapa', 'en que etapa', 'en q etapa', 'que etapa', 'cual etapa',
     // Consultas de deals específicos
-    'status del deal', 'estado del deal',
-    'información del deal', 'informacion del deal',
+    'status del deal', 'estado del deal', 'estatus del deal',
+    'información del deal', 'informacion del deal', 'info del deal',
     'datos del deal', 'dato del deal',
-    'consultar deal', 'buscar deal',
+    'consultar deal', 'buscar deal', 'consulta deal',
     // Consultas de créditos/prospectos
-    'status del crédito', 'estado del credito', 'estado del crédito',
-    'información del crédito', 'informacion del credito',
+    'status del crédito', 'estado del credito', 'estado del crédito', 'estatus del credito',
+    'información del crédito', 'informacion del credito', 'info del credito',
     'crédito de', 'credito de',
     'prospecto llamado', 'prospecto con nombre',
     // Consultas por producto
     'aviva contigo', 'aviva tu negocio', 'aviva tu compra',
-    'aviva tu casa', 'construrama', 'casa marchand', 'sala uno',
+    'aviva tu casa', 'construrama', 'casa marchand', 'sala uno', 'salauno',
     // Consultas de renovaciones y cross-selling
-    'renovaciones', 'renovación', 'renovacion',
-    'cross selling', 'cross-selling', 'crossselling',
-    'cuántas renovaciones', 'cuantas renovaciones',
+    'renovaciones', 'renovación', 'renovacion', 'renovaciòn',
+    'cross selling', 'cross-selling', 'crossselling', 'cros selling',
+    'cuántas renovaciones', 'cuantas renovaciones', 'quantas renovaciones',
     'incentivo por renovación', 'incentivo por renovacion',
     // Links y datos específicos
-    'link de renovación', 'link de renovacion',
-    'link de pago', 'aos_customerlink',
+    'link de renovación', 'link de renovacion', 'linck de renovacion',
+    'link de pago', 'aos_customerlink', 'link del pago',
   ];
 
-  detect(message: string): { isHubSpot: boolean; queryType: string } {
-    const messageLower = message.toLowerCase();
+  /**
+   * Normaliza texto para comparación (quita acentos, normaliza espacios)
+   */
+  private normalizeText(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+      .replace(/\s+/g, ' ') // Normalizar espacios
+      .trim();
+  }
 
-    // PASO 1: Verificar keywords HubSpot específicos PRIMERO
+  detect(message: string): { isHubSpot: boolean; queryType: string } {
+    const normalized = this.normalizeText(message);
+
+    // PASO 0: Detección estructural ultra-permisiva para consultas comunes
+
+    // Patrón: Preguntas sobre ventas personales (cuanto/cuantas + vendido/ventas/llevo)
+    const salesPattern = /\b(cuant[oa]s?|que)\s+(he\s+)?(vendi[do]?|ventas?|llevo|tengo)/i;
+    if (salesPattern.test(normalized)) {
+      return { isHubSpot: true, queryType: 'hubspot_query' };
+    }
+
+    // Patrón: "mis/mi" + ventas/deals/clientes/llamadas
+    const myPattern = /\b(mis?|lo\s+que)\s+(venta|deal|cliente|llamada|vendi)/i;
+    if (myPattern.test(normalized)) {
+      return { isHubSpot: true, queryType: 'hubspot_query' };
+    }
+
+    // Patrón: owner/vendedor/videoagente
+    const ownerPattern = /\b(owner|vendedor|videoagente|quien|quie[nm])/i;
+    if (ownerPattern.test(normalized) && /(cliente|deal|credito|renovacion|venta)/i.test(normalized)) {
+      return { isHubSpot: true, queryType: 'hubspot_query' };
+    }
+
+    // Patrón: "link de" algo
+    const linkPattern = /\blink\s+(de|del|d[ae])\s+(renovacion|pago|cliente)/i;
+    if (linkPattern.test(normalized)) {
+      return { isHubSpot: true, queryType: 'hubspot_query' };
+    }
+
+    // Patrón: Menciones explícitas de HubSpot o búsqueda
+    const hubspotForcePattern = /\b(hubspot|haz\s+la\s+busqueda|buscar\s+en|consulta\s+en)/i;
+    if (hubspotForcePattern.test(normalized)) {
+      return { isHubSpot: true, queryType: 'hubspot_query' };
+    }
+
+    // PASO 1: Verificar keywords HubSpot específicos
     for (const keyword of this.preciseHubspotKeywords) {
-      if (messageLower.includes(keyword)) {
+      const normalizedKeyword = this.normalizeText(keyword);
+      if (normalized.includes(normalizedKeyword)) {
         return { isHubSpot: true, queryType: 'hubspot_query' };
       }
     }
@@ -147,15 +198,11 @@ class HubSpotPatternDetector {
     // PASO 2: Detectar nombres propios (indicador de consulta específica)
     // Si el mensaje contiene 2 o más palabras que inician con mayúscula consecutivas,
     // probablemente es un nombre de cliente/prospecto
-    const properNamePattern = /\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+/;
+    const properNamePattern = /\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,}/;
     if (properNamePattern.test(message)) {
-      // Si tiene un nombre propio Y menciona cliente/crédito/deal/prospecto
+      // Si tiene un nombre propio Y menciona cliente/crédito/deal/prospecto/status/info/datos
       if (
-        messageLower.includes('cliente') ||
-        messageLower.includes('crédito') ||
-        messageLower.includes('credito') ||
-        messageLower.includes('deal') ||
-        messageLower.includes('prospecto')
+        /\b(cliente|credito|deal|prospecto|status|estado|informacion|datos|etapa|link|owner|vendedor)/i.test(normalized)
       ) {
         return { isHubSpot: true, queryType: 'hubspot_query' };
       }
@@ -163,7 +210,8 @@ class HubSpotPatternDetector {
 
     // PASO 3: Bloquear FAQs genéricas (solo si no pasó las verificaciones anteriores)
     for (const blocker of this.strictFaqBlockers) {
-      if (messageLower.includes(blocker)) {
+      const normalizedBlocker = this.normalizeText(blocker);
+      if (normalized.includes(normalizedBlocker)) {
         return { isHubSpot: false, queryType: 'faq_blocked' };
       }
     }
@@ -243,21 +291,28 @@ async function handleToolCalls(toolCalls: any[], userId: string, message: string
           }
 
           // Detectar consultas personales y auto-inyectar owner_ids
+          // Normalizar mensaje para comparación
+          const normalizeForComparison = (text: string) =>
+            text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
           const personalKeywords = [
             'mis ventas', 'mis deals', 'mi venta', 'mi deal',
-            'cuánto he vendido', 'cuanto he vendido',
-            'cuánto llevo vendido', 'cuanto llevo vendido',
-            'cuánto vendí', 'cuanto vendi',
-            'lo que he vendido', 'lo que vendí', 'lo que vendi',
-            'lo que llevo vendido',
-            'cuántas ventas', 'cuantas ventas',
-            'cuántas llevo', 'cuantas llevo',
+            'cuanto he vendido', 'quanto e vendido', 'cuanto e vendido',
+            'cuanto llevo vendido', 'quanto llevo vendido',
+            'cuanto vendi', 'quanto vendi',
+            'lo que he vendido', 'lo que vendi', 'lo q he vendido', 'lo q vendi',
+            'lo que llevo vendido', 'lo q llevo vendido',
+            'cuantas ventas', 'quantas ventas',
+            'cuantas llevo', 'quantas llevo',
             'mis llamadas', 'mi llamada',
-            'yo vendí', 'yo vendi', 'he vendido',
+            'yo vendi', 'he vendido', 'e vendido',
+            'vendi esta semana', 'vendido esta semana',
+            'vendi hoy', 'vendido hoy',
+            'vendi ayer', 'vendido ayer',
           ];
 
-          const messageLower = message.toLowerCase();
-          const isPersonalQuery = personalKeywords.some((keyword) => messageLower.includes(keyword));
+          const normalizedMessage = normalizeForComparison(message);
+          const isPersonalQuery = personalKeywords.some((keyword) => normalizedMessage.includes(keyword));
 
           // Si es consulta personal y NO tiene owner_ids, inyectar el del usuario
           if (isPersonalQuery && !cleanArgs.owner_ids) {
@@ -319,7 +374,32 @@ async function processWithAssistant(
     }
 
     // Enriquecer mensaje con contexto
-    const enrichedMessage = `El usuario se llama ${userName}. IMPORTANTE: Responde de manera natural y conversacional. NO menciones sistemas, bases de datos o fuentes de información. Saluda al usuario por su nombre cuando sea apropiado.\n\nPregunta actual: ${message}`;
+    const enrichedMessage = `El usuario se llama ${userName}.
+
+IMPORTANTE - Instrucciones de comportamiento:
+1. Responde de manera natural y conversacional
+2. NO menciones sistemas, bases de datos o fuentes de información
+3. Saluda al usuario por su nombre cuando sea apropiado
+4. SIEMPRE usa la función search_hubspot_deals cuando:
+   - El usuario mencione un nombre de cliente
+   - Pregunte por ventas, deals, clientes o créditos
+   - Solicite información específica (owner, videoagente, links, fechas)
+   - Use palabras como: "cuánto", "mis", "vendido", "status", "etapa"
+
+IMPORTANTE - Terminología correcta:
+- "Vendedor" o "Deal Owner" = quien creó el deal (hubspot_owner_id)
+- "Videoagente" o "Service Owner" = quien hace la videollamada (service_owner)
+- SON PERSONAS DIFERENTES, nunca las confundas
+- Cuando te pregunten por "vendedor" busca en hubspot_owner_id
+- Cuando te pregunten por "videoagente" o "service owner" busca en service_owner
+
+IMPORTANTE - Uso de la función:
+- Siempre especifica response_type="details" si quieren ver información completa
+- Usa date_from y date_to para filtrar fechas (formato YYYY-MM-DD)
+- Para consultas "esta semana" calcula el lunes de esta semana
+- Para consultas personales ("mis ventas", "cuánto he vendido") NO especifiques owner_ids, el sistema lo inyecta automáticamente
+
+Pregunta del usuario: ${message}`;
 
     // Crear mensaje en el thread
     await openai.beta.threads.messages.create(currentThreadId, {
