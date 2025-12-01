@@ -61,9 +61,18 @@ interface User {
   position?: string;
   managerId?: string;
   assignedPromoters?: string[];
+  assignedKioskId?: string; // ID del kiosco asignado
   hubspotOwnerId?: string; // Nuevo campo para HubSpot
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+interface Kiosk {
+  id: string;
+  name: string;
+  productType: string;
+  city: string;
+  state: string;
 }
 
 const roleLabels: Record<UserRole, string> = {
@@ -99,6 +108,7 @@ const statusColors: Record<UserStatus, "success" | "default" | "error" | "warnin
 const Usuarios: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [managers, setManagers] = useState<User[]>([]);
+  const [kiosks, setKiosks] = useState<Kiosk[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -116,11 +126,13 @@ const Usuarios: React.FC = () => {
     position: '',
     managerId: '',
     assignedPromoters: [],
+    assignedKioskId: '',
     hubspotOwnerId: ''
   });
 
   useEffect(() => {
     fetchUsers();
+    fetchKiosks();
   }, []);
 
   const fetchUsers = async () => {
@@ -147,6 +159,26 @@ const Usuarios: React.FC = () => {
     }
   };
 
+  const fetchKiosks = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'kiosks'));
+      const kiosksData: Kiosk[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        kiosksData.push({
+          id: doc.id,
+          name: data.name,
+          productType: data.productType,
+          city: data.city,
+          state: data.state
+        });
+      });
+      setKiosks(kiosksData.sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (err) {
+      console.error('Error al cargar kioscos:', err);
+    }
+  };
+
   const handleOpenDialog = (user?: User) => {
     if (user) {
       setEditingUser(user);
@@ -162,6 +194,7 @@ const Usuarios: React.FC = () => {
         position: user.position || '',
         managerId: user.managerId || '',
         assignedPromoters: user.assignedPromoters || [],
+        assignedKioskId: user.assignedKioskId || '',
         hubspotOwnerId: user.hubspotOwnerId || ''
       });
     } else {
@@ -178,6 +211,7 @@ const Usuarios: React.FC = () => {
         position: '',
         managerId: '',
         assignedPromoters: [],
+        assignedKioskId: '',
         hubspotOwnerId: ''
       });
     }
@@ -501,6 +535,23 @@ const Usuarios: React.FC = () => {
                   placeholder="123456789"
                   helperText="ID del propietario en HubSpot para sincronización de contactos y deals"
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Kiosco Asignado</InputLabel>
+                  <Select
+                    value={formData.assignedKioskId || ''}
+                    onChange={(e) => handleInputChange('assignedKioskId', e.target.value)}
+                    label="Kiosco Asignado"
+                  >
+                    <MenuItem value="">Sin asignar</MenuItem>
+                    {kiosks.map((kiosk) => (
+                      <MenuItem key={kiosk.id} value={kiosk.id}>
+                        {kiosk.name} - {kiosk.productType} ({kiosk.city}, {kiosk.state})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
             </Grid>
           </Box>

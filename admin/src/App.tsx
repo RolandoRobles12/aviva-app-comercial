@@ -9,6 +9,7 @@ import Metas from './pages/Metas';
 import Ligas from './pages/Ligas';
 import Giros from './pages/Giros';
 import HubSpot from './pages/HubSpot';
+import Kioscos from './pages/Kioscos';
 import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
@@ -59,6 +60,7 @@ function AppRoutes() {
         <Route path="ligas" element={<Ligas />} />
         <Route path="giros" element={<Giros />} />
         <Route path="hubspot" element={<HubSpot />} />
+        <Route path="kioscos" element={<Kioscos />} />
         <Route path="administradores" element={<Administradores />} />
         <Route path="auditoria" element={<Auditoria />} />
         <Route path="ubicaciones" element={<UbicacionesConfig />} />
