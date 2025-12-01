@@ -12,6 +12,8 @@ import HubSpot from './pages/HubSpot';
 import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
+import UbicacionesConfig from './pages/UbicacionesConfig';
+import AlertasUbicacion from './pages/AlertasUbicacion';
 
 const theme = createTheme({
   palette: {
@@ -59,6 +61,8 @@ function AppRoutes() {
         <Route path="hubspot" element={<HubSpot />} />
         <Route path="administradores" element={<Administradores />} />
         <Route path="auditoria" element={<Auditoria />} />
+        <Route path="ubicaciones" element={<UbicacionesConfig />} />
+        <Route path="alertas-ubicacion" element={<AlertasUbicacion />} />
         <Route path="config" element={<Configuracion />} />
       </Route>
     </Routes>

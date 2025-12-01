@@ -15,6 +15,9 @@ import com.google.android.gms.location.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
+import models.LocationConfig
+import models.LocationAlert
+import models.User
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,6 +37,11 @@ class LocationService : Service() {
     private var workHoursRunnable: Runnable? = null
     private var serviceStartTime = 0L
 
+    // Configuración y datos del usuario
+    private var currentUser: User? = null
+    private var locationConfig: LocationConfig? = null
+    private var lastAlertTime = 0L // Para evitar spam de alertas
+
     companion object {
         private const val TAG = "LocationService"
         private const val CHANNEL_ID = "LocationServiceChannel"
@@ -50,6 +58,9 @@ class LocationService : Service() {
         // HORARIO LABORAL: 9 AM a 7 PM
         private const val WORK_START_HOUR = 9  // 9 AM
         private const val WORK_END_HOUR = 19   // 7 PM (19:00)
+
+        // ALERTAS: Intervalo mínimo entre alertas para evitar spam
+        private const val ALERT_INTERVAL = 30 * 60 * 1000L // 30 minutos entre alertas
 
         // ACCIONES DE CONTROL
         const val ACTION_START_TRACKING = "START_TRACKING"
@@ -169,6 +180,9 @@ class LocationService : Service() {
             // Configurar y solicitar actualizaciones
             requestLocationUpdates()
 
+            // Cargar configuración del usuario y ubicación asignada
+            loadUserConfiguration()
+
             // Marcar como activo
             isTrackingActive = true
             totalLocationsRecorded = 0
@@ -238,6 +252,9 @@ class LocationService : Service() {
                 Log.d(TAG, "📏 Distancia pequeña: ${distance}m - Pero registrando por tiempo transcurrido")
             }
         }
+
+        // Validar ubicación según productLine (genera alertas si es necesario)
+        validateLocationForProductLine(location)
 
         // Ubicacion valida - Procesar
         totalLocationsRecorded++
@@ -549,5 +566,227 @@ class LocationService : Service() {
 
     private fun getCurrentTimeString(): String {
         return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+    }
+
+    // ============================================================================
+    // VALIDACIÓN DE UBICACIÓN SEGÚN PRODUCTLINE
+    // ============================================================================
+
+    /**
+     * Carga la configuración del usuario y sus datos
+     */
+    private fun loadUserConfiguration() {
+        val userId = auth.currentUser?.uid ?: return
+
+        // Cargar datos del usuario
+        db.collection("users").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    currentUser = document.toObject(User::class.java)
+                    Log.d(TAG, "👤 Usuario cargado: ${currentUser?.displayName} (${currentUser?.getProductLineDisplayName()})")
+
+                    // Cargar configuración de ubicación
+                    loadLocationConfig(userId)
+                } else {
+                    Log.w(TAG, "⚠️ Documento de usuario no encontrado")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error cargando usuario: ${e.message}")
+            }
+    }
+
+    /**
+     * Carga la configuración de ubicación del usuario
+     */
+    private fun loadLocationConfig(userId: String) {
+        db.collection("locationConfigs")
+            .whereEqualTo("userId", userId)
+            .limit(1)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (!documents.isEmpty) {
+                    locationConfig = documents.documents[0].toObject(LocationConfig::class.java)
+                    Log.d(TAG, "📍 Configuración de ubicación cargada:")
+                    Log.d(TAG, "   - Tipo: ${locationConfig?.validationType}")
+                    Log.d(TAG, "   - Radio permitido: ${locationConfig?.allowedRadius}m")
+                    Log.d(TAG, "   - Ubicación asignada: ${locationConfig?.assignedLocationName ?: "No asignada"}")
+                } else {
+                    // Crear configuración default si no existe
+                    createDefaultLocationConfig(userId)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error cargando configuración: ${e.message}")
+                createDefaultLocationConfig(userId)
+            }
+    }
+
+    /**
+     * Crea una configuración por defecto basada en el productLine del usuario
+     */
+    private fun createDefaultLocationConfig(userId: String) {
+        val user = currentUser ?: return
+
+        val validationType = LocationConfig.getValidationTypeForProductLine(user.productLine)
+
+        val config = LocationConfig(
+            userId = userId,
+            validationType = validationType,
+            allowedRadius = 150f,
+            trackingInterval = LOCATION_INTERVAL,
+            minAccuracy = MIN_ACCURACY
+        )
+
+        db.collection("locationConfigs")
+            .add(config)
+            .addOnSuccessListener { docRef ->
+                locationConfig = config.copy(id = docRef.id)
+                Log.d(TAG, "✅ Configuración default creada: ${validationType}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error creando configuración default: ${e.message}")
+            }
+    }
+
+    /**
+     * Valida la ubicación según el productLine del usuario
+     * Retorna true si la ubicación es válida, false si está fuera del rango
+     */
+    private fun validateLocationForProductLine(location: Location): Boolean {
+        val user = currentUser ?: run {
+            Log.w(TAG, "⚠️ Usuario no cargado, no se puede validar ubicación")
+            return true // Permitir por default si no hay datos
+        }
+
+        val config = locationConfig ?: run {
+            Log.w(TAG, "⚠️ Configuración no cargada, no se puede validar ubicación")
+            return true // Permitir por default si no hay configuración
+        }
+
+        // Si es vendedor de campo (AVIVA_TU_NEGOCIO, AVIVA_TU_CASA), no validar ubicación
+        if (config.validationType == LocationConfig.ValidationType.ROUTE_ONLY) {
+            Log.d(TAG, "✅ Vendedor de campo - No requiere validación de ubicación")
+            return true
+        }
+
+        // Si es vendedor estático (AVIVA_TU_COMPRA, AVIVA_CONTIGO), validar ubicación asignada
+        val assignedLocation = config.assignedLocation
+        if (assignedLocation == null) {
+            Log.w(TAG, "⚠️ Vendedor estático sin ubicación asignada")
+            createNoConfigAlert(user, location)
+            return false
+        }
+
+        // Verificar si está dentro del radio permitido
+        val currentGeoPoint = GeoPoint(location.latitude, location.longitude)
+        val isWithinRadius = config.isWithinAllowedRadius(currentGeoPoint)
+
+        if (!isWithinRadius) {
+            val distance = calculateDistance(assignedLocation, currentGeoPoint)
+            Log.w(TAG, "⚠️ Vendedor estático fuera de ubicación asignada")
+            Log.w(TAG, "   - Distancia: ${distance.toInt()}m (permitido: ${config.allowedRadius.toInt()}m)")
+            Log.w(TAG, "   - Ubicación asignada: ${config.assignedLocationName}")
+
+            createOutOfBoundsAlert(user, config, location, distance)
+        } else {
+            Log.d(TAG, "✅ Vendedor estático dentro de ubicación asignada")
+        }
+
+        return isWithinRadius
+    }
+
+    /**
+     * Calcula distancia en metros entre dos GeoPoints
+     */
+    private fun calculateDistance(point1: GeoPoint, point2: GeoPoint): Float {
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            point1.latitude, point1.longitude,
+            point2.latitude, point2.longitude,
+            results
+        )
+        return results[0]
+    }
+
+    /**
+     * Verifica si se debe crear una alerta (evitar spam)
+     */
+    private fun shouldCreateAlert(): Boolean {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastAlertTime < ALERT_INTERVAL) {
+            val waitTime = (ALERT_INTERVAL - (currentTime - lastAlertTime)) / 1000 / 60
+            Log.d(TAG, "⏱️ Esperando ${waitTime} min antes de crear otra alerta")
+            return false
+        }
+        return true
+    }
+
+    /**
+     * Crea una alerta de vendedor fuera de ubicación asignada
+     */
+    private fun createOutOfBoundsAlert(user: User, config: LocationConfig, location: Location, distance: Float) {
+        if (!shouldCreateAlert()) return
+
+        val alert = LocationAlert(
+            userId = user.uid,
+            userEmail = user.email,
+            userName = user.displayName,
+            detectedLocation = GeoPoint(location.latitude, location.longitude),
+            detectedLocationAccuracy = location.accuracy,
+            assignedLocation = config.assignedLocation!!,
+            assignedLocationName = config.assignedLocationName,
+            distanceFromAssigned = distance,
+            allowedRadius = config.allowedRadius,
+            alertType = LocationAlert.AlertType.OUT_OF_BOUNDS,
+            severity = if (distance > config.allowedRadius * 2) {
+                LocationAlert.AlertSeverity.CRITICAL
+            } else {
+                LocationAlert.AlertSeverity.WARNING
+            },
+            status = LocationAlert.AlertStatus.ACTIVE
+        )
+
+        db.collection("locationAlerts")
+            .add(alert)
+            .addOnSuccessListener { docRef ->
+                lastAlertTime = System.currentTimeMillis()
+                Log.d(TAG, "🚨 Alerta creada: ${docRef.id}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error creando alerta: ${e.message}")
+            }
+    }
+
+    /**
+     * Crea una alerta de vendedor sin configuración de ubicación
+     */
+    private fun createNoConfigAlert(user: User, location: Location) {
+        if (!shouldCreateAlert()) return
+
+        val alert = LocationAlert(
+            userId = user.uid,
+            userEmail = user.email,
+            userName = user.displayName,
+            detectedLocation = GeoPoint(location.latitude, location.longitude),
+            detectedLocationAccuracy = location.accuracy,
+            assignedLocation = GeoPoint(0.0, 0.0), // Placeholder
+            distanceFromAssigned = 0f,
+            allowedRadius = 150f,
+            alertType = LocationAlert.AlertType.NO_CONFIG,
+            severity = LocationAlert.AlertSeverity.WARNING,
+            status = LocationAlert.AlertStatus.ACTIVE
+        )
+
+        db.collection("locationAlerts")
+            .add(alert)
+            .addOnSuccessListener { docRef ->
+                lastAlertTime = System.currentTimeMillis()
+                Log.d(TAG, "🚨 Alerta creada (sin configuración): ${docRef.id}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error creando alerta: ${e.message}")
+            }
     }
 }
