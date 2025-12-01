@@ -35,12 +35,11 @@ import {
   deleteDoc,
   doc,
   Timestamp,
-  GeoPoint,
-  query,
-  where
+  GeoPoint
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { LocationConfig, ValidationType, validationTypeLabels, getValidationTypeForProductLine } from '../types/location';
+import type { LocationConfig, ValidationType } from '../types/location';
+import { validationTypeLabels, getValidationTypeForProductLine } from '../types/location';
 
 type ProductLine = 'AVIVA_TU_NEGOCIO' | 'AVIVA_CONTIGO' | 'AVIVA_TU_COMPRA' | 'AVIVA_TU_CASA';
 
