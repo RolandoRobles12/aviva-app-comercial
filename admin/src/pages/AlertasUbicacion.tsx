@@ -34,15 +34,15 @@ import {
   doc,
   Timestamp,
   query,
-  where,
   orderBy
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import {
+import type {
   LocationAlert,
-  AlertType,
   AlertSeverity,
-  AlertStatus,
+  AlertStatus
+} from '../types/location';
+import {
   alertTypeLabels,
   alertSeverityLabels,
   alertStatusLabels
@@ -230,7 +230,7 @@ const AlertasUbicacion: React.FC = () => {
       )}
 
       <Paper sx={{ mb: 2 }}>
-        <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+        <Tabs value={tabValue} onChange={(_e, v) => setTabValue(v)}>
           <Tab label={`Todas (${alerts.length})`} />
           <Tab label={`Activas (${alerts.filter(a => a.status === 'ACTIVE').length})`} />
           <Tab label={`Resueltas (${alerts.filter(a => a.status === 'RESOLVED').length})`} />
