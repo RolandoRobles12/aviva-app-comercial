@@ -44,7 +44,7 @@ class LocationService : Service() {
         private const val FASTEST_INTERVAL = 5 * 60 * 1000L   // 5 minutos mínimo
 
         // FILTROS DE CALIDAD
-        private const val MIN_ACCURACY = 50f // Precisión mínima 50 metros
+        private const val MIN_ACCURACY = 100f // Precisión mínima 100 metros (ajustado para edificios/zonas urbanas)
         private const val MIN_DISTANCE_CHANGE = 10f // Cambio mínimo 10 metros
 
         // HORARIO LABORAL: 9 AM a 7 PM
@@ -225,14 +225,7 @@ class LocationService : Service() {
 
         val currentTime = System.currentTimeMillis()
 
-        // Verificar intervalo de tiempo (15 minutos)
-        if (lastLocationTime > 0 && (currentTime - lastLocationTime) < LOCATION_INTERVAL) {
-            val waitTime = (LOCATION_INTERVAL - (currentTime - lastLocationTime)) / 1000 / 60
-            Log.d(TAG, "⏱️ Muy pronto para nueva ubicación - Esperar ${waitTime} min más")
-            return
-        }
-
-        // Verificar precision
+        // Verificar precision (LocationRequest ya maneja el intervalo de tiempo)
         if (location.accuracy > MIN_ACCURACY) {
             Log.w(TAG, "📡 Precisión baja: ${location.accuracy}m (requerido: <${MIN_ACCURACY}m) - Descartando")
             return
@@ -297,7 +290,7 @@ class LocationService : Service() {
             ).apply {
                 setMinUpdateIntervalMillis(FASTEST_INTERVAL)
                 setWaitForAccurateLocation(false)
-                setMaxUpdateDelayMillis(LOCATION_INTERVAL * 2)
+                setMaxUpdateDelayMillis(LOCATION_INTERVAL) // Evitar batching de ubicaciones
             }.build()
 
             fusedLocationClient.requestLocationUpdates(

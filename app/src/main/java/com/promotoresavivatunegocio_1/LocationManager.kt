@@ -150,9 +150,11 @@ class LocationManager private constructor(private val context: Context) {
         Log.d(TAG, "🔄 Reiniciando tracking...")
         forceStopTracking()
 
-        // Esperar un momento antes de reiniciar
-        Thread.sleep(1000)
+        // Esperar un momento antes de reiniciar (sin bloquear el hilo principal)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            startTracking()
+        }, 1000)
 
-        return startTracking()
+        return true
     }
 }
