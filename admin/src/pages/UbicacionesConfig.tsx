@@ -313,8 +313,8 @@ const UbicacionesConfig: React.FC = () => {
                     {user.email}
                   </Typography>
                 </TableCell>
-                <TableCell>{user.productLine.replace(/_/g, ' ')}</TableCell>
-                <TableCell>{getValidationTypeChip(user.productLine)}</TableCell>
+                <TableCell>{user.productLine?.replace(/_/g, ' ') || 'No asignado'}</TableCell>
+                <TableCell>{user.productLine ? getValidationTypeChip(user.productLine) : '-'}</TableCell>
                 <TableCell>
                   {user.config?.assignedLocationName || (
                     <Typography variant="body2" color="text.secondary">
