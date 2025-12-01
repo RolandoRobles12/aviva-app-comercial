@@ -38,7 +38,7 @@ import {
   GeoPoint
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { LocationConfig, ValidationType } from '../types/location';
+import type { LocationConfig } from '../types/location';
 import { validationTypeLabels, getValidationTypeForProductLine } from '../types/location';
 
 type ProductLine = 'AVIVA_TU_NEGOCIO' | 'AVIVA_CONTIGO' | 'AVIVA_TU_COMPRA' | 'AVIVA_TU_CASA';
