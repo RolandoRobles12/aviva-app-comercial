@@ -243,10 +243,9 @@ const AlertasUbicacion: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>Usuario</TableCell>
+              <TableCell>Kiosco</TableCell>
               <TableCell>Tipo</TableCell>
-              <TableCell>Severidad</TableCell>
               <TableCell>Distancia</TableCell>
-              <TableCell>Ubicación Asignada</TableCell>
               <TableCell>Detectada</TableCell>
               <TableCell>Estado</TableCell>
               <TableCell align="right">Acciones</TableCell>
@@ -255,7 +254,7 @@ const AlertasUbicacion: React.FC = () => {
           <TableBody>
             {filteredAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={7} align="center">
                   <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
                     No hay alertas para mostrar
                   </Typography>
@@ -273,17 +272,28 @@ const AlertasUbicacion: React.FC = () => {
                     </Typography>
                   </TableCell>
                   <TableCell>
+                    {alert.kioskName ? (
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {alert.kioskName}
+                        </Typography>
+                        {alert.productType && (
+                          <Chip label={alert.productType} size="small" sx={{ mt: 0.5 }} />
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        {alert.assignedLocationName || 'No asignado'}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Chip
                       icon={getSeverityIcon(alert.severity)}
                       label={alertTypeLabels[alert.alertType]}
                       size="small"
                       color={getSeverityColor(alert.severity)}
                     />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {alertSeverityLabels[alert.severity]}
-                    </Typography>
                   </TableCell>
                   <TableCell>
                     {alert.alertType === 'OUT_OF_BOUNDS' ? (
@@ -298,9 +308,6 @@ const AlertasUbicacion: React.FC = () => {
                     ) : (
                       '-'
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {alert.assignedLocationName || '-'}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
@@ -358,6 +365,20 @@ const AlertasUbicacion: React.FC = () => {
                   {selectedAlert.userName} ({selectedAlert.userEmail})
                 </Typography>
               </Box>
+
+              {selectedAlert.kioskName && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Kiosco Asignado:
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {selectedAlert.kioskName}
+                  </Typography>
+                  {selectedAlert.productType && (
+                    <Chip label={selectedAlert.productType} size="small" sx={{ mt: 0.5 }} />
+                  )}
+                </Box>
+              )}
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>

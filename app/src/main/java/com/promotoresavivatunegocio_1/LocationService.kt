@@ -18,6 +18,8 @@ import com.google.firebase.firestore.GeoPoint
 import models.LocationConfig
 import models.LocationAlert
 import models.User
+import models.Kiosk
+import models.KioskVisit
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,6 +42,8 @@ class LocationService : Service() {
     // Configuración y datos del usuario
     private var currentUser: User? = null
     private var locationConfig: LocationConfig? = null
+    private var assignedKiosk: Kiosk? = null
+    private var currentVisit: KioskVisit? = null
     private var lastAlertTime = 0L // Para evitar spam de alertas
 
     companion object {
@@ -586,7 +590,14 @@ class LocationService : Service() {
                     currentUser = document.toObject(User::class.java)
                     Log.d(TAG, "👤 Usuario cargado: ${currentUser?.displayName} (${currentUser?.getProductLineDisplayName()})")
 
-                    // Cargar configuración de ubicación
+                    // Cargar kiosco asignado
+                    currentUser?.assignedKioskId?.let { kioskId ->
+                        loadAssignedKiosk(kioskId)
+                    } ?: run {
+                        Log.w(TAG, "⚠️ Usuario sin kiosco asignado")
+                    }
+
+                    // Cargar configuración legacy (por compatibilidad)
                     loadLocationConfig(userId)
                 } else {
                     Log.w(TAG, "⚠️ Documento de usuario no encontrado")
@@ -594,6 +605,28 @@ class LocationService : Service() {
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "💥 Error cargando usuario: ${e.message}")
+            }
+    }
+
+    /**
+     * Carga el kiosco asignado al usuario
+     */
+    private fun loadAssignedKiosk(kioskId: String) {
+        db.collection("kiosks").document(kioskId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    assignedKiosk = document.toObject(Kiosk::class.java)
+                    Log.d(TAG, "🏪 Kiosco cargado: ${assignedKiosk?.name}")
+                    Log.d(TAG, "   - Tipo: ${assignedKiosk?.productType}")
+                    Log.d(TAG, "   - Radio: ${assignedKiosk?.radiusOverride}m")
+                    Log.d(TAG, "   - Ciudad: ${assignedKiosk?.city}, ${assignedKiosk?.state}")
+                } else {
+                    Log.w(TAG, "⚠️ Kiosco no encontrado: $kioskId")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error cargando kiosco: ${e.message}")
             }
     }
 
@@ -651,7 +684,7 @@ class LocationService : Service() {
     }
 
     /**
-     * Valida la ubicación según el productLine del usuario
+     * Valida la ubicación según el productLine del usuario y kiosco asignado
      * Retorna true si la ubicación es válida, false si está fuera del rango
      */
     private fun validateLocationForProductLine(location: Location): Boolean {
@@ -660,41 +693,137 @@ class LocationService : Service() {
             return true // Permitir por default si no hay datos
         }
 
-        val config = locationConfig ?: run {
-            Log.w(TAG, "⚠️ Configuración no cargada, no se puede validar ubicación")
-            return true // Permitir por default si no hay configuración
-        }
+        val config = locationConfig
+        val currentGeoPoint = GeoPoint(location.latitude, location.longitude)
 
-        // Si es vendedor de campo (AVIVA_TU_NEGOCIO, AVIVA_TU_CASA), no validar ubicación
-        if (config.validationType == LocationConfig.ValidationType.ROUTE_ONLY) {
+        // Si es vendedor de campo (AVIVA_TU_NEGOCIO, AVIVA_TU_CASA), solo rastrear ruta
+        if (config?.validationType == LocationConfig.ValidationType.ROUTE_ONLY) {
             Log.d(TAG, "✅ Vendedor de campo - No requiere validación de ubicación")
+
+            // Si tiene kiosco asignado, rastrear visitas
+            assignedKiosk?.let { kiosk ->
+                trackKioskVisit(user, kiosk, currentGeoPoint, location.accuracy)
+            }
+
             return true
         }
 
-        // Si es vendedor estático (AVIVA_TU_COMPRA, AVIVA_CONTIGO), validar ubicación asignada
-        val assignedLocation = config.assignedLocation
-        if (assignedLocation == null) {
-            Log.w(TAG, "⚠️ Vendedor estático sin ubicación asignada")
-            createNoConfigAlert(user, location)
+        // Si es vendedor estático (AVIVA_TU_COMPRA, AVIVA_CONTIGO), validar kiosco asignado
+        val kiosk = assignedKiosk
+        if (kiosk == null) {
+            Log.w(TAG, "⚠️ Vendedor estático sin kiosco asignado")
+            createNoKioskAlert(user, location)
             return false
         }
 
-        // Verificar si está dentro del radio permitido
-        val currentGeoPoint = GeoPoint(location.latitude, location.longitude)
-        val isWithinRadius = config.isWithinAllowedRadius(currentGeoPoint)
-
-        if (!isWithinRadius) {
-            val distance = calculateDistance(assignedLocation, currentGeoPoint)
-            Log.w(TAG, "⚠️ Vendedor estático fuera de ubicación asignada")
-            Log.w(TAG, "   - Distancia: ${distance.toInt()}m (permitido: ${config.allowedRadius.toInt()}m)")
-            Log.w(TAG, "   - Ubicación asignada: ${config.assignedLocationName}")
-
-            createOutOfBoundsAlert(user, config, location, distance)
-        } else {
-            Log.d(TAG, "✅ Vendedor estático dentro de ubicación asignada")
+        // Verificar si el kiosco tiene coordenadas configuradas
+        if (kiosk.coordinates == null) {
+            Log.w(TAG, "⚠️ Kiosco ${kiosk.name} sin coordenadas configuradas")
+            createNoKioskConfigAlert(user, kiosk, location)
+            return false
         }
 
+        // Verificar si está dentro del radio del kiosco
+        val isWithinRadius = kiosk.isWithinRadius(currentGeoPoint)
+        val distance = kiosk.getDistanceFrom(currentGeoPoint)
+
+        if (!isWithinRadius) {
+            Log.w(TAG, "⚠️ Vendedor estático fuera del kiosco asignado")
+            Log.w(TAG, "   - Distancia: ${distance.toInt()}m (permitido: ${kiosk.radiusOverride.toInt()}m)")
+            Log.w(TAG, "   - Kiosco: ${kiosk.name}")
+
+            createOutOfBoundsKioskAlert(user, kiosk, location, distance)
+        } else {
+            Log.d(TAG, "✅ Vendedor estático dentro del kiosco asignado: ${kiosk.name}")
+        }
+
+        // Rastrear visita al kiosco
+        trackKioskVisit(user, kiosk, currentGeoPoint, location.accuracy)
+
         return isWithinRadius
+    }
+
+    /**
+     * Rastrea las visitas al kiosco (check-in/check-out automático)
+     */
+    private fun trackKioskVisit(user: User, kiosk: Kiosk, location: GeoPoint, accuracy: Float) {
+        val isAtKiosk = kiosk.coordinates?.let { coords ->
+            val distance = calculateDistance(coords, location)
+            distance <= kiosk.radiusOverride
+        } ?: false
+
+        if (isAtKiosk && currentVisit == null) {
+            // Check-in: Usuario acaba de entrar al kiosco
+            checkInToKiosk(user, kiosk, location, accuracy)
+        } else if (!isAtKiosk && currentVisit != null) {
+            // Check-out: Usuario salió del kiosco
+            checkOutFromKiosk(location, accuracy)
+        } else if (isAtKiosk && currentVisit != null) {
+            Log.d(TAG, "✅ Usuario continúa en kiosco: ${kiosk.name}")
+        }
+    }
+
+    /**
+     * Registra el check-in cuando el usuario entra al kiosco
+     */
+    private fun checkInToKiosk(user: User, kiosk: Kiosk, location: GeoPoint, accuracy: Float) {
+        val visit = hashMapOf(
+            "userId" to user.uid,
+            "userEmail" to user.email,
+            "userName" to user.displayName,
+            "kioskId" to kiosk.id,
+            "kioskName" to kiosk.name,
+            "productType" to kiosk.productType,
+            "checkInLocation" to location,
+            "checkInTime" to com.google.firebase.Timestamp.now(),
+            "checkInAccuracy" to accuracy,
+            "status" to "ACTIVE"
+        )
+
+        db.collection("kioskVisits")
+            .add(visit)
+            .addOnSuccessListener { docRef ->
+                currentVisit = KioskVisit(
+                    id = docRef.id,
+                    userId = user.uid,
+                    kioskId = kiosk.id,
+                    kioskName = kiosk.name,
+                    checkInLocation = location
+                )
+                Log.d(TAG, "✅ Check-in registrado en kiosco: ${kiosk.name}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error en check-in: ${e.message}")
+            }
+    }
+
+    /**
+     * Registra el check-out cuando el usuario sale del kiosco
+     */
+    private fun checkOutFromKiosk(location: GeoPoint, accuracy: Float) {
+        val visit = currentVisit ?: return
+
+        val checkInTime = System.currentTimeMillis() - (15 * 60 * 1000) // Aproximado
+        val currentTime = System.currentTimeMillis()
+        val durationMinutes = ((currentTime - checkInTime) / 1000 / 60).toInt()
+
+        val updates = hashMapOf(
+            "checkOutLocation" to location,
+            "checkOutTime" to com.google.firebase.Timestamp.now(),
+            "checkOutAccuracy" to accuracy,
+            "durationMinutes" to durationMinutes,
+            "status" to "COMPLETED"
+        )
+
+        db.collection("kioskVisits").document(visit.id)
+            .update(updates as Map<String, Any>)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Check-out registrado del kiosco: ${visit.kioskName} (${durationMinutes} min)")
+                currentVisit = null
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error en check-out: ${e.message}")
+            }
     }
 
     /**
@@ -724,35 +853,35 @@ class LocationService : Service() {
     }
 
     /**
-     * Crea una alerta de vendedor fuera de ubicación asignada
+     * Crea una alerta de vendedor fuera del kiosco asignado
      */
-    private fun createOutOfBoundsAlert(user: User, config: LocationConfig, location: Location, distance: Float) {
+    private fun createOutOfBoundsKioskAlert(user: User, kiosk: Kiosk, location: Location, distance: Float) {
         if (!shouldCreateAlert()) return
 
-        val alert = LocationAlert(
-            userId = user.uid,
-            userEmail = user.email,
-            userName = user.displayName,
-            detectedLocation = GeoPoint(location.latitude, location.longitude),
-            detectedLocationAccuracy = location.accuracy,
-            assignedLocation = config.assignedLocation!!,
-            assignedLocationName = config.assignedLocationName,
-            distanceFromAssigned = distance,
-            allowedRadius = config.allowedRadius,
-            alertType = LocationAlert.AlertType.OUT_OF_BOUNDS,
-            severity = if (distance > config.allowedRadius * 2) {
-                LocationAlert.AlertSeverity.CRITICAL
-            } else {
-                LocationAlert.AlertSeverity.WARNING
-            },
-            status = LocationAlert.AlertStatus.ACTIVE
+        val alert = hashMapOf(
+            "userId" to user.uid,
+            "userEmail" to user.email,
+            "userName" to user.displayName,
+            "kioskId" to kiosk.id,
+            "kioskName" to kiosk.name,
+            "productType" to kiosk.productType,
+            "detectedLocation" to GeoPoint(location.latitude, location.longitude),
+            "detectedLocationAccuracy" to location.accuracy,
+            "assignedLocation" to kiosk.coordinates!!,
+            "assignedLocationName" to kiosk.name,
+            "distanceFromAssigned" to distance,
+            "allowedRadius" to kiosk.radiusOverride,
+            "alertType" to "OUT_OF_BOUNDS",
+            "severity" to if (distance > kiosk.radiusOverride * 2) "CRITICAL" else "WARNING",
+            "status" to "ACTIVE",
+            "detectedAt" to com.google.firebase.Timestamp.now()
         )
 
         db.collection("locationAlerts")
             .add(alert)
             .addOnSuccessListener { docRef ->
                 lastAlertTime = System.currentTimeMillis()
-                Log.d(TAG, "🚨 Alerta creada: ${docRef.id}")
+                Log.d(TAG, "🚨 Alerta creada (fuera de kiosco): ${docRef.id}")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "💥 Error creando alerta: ${e.message}")
@@ -760,30 +889,66 @@ class LocationService : Service() {
     }
 
     /**
-     * Crea una alerta de vendedor sin configuración de ubicación
+     * Crea una alerta de vendedor sin kiosco asignado
      */
-    private fun createNoConfigAlert(user: User, location: Location) {
+    private fun createNoKioskAlert(user: User, location: Location) {
         if (!shouldCreateAlert()) return
 
-        val alert = LocationAlert(
-            userId = user.uid,
-            userEmail = user.email,
-            userName = user.displayName,
-            detectedLocation = GeoPoint(location.latitude, location.longitude),
-            detectedLocationAccuracy = location.accuracy,
-            assignedLocation = GeoPoint(0.0, 0.0), // Placeholder
-            distanceFromAssigned = 0f,
-            allowedRadius = 150f,
-            alertType = LocationAlert.AlertType.NO_CONFIG,
-            severity = LocationAlert.AlertSeverity.WARNING,
-            status = LocationAlert.AlertStatus.ACTIVE
+        val alert = hashMapOf(
+            "userId" to user.uid,
+            "userEmail" to user.email,
+            "userName" to user.displayName,
+            "detectedLocation" to GeoPoint(location.latitude, location.longitude),
+            "detectedLocationAccuracy" to location.accuracy,
+            "assignedLocation" to GeoPoint(0.0, 0.0),
+            "distanceFromAssigned" to 0f,
+            "allowedRadius" to 150f,
+            "alertType" to "NO_CONFIG",
+            "severity" to "WARNING",
+            "status" to "ACTIVE",
+            "detectedAt" to com.google.firebase.Timestamp.now()
         )
 
         db.collection("locationAlerts")
             .add(alert)
             .addOnSuccessListener { docRef ->
                 lastAlertTime = System.currentTimeMillis()
-                Log.d(TAG, "🚨 Alerta creada (sin configuración): ${docRef.id}")
+                Log.d(TAG, "🚨 Alerta creada (sin kiosco asignado): ${docRef.id}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "💥 Error creando alerta: ${e.message}")
+            }
+    }
+
+    /**
+     * Crea una alerta de kiosco sin coordenadas configuradas
+     */
+    private fun createNoKioskConfigAlert(user: User, kiosk: Kiosk, location: Location) {
+        if (!shouldCreateAlert()) return
+
+        val alert = hashMapOf(
+            "userId" to user.uid,
+            "userEmail" to user.email,
+            "userName" to user.displayName,
+            "kioskId" to kiosk.id,
+            "kioskName" to kiosk.name,
+            "productType" to kiosk.productType,
+            "detectedLocation" to GeoPoint(location.latitude, location.longitude),
+            "detectedLocationAccuracy" to location.accuracy,
+            "assignedLocation" to GeoPoint(0.0, 0.0),
+            "distanceFromAssigned" to 0f,
+            "allowedRadius" to 150f,
+            "alertType" to "NO_CONFIG",
+            "severity" to "CRITICAL",
+            "status" to "ACTIVE",
+            "detectedAt" to com.google.firebase.Timestamp.now()
+        )
+
+        db.collection("locationAlerts")
+            .add(alert)
+            .addOnSuccessListener { docRef ->
+                lastAlertTime = System.currentTimeMillis()
+                Log.d(TAG, "🚨 Alerta creada (kiosco sin coordenadas): ${docRef.id}")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "💥 Error creando alerta: ${e.message}")

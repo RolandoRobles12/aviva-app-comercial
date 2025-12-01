@@ -3,118 +3,91 @@ package models
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.GeoPoint
 
+/**
+ * Modelo de Kiosko/Punto de Venta
+ * Representa una ubicación física donde los vendedores están asignados
+ */
 data class Kiosk(
-    var id: String = "",
-    var name: String = "",
-    var description: String = "",
-    var productType: ProductType = ProductType.BODEGA_AURRERA,
-    var address: String = "",
-    var state: String = "",
-    var city: String = "",
-    var location: GeoPoint? = null,
-    var radiusMeters: Int = 100, // GPS validation radius
-    var isActive: Boolean = true,
-    var createdAt: Timestamp = Timestamp.now(),
-    var updatedAt: Timestamp = Timestamp.now(),
-    var createdBy: String = "",
+    val id: String = "",
+    val name: String = "",
+    val productType: String = "", // "BA" = Bodega Aurrera, etc.
 
-    // Contact information
-    var contactPhone: String? = null,
-    var contactEmail: String? = null,
-    var managerName: String? = null,
+    // Ubicación
+    val coordinates: GeoPoint? = null,
+    val city: String = "",
+    val state: String = "",
 
-    // Business information
-    var businessHours: String? = null,
-    var specialInstructions: String? = null,
-    var securityNotes: String? = null,
+    // Configuración de tracking
+    val radiusOverride: Float = 100f, // Radio permitido en metros (default: 100m)
 
-    // Operational data
-    var lastActivityDate: Timestamp? = null,
-    var totalCheckIns: Int = 0,
-    var averageCheckInsPerDay: Double = 0.0,
+    // Reglas de tiempo
+    val workHoursStart: Int = 9, // Hora de inicio (default: 9 AM)
+    val workHoursEnd: Int = 19,   // Hora de fin (default: 7 PM)
+    val requiresPresence: Boolean = true, // Si requiere presencia física
 
-    // Configuration
-    var allowedUserRoles: List<String> = listOf("promotor"),
-    var requiresPhoto: Boolean = true,
-    var requiresNotes: Boolean = false,
-    var maxCheckInsPerDay: Int = 50
+    // Estado
+    val status: KioskStatus = KioskStatus.ACTIVE,
+
+    // Integración HubSpot
+    val hubId: String? = null,
+
+    // Timestamps
+    val createdAt: Timestamp = Timestamp.now(),
+    val updatedAt: Timestamp = Timestamp.now()
 ) {
-    enum class ProductType {
-        BODEGA_AURRERA,
-        AVIVA_CONTIGO,
-        CONSTRURAMA
+    enum class KioskStatus {
+        ACTIVE,
+        INACTIVE,
+        MAINTENANCE,
+        CLOSED
     }
 
-    fun getProductTypeDisplayName(): String {
-        return when (productType) {
-            ProductType.BODEGA_AURRERA -> "Bodega Aurrera"
-            ProductType.AVIVA_CONTIGO -> "Aviva Contigo"
-            ProductType.CONSTRURAMA -> "Construrama"
-        }
+    /**
+     * Verifica si una ubicación está dentro del radio del kiosco
+     */
+    fun isWithinRadius(location: GeoPoint): Boolean {
+        if (coordinates == null) return false
+
+        val distance = calculateDistance(coordinates, location)
+        return distance <= radiusOverride
     }
 
-    fun getProductTypeValue(): String {
-        return when (productType) {
-            ProductType.BODEGA_AURRERA -> "bodega_aurrera"
-            ProductType.AVIVA_CONTIGO -> "aviva_contigo"
-            ProductType.CONSTRURAMA -> "construrama"
-        }
+    /**
+     * Obtiene la distancia en metros desde el kiosco a una ubicación
+     */
+    fun getDistanceFrom(location: GeoPoint): Float {
+        if (coordinates == null) return Float.MAX_VALUE
+        return calculateDistance(coordinates, location)
     }
 
-    fun getFullAddress(): String {
-        return if (city.isNotEmpty() && state.isNotEmpty()) {
-            "$address, $city, $state"
-        } else address
-    }
-
-    fun isWithinRadius(userLocation: GeoPoint): Boolean {
-        if (location == null) return false
-
-        val distance = calculateDistance(
-            location!!.latitude, location!!.longitude,
-            userLocation.latitude, userLocation.longitude
+    /**
+     * Calcula distancia entre dos puntos usando fórmula Haversine
+     */
+    private fun calculateDistance(point1: GeoPoint, point2: GeoPoint): Float {
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(
+            point1.latitude, point1.longitude,
+            point2.latitude, point2.longitude,
+            results
         )
-
-        return distance <= radiusMeters
+        return results[0]
     }
 
-    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val R = 6371000.0 // Earth's radius in meters
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2)
-        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        return R * c
-    }
-
-    fun getStatusColor(): String {
-        return if (isActive) "#10B981" else "#6B7280"
+    /**
+     * Verifica si la hora actual está dentro del horario laboral del kiosco
+     */
+    fun isWithinWorkHours(): Boolean {
+        val calendar = java.util.Calendar.getInstance()
+        val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        return currentHour in workHoursStart until workHoursEnd
     }
 
     fun getStatusDisplayName(): String {
-        return if (isActive) "Activo" else "Inactivo"
-    }
-
-    companion object {
-        // Mexican states for validation
-        val MEXICAN_STATES = listOf(
-            "Aguascalientes", "Baja California", "Baja California Sur", "Campeche",
-            "Chiapas", "Chihuahua", "Coahuila", "Colima", "Durango", "Estado de México",
-            "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán", "Morelos",
-            "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo",
-            "San Luis Potosí", "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala",
-            "Veracruz", "Yucatán", "Zacatecas", "Ciudad de México"
-        )
-
-        fun getProductTypeFromString(value: String): ProductType {
-            return when (value.lowercase()) {
-                "bodega_aurrera" -> ProductType.BODEGA_AURRERA
-                "aviva_contigo" -> ProductType.AVIVA_CONTIGO
-                "construrama" -> ProductType.CONSTRURAMA
-                else -> ProductType.BODEGA_AURRERA
-            }
+        return when (status) {
+            KioskStatus.ACTIVE -> "Activo"
+            KioskStatus.INACTIVE -> "Inactivo"
+            KioskStatus.MAINTENANCE -> "En mantenimiento"
+            KioskStatus.CLOSED -> "Cerrado"
         }
     }
 }

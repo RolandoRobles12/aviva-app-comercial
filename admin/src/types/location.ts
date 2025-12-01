@@ -59,6 +59,11 @@ export interface LocationAlert {
   userEmail: string;
   userName: string;
 
+  // Kiosco asignado (nuevo sistema)
+  kioskId?: string;
+  kioskName?: string;
+  productType?: string;
+
   // Ubicación detectada
   detectedLocation: GeoPoint;
   detectedLocationAccuracy: number;
