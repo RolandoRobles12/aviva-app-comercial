@@ -32,6 +32,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import HubIcon from '@mui/icons-material/Hub';
 import HistoryIcon from '@mui/icons-material/History';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import WarningIcon from '@mui/icons-material/Warning';
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -40,6 +42,8 @@ const menuItems = [
   { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas' },
   { text: 'Catálogo de Giros', icon: <CategoryIcon />, path: '/giros' },
   { text: 'HubSpot', icon: <HubIcon />, path: '/hubspot' },
+  { text: 'Ubicaciones', icon: <LocationOnIcon />, path: '/ubicaciones' },
+  { text: 'Alertas de Ubicación', icon: <WarningIcon />, path: '/alertas-ubicacion' },
   { text: 'Administradores', icon: <AdminPanelSettingsIcon />, path: '/administradores' },
   { text: 'Auditoría', icon: <HistoryIcon />, path: '/auditoria' },
   { text: 'Configuración', icon: <SettingsIcon />, path: '/config' }
