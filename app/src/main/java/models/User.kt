@@ -25,7 +25,8 @@ data class User(
 
     // Role-based access
     val productTypes: List<String> = emptyList(),  // ["bodega_aurrera", "aviva_contigo", "construrama"]
-    val kiosks: List<String> = emptyList(),        // Array of kiosk IDs
+    val kiosks: List<String> = emptyList(),        // Array of kiosk IDs (legacy)
+    val assignedKioskId: String? = null,           // ID del kiosco asignado (nuevo sistema)
 
     // Hierarchy
     val assignedPromoters: List<String> = emptyList(), // IDs de promotores asignados (para admin/supervisor)
