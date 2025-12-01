@@ -1,32 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
   Typography,
-  Chip,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Grid,
-  Pagination
+  Chip,
+  Grid
 } from '@mui/material';
-import PersonIcon from '@mui/icons-material/Person';
-import EditIcon from '@mui/icons-material/Edit';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { Timestamp } from 'firebase/firestore';
-
-type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT';
-
-type AuditModule = 'USERS' | 'METAS' | 'LIGAS' | 'GIROS' | 'BONOS' | 'HUBSPOT' | 'CONFIG';
+import { collection, query, orderBy, limit as firestoreLimit, getDocs } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import DataTable from '../components/DataTable';
+import type { Column } from '../components/DataTable';
+import type { AuditAction, AuditModule } from '../hooks/useAuditLog';
 
 interface AuditLog {
   id: string;
@@ -38,8 +25,10 @@ interface AuditLog {
   entityId?: string;
   entityName?: string;
   changes?: Record<string, any>;
-  timestamp: Timestamp;
-  ipAddress?: string;
+  timestamp: any;
+  details?: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
 }
 
 const actionLabels: Record<AuditAction, string> = {
@@ -47,23 +36,19 @@ const actionLabels: Record<AuditAction, string> = {
   'UPDATE': 'Actualización',
   'DELETE': 'Eliminación',
   'LOGIN': 'Inicio de sesión',
-  'LOGOUT': 'Cierre de sesión'
+  'LOGOUT': 'Cierre de sesión',
+  'EXPORT': 'Exportación',
+  'IMPORT': 'Importación'
 };
 
-const actionColors: Record<AuditAction, "success" | "info" | "error" | "default" | "primary"> = {
+const actionColors: Record<AuditAction, "success" | "info" | "error" | "default" | "primary" | "warning"> = {
   'CREATE': 'success',
   'UPDATE': 'info',
   'DELETE': 'error',
   'LOGIN': 'primary',
-  'LOGOUT': 'default'
-};
-
-const actionIcons: Record<AuditAction, React.ReactElement> = {
-  'CREATE': <AddIcon fontSize="small" />,
-  'UPDATE': <EditIcon fontSize="small" />,
-  'DELETE': <DeleteIcon fontSize="small" />,
-  'LOGIN': <PersonIcon fontSize="small" />,
-  'LOGOUT': <PersonIcon fontSize="small" />
+  'LOGOUT': 'default',
+  'EXPORT': 'warning',
+  'IMPORT': 'warning'
 };
 
 const moduleLabels: Record<AuditModule, string> = {
@@ -71,381 +56,207 @@ const moduleLabels: Record<AuditModule, string> = {
   'METAS': 'Metas',
   'LIGAS': 'Ligas',
   'GIROS': 'Giros',
+  'KIOSCOS': 'Kioscos',
   'BONOS': 'Bonos',
   'HUBSPOT': 'HubSpot',
-  'CONFIG': 'Configuración'
+  'CONFIG': 'Configuración',
+  'ADMINS': 'Administradores',
+  'UBICACIONES': 'Ubicaciones',
+  'ALERTAS': 'Alertas'
 };
 
 const Auditoria: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterModule, setFilterModule] = useState<string>('ALL');
   const [filterAction, setFilterAction] = useState<string>('ALL');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const logsPerPage = 20;
 
   useEffect(() => {
     fetchLogs();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [logs, filterModule, filterAction, searchTerm]);
-
   const fetchLogs = async () => {
     try {
-      // En producción, estos logs vendrían de una colección específica 'audit_logs'
-      // Por ahora, creamos datos de ejemplo
-      const sampleLogs: AuditLog[] = [
-        {
-          id: '1',
-          module: 'USERS',
-          action: 'CREATE',
-          userId: 'admin1',
-          userName: 'Admin Usuario',
-          userEmail: 'admin@avivacredito.com',
-          entityId: 'user123',
-          entityName: 'Juan Pérez',
-          timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 30)), // 30 min ago
-          ipAddress: '192.168.1.100'
-        },
-        {
-          id: '2',
-          module: 'METAS',
-          action: 'UPDATE',
-          userId: 'admin1',
-          userName: 'Admin Usuario',
-          userEmail: 'admin@avivacredito.com',
-          entityId: 'meta456',
-          entityName: 'Meta Semanal Julio',
-          changes: { llamadasObjetivo: { from: 50, to: 60 } },
-          timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 2)), // 2 hours ago
-          ipAddress: '192.168.1.100'
-        },
-        {
-          id: '3',
-          module: 'LIGAS',
-          action: 'CREATE',
-          userId: 'admin2',
-          userName: 'Otro Admin',
-          userEmail: 'admin2@avivacredito.com',
-          entityId: 'liga789',
-          entityName: 'Liga Oro - Temporada 5',
-          timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 5)), // 5 hours ago
-          ipAddress: '192.168.1.101'
-        },
-        {
-          id: '4',
-          module: 'HUBSPOT',
-          action: 'UPDATE',
-          userId: 'admin1',
-          userName: 'Admin Usuario',
-          userEmail: 'admin@avivacredito.com',
-          entityId: 'user123',
-          entityName: 'Juan Pérez',
-          changes: { hubspotOwnerId: { from: null, to: '12345678' } },
-          timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 24)), // 1 day ago
-          ipAddress: '192.168.1.100'
-        },
-        {
-          id: '5',
-          module: 'GIROS',
-          action: 'DELETE',
-          userId: 'admin1',
-          userName: 'Admin Usuario',
-          userEmail: 'admin@avivacredito.com',
-          entityId: 'giro999',
-          entityName: 'Giro Test',
-          timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 48)), // 2 days ago
-          ipAddress: '192.168.1.100'
-        }
-      ];
+      setLoading(true);
+      const logsQuery = query(
+        collection(db, 'auditLogs'),
+        orderBy('timestamp', 'desc'),
+        firestoreLimit(500)
+      );
 
-      setLogs(sampleLogs);
-      setFilteredLogs(sampleLogs);
-    } catch (err) {
-      console.error('Error al cargar logs:', err);
+      const snapshot = await getDocs(logsQuery);
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as AuditLog[];
+
+      setLogs(data);
+    } catch (error) {
+      console.error('Error al cargar logs de auditoría:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...logs];
-
-    if (filterModule !== 'ALL') {
-      filtered = filtered.filter(log => log.module === filterModule);
+  const filteredLogs = logs.filter(log => {
+    if (filterModule !== 'ALL' && log.module !== filterModule) {
+      return false;
     }
-
-    if (filterAction !== 'ALL') {
-      filtered = filtered.filter(log => log.action === filterAction);
+    if (filterAction !== 'ALL' && log.action !== filterAction) {
+      return false;
     }
+    return true;
+  });
 
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(log =>
-        log.userName.toLowerCase().includes(term) ||
-        log.userEmail.toLowerCase().includes(term) ||
-        log.entityName?.toLowerCase().includes(term)
-      );
+  const columns: Column<AuditLog>[] = [
+    {
+      key: 'timestamp',
+      label: 'Fecha',
+      sortable: true,
+      render: (value: any) => {
+        try {
+          let date: Date;
+          if (value?.toDate) {
+            date = value.toDate();
+          } else if (typeof value === 'string') {
+            date = new Date(value);
+          } else {
+            return 'N/A';
+          }
+          return date.toLocaleString('es-MX', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch {
+          return 'N/A';
+        }
+      },
+      width: 180
+    },
+    {
+      key: 'module',
+      label: 'Módulo',
+      sortable: true,
+      render: (value: AuditModule) => (
+        <Chip
+          label={moduleLabels[value] || value}
+          size="small"
+          variant="outlined"
+        />
+      ),
+      width: 140
+    },
+    {
+      key: 'action',
+      label: 'Acción',
+      sortable: true,
+      render: (value: AuditAction) => (
+        <Chip
+          label={actionLabels[value] || value}
+          color={actionColors[value] || 'default'}
+          size="small"
+        />
+      ),
+      width: 140
+    },
+    {
+      key: 'entityName',
+      label: 'Entidad',
+      sortable: true,
+      render: (value: string | undefined) => value || '-'
+    },
+    {
+      key: 'userName',
+      label: 'Usuario',
+      sortable: true,
+      render: (value: string, row: AuditLog) => (
+        <Box>
+          <Typography variant="body2" fontWeight={500}>
+            {value || 'Desconocido'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {row.userEmail}
+          </Typography>
+        </Box>
+      ),
+      width: 200
+    },
+    {
+      key: 'details',
+      label: 'Detalles',
+      sortable: false,
+      render: (value: string | undefined, row: AuditLog) => {
+        if (value) return value;
+        if (row.changes) {
+          const changesCount = Object.keys(row.changes).length;
+          return `${changesCount} cambio(s)`;
+        }
+        return '-';
+      }
     }
-
-    setFilteredLogs(filtered);
-    setPage(1); // Reset to first page when filters change
-  };
-
-  const formatDate = (timestamp: Timestamp) => {
-    const date = timestamp.toDate();
-    return date.toLocaleString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getRelativeTime = (timestamp: Timestamp) => {
-    const now = Date.now();
-    const then = timestamp.toMillis();
-    const diff = now - then;
-
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 60) return `Hace ${minutes} min`;
-    if (hours < 24) return `Hace ${hours}h`;
-    return `Hace ${days}d`;
-  };
-
-  // Paginación
-  const startIndex = (page - 1) * logsPerPage;
-  const endIndex = startIndex + logsPerPage;
-  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
-
-  // Estadísticas
-  const statsByAction = (['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT'] as AuditAction[]).map(action => ({
-    action,
-    count: logs.filter(log => log.action === action).length
-  }));
-
-  const statsByModule = (['USERS', 'METAS', 'LIGAS', 'GIROS', 'BONOS', 'HUBSPOT', 'CONFIG'] as AuditModule[]).map(module => ({
-    module,
-    count: logs.filter(log => log.module === module).length
-  }));
-
-  if (loading) {
-    return <Typography>Cargando...</Typography>;
-  }
+  ];
 
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h4">Auditoría y Logs</Typography>
-          <Typography variant="body2" color="text.secondary" mt={1}>
-            Historial de cambios en el sistema
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Registro de Auditoría
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Historial de acciones realizadas en el sistema ({logs.length} registros)
           </Typography>
         </Box>
       </Box>
 
-      {/* Estadísticas */}
-      <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Por Acción
-            </Typography>
-            <Grid container spacing={1}>
-              {statsByAction.map(stat => (
-                <Grid item key={stat.action}>
-                  <Chip
-                    icon={actionIcons[stat.action]}
-                    label={`${actionLabels[stat.action]}: ${stat.count}`}
-                    color={actionColors[stat.action]}
-                    size="small"
-                  />
-                </Grid>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Filtrar por módulo</InputLabel>
+            <Select
+              value={filterModule}
+              label="Filtrar por módulo"
+              onChange={(e) => setFilterModule(e.target.value)}
+            >
+              <MenuItem value="ALL">Todos los módulos</MenuItem>
+              {Object.entries(moduleLabels).map(([key, label]) => (
+                <MenuItem key={key} value={key}>
+                  {label}
+                </MenuItem>
               ))}
-            </Grid>
-          </Paper>
+            </Select>
+          </FormControl>
         </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Por Módulo
-            </Typography>
-            <Grid container spacing={1}>
-              {statsByModule.filter(s => s.count > 0).map(stat => (
-                <Grid item key={stat.module}>
-                  <Chip
-                    label={`${moduleLabels[stat.module]}: ${stat.count}`}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Filtrar por acción</InputLabel>
+            <Select
+              value={filterAction}
+              label="Filtrar por acción"
+              onChange={(e) => setFilterAction(e.target.value)}
+            >
+              <MenuItem value="ALL">Todas las acciones</MenuItem>
+              {Object.entries(actionLabels).map(([key, label]) => (
+                <MenuItem key={key} value={key}>
+                  {label}
+                </MenuItem>
               ))}
-            </Grid>
-          </Paper>
+            </Select>
+          </FormControl>
         </Grid>
       </Grid>
 
-      {/* Filtros */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Buscar"
-              fullWidth
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Usuario, email, entidad..."
-              size="small"
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Módulo</InputLabel>
-              <Select
-                value={filterModule}
-                onChange={(e) => setFilterModule(e.target.value)}
-                label="Módulo"
-              >
-                <MenuItem value="ALL">Todos</MenuItem>
-                {Object.entries(moduleLabels).map(([key, label]) => (
-                  <MenuItem key={key} value={key}>
-                    {label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Acción</InputLabel>
-              <Select
-                value={filterAction}
-                onChange={(e) => setFilterAction(e.target.value)}
-                label="Acción"
-              >
-                <MenuItem value="ALL">Todas</MenuItem>
-                {Object.entries(actionLabels).map(([key, label]) => (
-                  <MenuItem key={key} value={key}>
-                    {label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* Tabla de logs */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Fecha/Hora</TableCell>
-              <TableCell>Usuario</TableCell>
-              <TableCell>Módulo</TableCell>
-              <TableCell>Acción</TableCell>
-              <TableCell>Entidad</TableCell>
-              <TableCell>Detalles</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginatedLogs.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell>
-                  <Typography variant="body2">
-                    {formatDate(log.timestamp)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {getRelativeTime(log.timestamp)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">
-                      {log.userName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {log.userEmail}
-                    </Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={moduleLabels[log.module]}
-                    size="small"
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    icon={actionIcons[log.action]}
-                    label={actionLabels[log.action]}
-                    color={actionColors[log.action]}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>
-                  {log.entityName ? (
-                    <Box>
-                      <Typography variant="body2">{log.entityName}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        ID: {log.entityId}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Typography variant="caption" color="text.secondary">
-                      N/A
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {log.changes ? (
-                    <Box>
-                      {Object.entries(log.changes).map(([field, change]: [string, any]) => (
-                        <Typography key={field} variant="caption" display="block">
-                          <strong>{field}:</strong> {change.from ?? 'null'} → {change.to}
-                        </Typography>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Typography variant="caption" color="text.secondary">
-                      -
-                    </Typography>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* Paginación */}
-      <Box display="flex" justifyContent="center" mt={3}>
-        <Pagination
-          count={totalPages}
-          page={page}
-          onChange={(_, value) => setPage(value)}
-          color="primary"
-        />
-      </Box>
-
-      {/* Nota informativa */}
-      <Paper sx={{ p: 2, mt: 3, bgcolor: 'info.light' }}>
-        <Typography variant="body2" color="text.secondary">
-          <strong>Nota:</strong> En producción, estos logs se almacenarían en la colección <code>audit_logs</code> de Firestore
-          y se registrarían automáticamente cada vez que se realice una operación CRUD desde el panel de administración.
-          Los datos mostrados son de ejemplo.
-        </Typography>
-      </Paper>
+      <DataTable
+        data={filteredLogs}
+        columns={columns}
+        searchFields={['userName', 'userEmail', 'entityName', 'details']}
+        exportEnabled={true}
+        exportFilename={`auditoria_${new Date().toISOString().split('T')[0]}`}
+        loading={loading}
+      />
     </Box>
   );
 };

@@ -22,11 +22,6 @@ import CategoryIcon from '@mui/icons-material/Category';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import { useNavigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-
-const DRAWER_WIDTH = 240;
-
 import PeopleIcon from '@mui/icons-material/People';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -35,6 +30,11 @@ import HistoryIcon from '@mui/icons-material/History';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WarningIcon from '@mui/icons-material/Warning';
 import StoreIcon from '@mui/icons-material/Store';
+import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Breadcrumbs from './Breadcrumbs';
+
+const DRAWER_WIDTH = 260;
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -77,29 +77,85 @@ const Layout: React.FC = () => {
   };
 
   const drawer = (
-    <Box>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Aviva Admin
-        </Typography>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: 1,
+              bgcolor: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              color: 'primary.main',
+              fontSize: '1.2rem'
+            }}
+          >
+            A
+          </Box>
+          <Box>
+            <Typography variant="h6" noWrap sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+              Aviva
+            </Typography>
+            <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
+              Admin Panel
+            </Typography>
+          </Box>
+        </Box>
       </Toolbar>
       <Divider />
-      <List>
+      <List sx={{ flex: 1, py: 2 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
+          <ListItem key={item.text} disablePadding sx={{ px: 1.5, mb: 0.5 }}>
             <ListItemButton
               selected={location.pathname === item.path}
               onClick={() => {
                 navigate(item.path);
                 setMobileOpen(false);
               }}
+              sx={{
+                borderRadius: 1.5,
+                '&.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: 'white',
+                  },
+                },
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{
+                  fontSize: '0.875rem',
+                  fontWeight: location.pathname === item.path ? 600 : 400
+                }}
+              />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
+      <Divider />
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 2 }}>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Versión 2.0
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block">
+            © 2024 Aviva Crédito
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 
@@ -180,10 +236,13 @@ const Layout: React.FC = () => {
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` }
+          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          minHeight: '100vh',
+          bgcolor: 'background.default'
         }}
       >
         <Toolbar />
+        <Breadcrumbs />
         <Outlet />
       </Box>
     </Box>
