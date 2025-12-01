@@ -44,7 +44,6 @@ import type {
 } from '../types/location';
 import {
   alertTypeLabels,
-  alertSeverityLabels,
   alertStatusLabels
 } from '../types/location';
 
