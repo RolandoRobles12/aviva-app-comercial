@@ -47,15 +47,23 @@ import {
 import { db } from '../config/firebase';
 import type { Kiosk, DayOfWeek } from '../types/kiosk';
 import {
-  PRODUCT_TYPES,
   MEXICAN_STATES,
   DAYS_OF_WEEK,
   DEFAULT_WEEKLY_SCHEDULE
 } from '../types/kiosk';
 import KioskImport from '../components/KioskImport';
 
+interface Product {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  isActive: boolean;
+}
+
 const Kioscos: React.FC = () => {
   const [kiosks, setKiosks] = useState<Kiosk[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -66,7 +74,7 @@ const Kioscos: React.FC = () => {
   const [editingKiosk, setEditingKiosk] = useState<Kiosk | null>(null);
   const [formData, setFormData] = useState<Partial<Kiosk>>({
     name: '',
-    productType: 'bodega_aurrera',
+    productType: '',
     city: '',
     state: '',
     address: '',
@@ -81,6 +89,7 @@ const Kioscos: React.FC = () => {
 
   useEffect(() => {
     fetchKiosks();
+    fetchProducts();
   }, []);
 
   const fetchKiosks = async () => {
@@ -101,6 +110,31 @@ const Kioscos: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'products'));
+      const productsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+
+      // Filter only active products and sort by name
+      const activeProducts = productsData
+        .filter(p => p.isActive)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      setProducts(activeProducts);
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      // Don't set error state - products are optional, use default if fails
+    }
+  };
+
+  const getProductLabel = (code: string): string => {
+    const product = products.find(p => p.code === code);
+    return product ? product.name : code;
   };
 
   const handleOpenDialog = (kiosk?: Kiosk) => {
@@ -132,7 +166,7 @@ const Kioscos: React.FC = () => {
       setEditingKiosk(null);
       setFormData({
         name: '',
-        productType: 'bodega_aurrera',
+        productType: products[0]?.code || '',
         city: '',
         state: '',
         address: '',
@@ -154,7 +188,7 @@ const Kioscos: React.FC = () => {
     setEditingKiosk(null);
     setFormData({
       name: '',
-      productType: 'bodega_aurrera',
+      productType: products[0]?.code || '',
       city: '',
       state: '',
       address: '',
@@ -214,7 +248,7 @@ const Kioscos: React.FC = () => {
 
       const kioskData: Partial<Kiosk> = {
         name: formData.name,
-        productType: formData.productType || 'bodega_aurrera',
+        productType: formData.productType || products[0]?.code || '',
         coordinates,
         address: formData.address || '',
         city: formData.city,
@@ -386,7 +420,7 @@ const Kioscos: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Chip label={kiosk.productType} size="small" />
+                    <Chip label={getProductLabel(kiosk.productType)} size="small" />
                   </TableCell>
                   <TableCell>
                     <Box>
@@ -465,15 +499,21 @@ const Kioscos: React.FC = () => {
                 <FormControl fullWidth required>
                   <InputLabel>Tipo de Producto</InputLabel>
                   <Select
-                    value={formData.productType || 'bodega_aurrera'}
+                    value={formData.productType || products[0]?.code || ''}
                     onChange={e => setFormData({ ...formData, productType: e.target.value as any })}
                     label="Tipo de Producto"
                   >
-                    {PRODUCT_TYPES.map(pt => (
-                      <MenuItem key={pt.value} value={pt.value}>
-                        {pt.label}
+                    {products.length === 0 ? (
+                      <MenuItem value="" disabled>
+                        <em>No hay productos disponibles</em>
                       </MenuItem>
-                    ))}
+                    ) : (
+                      products.map(product => (
+                        <MenuItem key={product.code} value={product.code}>
+                          {product.name}
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
                 </FormControl>
               </Grid>
@@ -712,6 +752,7 @@ const Kioscos: React.FC = () => {
           setSuccess('Kioscos importados exitosamente');
           setTimeout(() => setSuccess(null), 3000);
         }}
+        products={products}
       />
     </Box>
   );

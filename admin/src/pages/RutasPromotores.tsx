@@ -114,7 +114,7 @@ const RutasPromotores: React.FC = () => {
 
       // Buscar ubicaciones del usuario en el rango de fechas
       const q = query(
-        collection(db, 'location_history'),
+        collection(db, 'locations'),
         where('userId', '==', selectedUserId),
         where('timestamp', '>=', startTimestamp),
         where('timestamp', '<=', endTimestamp),
