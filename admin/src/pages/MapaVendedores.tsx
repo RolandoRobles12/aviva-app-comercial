@@ -24,7 +24,8 @@ import {
   Grid,
   Stack,
   alpha,
-  useTheme
+  useTheme,
+  ListItemButton
 } from '@mui/material';
 import {
   FilterList as FilterIcon,
@@ -64,6 +65,9 @@ import {
   createKioskMarkerIcon
 } from '../types/map';
 
+// IMPORTANTE: libraries debe ser constante fuera del componente
+const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
+
 // Configuración del mapa
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 }; // Ciudad de México
@@ -86,7 +90,7 @@ const MapaVendedores: React.FC = () => {
   const theme = useTheme();
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: ['places', 'geometry']
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   // Estado
@@ -106,12 +110,12 @@ const MapaVendedores: React.FC = () => {
     states: [],
     cities: [],
     vendorStatuses: [],
-    showOnlyActive: true,
+    showOnlyActive: false, // Cambiado a false para mostrar todos por defecto
     vendorTypes: [],
     dateRange: null,
     showLiveData: true,
     showKiosks: true,
-    showRoutes: true,
+    showRoutes: false, // Desactivado por defecto para mejor performance
     showRadiusCircles: true,
     searchQuery: ''
   });
@@ -120,21 +124,17 @@ const MapaVendedores: React.FC = () => {
   useEffect(() => {
     const loadKiosks = async () => {
       try {
-        const q = query(
-          collection(db, 'kiosks'),
-          where('isActive', '==', true)
-        );
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(collection(db, 'kiosks'));
         const kioskData: KioskMapData[] = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
-            name: data.name || '',
-            productType: data.productType || '',
-            location: data.location || data.coordinates || new GeoPoint(0, 0),
-            address: data.address || '',
-            city: data.city || '',
-            state: data.state || '',
+            name: data.name || 'Sin nombre',
+            productType: data.productType || 'unknown',
+            location: data.location || data.coordinates || new GeoPoint(19.4326, -99.1332),
+            address: data.address || 'Sin dirección',
+            city: data.city || 'Sin ciudad',
+            state: data.state || 'Sin estado',
             radiusMeters: data.radiusMeters || data.radiusOverride || 100,
             isActive: data.isActive !== false,
             status: data.status || 'ACTIVE',
@@ -144,8 +144,10 @@ const MapaVendedores: React.FC = () => {
           };
         });
         setKiosks(kioskData);
+        console.log('Kiosks loaded:', kioskData.length);
       } catch (err) {
         console.error('Error loading kiosks:', err);
+        setError('Error al cargar kioscos');
       }
     };
 
@@ -154,34 +156,29 @@ const MapaVendedores: React.FC = () => {
 
   // Cargar y escuchar vendedores en tiempo real
   useEffect(() => {
-    if (!autoRefresh && !filters.showLiveData) return;
-
     setLoading(true);
+
     const q = query(
       collection(db, 'users'),
-      where('role', 'in', ['PROMOTOR_AVIVA_TU_NEGOCIO', 'EMBAJADOR_AVIVA_TU_COMPRA', 'GERENTE_AVIVA_CONTIGO'])
+      where('isActive', '==', true)
     );
 
     const unsubscribe = onSnapshot(
       q,
       async (snapshot) => {
         try {
-          const vendorPromises = snapshot.docs.map(async (doc) => {
+          const vendorsList: VendorMapData[] = [];
+
+          for (const doc of snapshot.docs) {
             const data = doc.data();
 
-            // Solo incluir vendedores con ubicación
-            if (!data.lastLocation) return null;
+            // Solo incluir usuarios con ubicación
+            if (!data.lastLocation) continue;
 
             // Determinar estado del vendedor
-            const status = determineVendorStatus(data);
+            const status = determineVendorStatus(data, kiosks);
 
-            // Obtener ruta del día si es necesario
-            let todayRoute: RoutePoint[] | undefined;
-            if (filters.showRoutes && status !== 'inactive') {
-              todayRoute = await fetchVendorRoute(doc.id);
-            }
-
-            // Calcular distancia del kiosco
+            // Calcular distancia del kiosco si tiene asignado
             let distanceFromKiosk: number | undefined;
             let allowedRadius: number | undefined;
             if (data.assignedKioskId && kiosks.length > 0) {
@@ -203,11 +200,11 @@ const MapaVendedores: React.FC = () => {
               locationAccuracy: data.lastLocationAccuracy,
               status,
               vendorType: data.role === 'EMBAJADOR_AVIVA_TU_COMPRA' ? 'fixed_location' : 'route',
-              productType: data.productTypes?.[0] || 'unknown',
+              productType: Array.isArray(data.productTypes) && data.productTypes.length > 0 ? data.productTypes[0] : 'unknown',
               productLine: data.productLine || '',
               assignedKioskId: data.assignedKioskId,
               assignedKioskName: kiosks.find(k => k.id === data.assignedKioskId)?.name,
-              todayRoute,
+              todayRoute: undefined, // Se carga bajo demanda
               isInAllowedZone: status === 'active_in_zone',
               distanceFromKiosk,
               allowedRadius,
@@ -217,31 +214,31 @@ const MapaVendedores: React.FC = () => {
               isActive: data.isActive !== false && data.status === 'ACTIVE'
             };
 
-            return vendor;
-          });
+            vendorsList.push(vendor);
+          }
 
-          const vendorsData = (await Promise.all(vendorPromises)).filter(Boolean) as VendorMapData[];
-          setVendors(vendorsData);
+          setVendors(vendorsList);
           setLoading(false);
           setError(null);
+          console.log('Vendors loaded:', vendorsList.length);
         } catch (err) {
           console.error('Error processing vendors:', err);
-          setError('Error al cargar vendedores');
+          setError('Error al procesar vendedores');
           setLoading(false);
         }
       },
       (err) => {
         console.error('Error listening to vendors:', err);
-        setError('Error al escuchar actualizaciones de vendedores');
+        setError('Error al escuchar actualizaciones: ' + err.message);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [autoRefresh, filters.showLiveData, filters.showRoutes, kiosks]);
+  }, [autoRefresh, kiosks]);
 
   // Determinar estado del vendedor
-  const determineVendorStatus = (userData: any): VendorStatus => {
+  const determineVendorStatus = (userData: any, kiosksList: KioskMapData[]): VendorStatus => {
     if (!userData.isActive || userData.status !== 'ACTIVE') {
       return 'inactive';
     }
@@ -253,7 +250,7 @@ const MapaVendedores: React.FC = () => {
 
     // Si tiene kiosco asignado, verificar si está en zona
     if (userData.assignedKioskId) {
-      const kiosk = kiosks.find(k => k.id === userData.assignedKioskId);
+      const kiosk = kiosksList.find(k => k.id === userData.assignedKioskId);
       if (kiosk && userData.lastLocation) {
         const distance = calculateDistance(userData.lastLocation, kiosk.location);
         if (distance <= kiosk.radiusMeters) {
@@ -266,37 +263,6 @@ const MapaVendedores: React.FC = () => {
 
     // Vendedor en ruta
     return 'in_transit';
-  };
-
-  // Obtener ruta del vendedor del día
-  const fetchVendorRoute = async (vendorId: string): Promise<RoutePoint[]> => {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const q = query(
-        collection(db, 'locationHistory'),
-        where('userId', '==', vendorId),
-        where('timestamp', '>=', Timestamp.fromDate(today)),
-        where('timestamp', '<', Timestamp.fromDate(tomorrow)),
-        orderBy('timestamp', 'asc')
-      );
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          location: data.location,
-          timestamp: data.timestamp,
-          accuracy: data.accuracy
-        };
-      });
-    } catch (err) {
-      console.error('Error fetching route:', err);
-      return [];
-    }
   };
 
   // Calcular distancia entre dos puntos (Haversine)
@@ -400,23 +366,30 @@ const MapaVendedores: React.FC = () => {
 
   // Centrar mapa en vendedores
   const centerMapOnVendors = useCallback(() => {
-    if (!mapRef || filteredVendors.length === 0) return;
+    if (!mapRef || (filteredVendors.length === 0 && filteredKiosks.length === 0)) return;
 
     const bounds = new google.maps.LatLngBounds();
+    let hasPoints = false;
+
     filteredVendors.forEach(vendor => {
       bounds.extend({
         lat: vendor.currentLocation.latitude,
         lng: vendor.currentLocation.longitude
       });
+      hasPoints = true;
     });
+
     filteredKiosks.forEach(kiosk => {
       bounds.extend({
         lat: kiosk.location.latitude,
         lng: kiosk.location.longitude
       });
+      hasPoints = true;
     });
 
-    mapRef.fitBounds(bounds);
+    if (hasPoints) {
+      mapRef.fitBounds(bounds);
+    }
   }, [mapRef, filteredVendors, filteredKiosks]);
 
   // Refrescar datos
@@ -427,16 +400,58 @@ const MapaVendedores: React.FC = () => {
 
   if (loadError) {
     return (
-      <Alert severity="error">
-        Error al cargar Google Maps: {loadError.message}
-      </Alert>
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Error al cargar Google Maps: {loadError.message}
+          <br /><br />
+          <strong>Solución:</strong> Verifica que:
+          <ul>
+            <li>La variable VITE_GOOGLE_MAPS_API_KEY esté configurada</li>
+            <li>La API Key sea válida</li>
+            <li>Las APIs estén habilitadas en Google Cloud Console</li>
+          </ul>
+        </Alert>
+      </Box>
     );
   }
 
   if (!isLoaded) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={60} />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          Cargando Google Maps...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning">
+          <Typography variant="h6" gutterBottom>
+            API Key de Google Maps no configurada
+          </Typography>
+          <Typography paragraph>
+            Para usar el mapa, necesitas configurar la variable de entorno con tu API Key de Google Maps.
+          </Typography>
+          <Typography variant="subtitle2" gutterBottom>
+            Opción 1: Variable de entorno temporal (PowerShell)
+          </Typography>
+          <Box component="code" sx={{ display: 'block', bgcolor: 'grey.100', p: 1, borderRadius: 1, mb: 2 }}>
+            $env:VITE_GOOGLE_MAPS_API_KEY = "tu_api_key_aqui"; npm run dev
+          </Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Opción 2: Archivo .env
+          </Typography>
+          <Typography variant="body2">
+            Crea un archivo <code>.env</code> en la carpeta admin con:
+          </Typography>
+          <Box component="code" sx={{ display: 'block', bgcolor: 'grey.100', p: 1, borderRadius: 1, mt: 1 }}>
+            VITE_GOOGLE_MAPS_API_KEY=tu_api_key_aqui
+          </Box>
+        </Alert>
       </Box>
     );
   }
@@ -510,7 +525,7 @@ const MapaVendedores: React.FC = () => {
             </Grid>
             <Grid item>
               <Stack direction="row" spacing={1}>
-                <Tooltip title="Refrescar">
+                <Tooltip title="Refrescar datos">
                   <IconButton onClick={handleRefresh} disabled={loading}>
                     <RefreshIcon />
                   </IconButton>
@@ -591,15 +606,6 @@ const MapaVendedores: React.FC = () => {
             <FormControlLabel
               control={
                 <Switch
-                  checked={filters.showRoutes}
-                  onChange={(e) => setFilters(prev => ({ ...prev, showRoutes: e.target.checked }))}
-                />
-              }
-              label="Mostrar rutas"
-            />
-            <FormControlLabel
-              control={
-                <Switch
                   checked={filters.showRadiusCircles}
                   onChange={(e) => setFilters(prev => ({ ...prev, showRadiusCircles: e.target.checked }))}
                 />
@@ -619,74 +625,77 @@ const MapaVendedores: React.FC = () => {
               {filteredVendors.map(vendor => (
                 <ListItem
                   key={vendor.id}
-                  button
-                  selected={selectedVendor?.id === vendor.id}
-                  onClick={() => {
-                    setSelectedVendor(vendor);
-                    if (mapRef) {
-                      mapRef.panTo({
-                        lat: vendor.currentLocation.latitude,
-                        lng: vendor.currentLocation.longitude
-                      });
-                      mapRef.setZoom(15);
-                    }
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    mb: 0.5,
-                    '&.Mui-selected': {
-                      bgcolor: alpha(theme.palette.primary.main, 0.1)
-                    }
-                  }}
+                  disablePadding
+                  sx={{ mb: 0.5 }}
                 >
-                  <ListItemAvatar>
-                    <Badge
-                      overlap="circular"
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                      badgeContent={
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            bgcolor: DEFAULT_MAP_COLORS.vendorMarkers[vendor.status],
-                            border: '2px solid white'
-                          }}
-                        />
+                  <ListItemButton
+                    selected={selectedVendor?.id === vendor.id}
+                    onClick={() => {
+                      setSelectedVendor(vendor);
+                      if (mapRef) {
+                        mapRef.panTo({
+                          lat: vendor.currentLocation.latitude,
+                          lng: vendor.currentLocation.longitude
+                        });
+                        mapRef.setZoom(15);
                       }
-                    >
-                      <Avatar src={vendor.photoUrl} alt={vendor.displayName}>
-                        {vendor.displayName[0]}
-                      </Avatar>
-                    </Badge>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={vendor.displayName}
-                    secondary={
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Typography variant="caption" component="span">
-                          {vendorStatusLabels[vendor.status]}
-                        </Typography>
-                        {vendor.assignedKioskName && (
-                          <>
-                            <Typography variant="caption" component="span">
-                              •
-                            </Typography>
-                            <Typography variant="caption" component="span">
-                              {vendor.assignedKioskName}
-                            </Typography>
-                          </>
-                        )}
-                      </Stack>
-                    }
-                    primaryTypographyProps={{
-                      fontSize: '0.875rem',
-                      fontWeight: 600
                     }}
-                  />
+                    sx={{
+                      borderRadius: 2,
+                      '&.Mui-selected': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.1)
+                      }
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Badge
+                        overlap="circular"
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                        badgeContent={
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              bgcolor: DEFAULT_MAP_COLORS.vendorMarkers[vendor.status],
+                              border: '2px solid white'
+                            }}
+                          />
+                        }
+                      >
+                        <Avatar src={vendor.photoUrl} alt={vendor.displayName}>
+                          {vendor.displayName[0]?.toUpperCase() || '?'}
+                        </Avatar>
+                      </Badge>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={vendor.displayName}
+                      secondary={
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Typography variant="caption" component="span">
+                            {vendorStatusLabels[vendor.status]}
+                          </Typography>
+                          {vendor.assignedKioskName && (
+                            <>
+                              <Typography variant="caption" component="span">
+                                •
+                              </Typography>
+                              <Typography variant="caption" component="span">
+                                {vendor.assignedKioskName}
+                              </Typography>
+                            </>
+                          )}
+                        </Stack>
+                      }
+                      primaryTypographyProps={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600
+                      }}
+                    />
+                  </ListItemButton>
                 </ListItem>
               ))}
-              {filteredVendors.length === 0 && (
+              {filteredVendors.length === 0 && !loading && (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
                   <PersonIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                   <Typography variant="body2" color="text.secondary">
@@ -708,10 +717,16 @@ const MapaVendedores: React.FC = () => {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              zIndex: 1000
+              zIndex: 1000,
+              bgcolor: 'rgba(255, 255, 255, 0.9)',
+              p: 3,
+              borderRadius: 2
             }}
           >
-            <CircularProgress />
+            <Stack alignItems="center" spacing={2}>
+              <CircularProgress />
+              <Typography variant="body2">Cargando vendedores...</Typography>
+            </Stack>
           </Box>
         )}
         {error && (
@@ -762,35 +777,20 @@ const MapaVendedores: React.FC = () => {
 
           {/* Marcadores de vendedores */}
           {filteredVendors.map(vendor => (
-            <React.Fragment key={vendor.id}>
-              <Marker
-                position={{
-                  lat: vendor.currentLocation.latitude,
-                  lng: vendor.currentLocation.longitude
-                }}
-                icon={{
-                  url: createVendorMarkerIcon(vendor.status),
-                  scaledSize: new google.maps.Size(40, 40),
-                  anchor: new google.maps.Point(20, 20)
-                }}
-                onClick={() => setSelectedVendor(vendor)}
-                animation={vendor.status === 'out_of_zone' ? google.maps.Animation.BOUNCE : undefined}
-              />
-              {/* Ruta del vendedor */}
-              {filters.showRoutes && vendor.todayRoute && vendor.todayRoute.length > 1 && (
-                <Polyline
-                  path={vendor.todayRoute.map(point => ({
-                    lat: point.location.latitude,
-                    lng: point.location.longitude
-                  }))}
-                  options={{
-                    strokeColor: DEFAULT_MAP_COLORS.routeLines,
-                    strokeOpacity: 0.6,
-                    strokeWeight: 3
-                  }}
-                />
-              )}
-            </React.Fragment>
+            <Marker
+              key={vendor.id}
+              position={{
+                lat: vendor.currentLocation.latitude,
+                lng: vendor.currentLocation.longitude
+              }}
+              icon={{
+                url: createVendorMarkerIcon(vendor.status),
+                scaledSize: new google.maps.Size(40, 40),
+                anchor: new google.maps.Point(20, 20)
+              }}
+              onClick={() => setSelectedVendor(vendor)}
+              animation={vendor.status === 'out_of_zone' ? google.maps.Animation.BOUNCE : undefined}
+            />
           ))}
 
           {/* Info Window para vendedor seleccionado */}
@@ -802,12 +802,12 @@ const MapaVendedores: React.FC = () => {
               }}
               onCloseClick={() => setSelectedVendor(null)}
             >
-              <Card elevation={0} sx={{ minWidth: 250 }}>
+              <Card elevation={0} sx={{ minWidth: 250, maxWidth: 300 }}>
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                   <Stack spacing={1.5}>
                     <Stack direction="row" spacing={2} alignItems="center">
                       <Avatar src={selectedVendor.photoUrl} sx={{ width: 48, height: 48 }}>
-                        {selectedVendor.displayName[0]}
+                        {selectedVendor.displayName[0]?.toUpperCase() || '?'}
                       </Avatar>
                       <Box flex={1}>
                         <Typography variant="subtitle1" fontWeight={700}>
@@ -857,7 +857,10 @@ const MapaVendedores: React.FC = () => {
                         Última actualización:
                       </Typography>
                       <Typography variant="body2">
-                        {selectedVendor.lastLocationUpdate.toDate().toLocaleString('es-MX')}
+                        {selectedVendor.lastLocationUpdate.toDate().toLocaleString('es-MX', {
+                          dateStyle: 'short',
+                          timeStyle: 'short'
+                        })}
                       </Typography>
                     </Box>
                   </Stack>
@@ -875,7 +878,7 @@ const MapaVendedores: React.FC = () => {
               }}
               onCloseClick={() => setSelectedKiosk(null)}
             >
-              <Card elevation={0} sx={{ minWidth: 250 }}>
+              <Card elevation={0} sx={{ minWidth: 250, maxWidth: 300 }}>
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                   <Stack spacing={1}>
                     <Stack direction="row" spacing={1} alignItems="center">
