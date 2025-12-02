@@ -22,13 +22,18 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Switch,
+  FormControlLabel,
+  Divider,
+  Autocomplete
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import StoreIcon from '@mui/icons-material/Store';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import UploadIcon from '@mui/icons-material/Upload';
 import {
   collection,
   getDocs,
@@ -40,7 +45,14 @@ import {
   GeoPoint
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { Kiosk } from '../types/kiosk';
+import type { Kiosk, DayOfWeek } from '../types/kiosk';
+import {
+  PRODUCT_TYPES,
+  MEXICAN_STATES,
+  DAYS_OF_WEEK,
+  DEFAULT_WEEKLY_SCHEDULE
+} from '../types/kiosk';
+import KioskImport from '../components/KioskImport';
 
 const Kioscos: React.FC = () => {
   const [kiosks, setKiosks] = useState<Kiosk[]>([]);
@@ -50,15 +62,16 @@ const Kioscos: React.FC = () => {
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingKiosk, setEditingKiosk] = useState<Kiosk | null>(null);
   const [formData, setFormData] = useState<Partial<Kiosk>>({
     name: '',
-    productType: '',
+    productType: 'bodega_aurrera',
     city: '',
     state: '',
+    address: '',
     radiusOverride: 100,
-    workHoursStart: 9,
-    workHoursEnd: 19,
+    weeklySchedule: DEFAULT_WEEKLY_SCHEDULE,
     requiresPresence: true,
     status: 'ACTIVE',
     hubId: null
@@ -99,9 +112,9 @@ const Kioscos: React.FC = () => {
         productType: kiosk.productType,
         city: kiosk.city,
         state: kiosk.state,
+        address: kiosk.address || '',
         radiusOverride: kiosk.radiusOverride,
-        workHoursStart: kiosk.workHoursStart,
-        workHoursEnd: kiosk.workHoursEnd,
+        weeklySchedule: kiosk.weeklySchedule || DEFAULT_WEEKLY_SCHEDULE,
         requiresPresence: kiosk.requiresPresence,
         status: kiosk.status,
         hubId: kiosk.hubId
@@ -119,12 +132,12 @@ const Kioscos: React.FC = () => {
       setEditingKiosk(null);
       setFormData({
         name: '',
-        productType: '',
+        productType: 'bodega_aurrera',
         city: '',
         state: '',
+        address: '',
         radiusOverride: 100,
-        workHoursStart: 9,
-        workHoursEnd: 19,
+        weeklySchedule: DEFAULT_WEEKLY_SCHEDULE,
         requiresPresence: true,
         status: 'ACTIVE',
         hubId: null
@@ -141,18 +154,33 @@ const Kioscos: React.FC = () => {
     setEditingKiosk(null);
     setFormData({
       name: '',
-      productType: '',
+      productType: 'bodega_aurrera',
       city: '',
       state: '',
+      address: '',
       radiusOverride: 100,
-      workHoursStart: 9,
-      workHoursEnd: 19,
+      weeklySchedule: DEFAULT_WEEKLY_SCHEDULE,
       requiresPresence: true,
       status: 'ACTIVE',
       hubId: null
     });
     setMapLat('');
     setMapLng('');
+  };
+
+  const handleScheduleChange = (day: DayOfWeek, field: 'isOpen' | 'startHour' | 'endHour', value: boolean | number) => {
+    if (!formData.weeklySchedule) return;
+
+    setFormData({
+      ...formData,
+      weeklySchedule: {
+        ...formData.weeklySchedule,
+        [day]: {
+          ...formData.weeklySchedule[day],
+          [field]: value
+        }
+      }
+    });
   };
 
   const handleSave = async () => {
@@ -186,13 +214,13 @@ const Kioscos: React.FC = () => {
 
       const kioskData: Partial<Kiosk> = {
         name: formData.name,
-        productType: formData.productType,
+        productType: formData.productType || 'bodega_aurrera',
         coordinates,
+        address: formData.address || '',
         city: formData.city,
         state: formData.state,
         radiusOverride: formData.radiusOverride || 100,
-        workHoursStart: formData.workHoursStart || 9,
-        workHoursEnd: formData.workHoursEnd || 19,
+        weeklySchedule: formData.weeklySchedule || DEFAULT_WEEKLY_SCHEDULE,
         requiresPresence: formData.requiresPresence !== undefined ? formData.requiresPresence : true,
         status: formData.status || 'ACTIVE',
         hubId: formData.hubId || null,
@@ -292,13 +320,22 @@ const Kioscos: React.FC = () => {
             Administra los kioscos y puntos de venta del sistema
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Nuevo Kiosco
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={() => setImportDialogOpen(true)}
+          >
+            Importar CSV
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+          >
+            Nuevo Kiosco
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -425,19 +462,41 @@ const Kioscos: React.FC = () => {
               </Grid>
 
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Tipo de Producto"
-                  fullWidth
-                  value={formData.productType || ''}
-                  onChange={e => setFormData({ ...formData, productType: e.target.value })}
-                  placeholder="Ej: BA, Construrama, etc."
-                  required
+                <FormControl fullWidth required>
+                  <InputLabel>Tipo de Producto</InputLabel>
+                  <Select
+                    value={formData.productType || 'bodega_aurrera'}
+                    onChange={e => setFormData({ ...formData, productType: e.target.value as any })}
+                    label="Tipo de Producto"
+                  >
+                    {PRODUCT_TYPES.map(pt => (
+                      <MenuItem key={pt.value} value={pt.value}>
+                        {pt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  options={MEXICAN_STATES}
+                  value={formData.state || ''}
+                  onChange={(_, newValue) => setFormData({ ...formData, state: newValue || '' })}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Estado"
+                      required
+                      placeholder="Selecciona un estado"
+                    />
+                  )}
                 />
               </Grid>
 
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Ciudad"
+                  label="Ciudad o Municipio"
                   fullWidth
                   value={formData.city || ''}
                   onChange={e => setFormData({ ...formData, city: e.target.value })}
@@ -448,12 +507,11 @@ const Kioscos: React.FC = () => {
 
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Estado"
+                  label="Dirección"
                   fullWidth
-                  value={formData.state || ''}
-                  onChange={e => setFormData({ ...formData, state: e.target.value })}
-                  placeholder="Ej: CDMX"
-                  required
+                  value={formData.address || ''}
+                  onChange={e => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Ej: Av. Principal 123"
                 />
               </Grid>
 
@@ -497,7 +555,7 @@ const Kioscos: React.FC = () => {
                 </Typography>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   label="Radio Permitido (metros)"
                   fullWidth
@@ -505,41 +563,112 @@ const Kioscos: React.FC = () => {
                   value={formData.radiusOverride || 100}
                   onChange={e => setFormData({ ...formData, radiusOverride: parseFloat(e.target.value) })}
                   InputProps={{ inputProps: { min: 10, max: 1000 } }}
-                  helperText="Distancia máxima permitida"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  label="Hora Inicio"
-                  fullWidth
-                  type="number"
-                  value={formData.workHoursStart || 9}
-                  onChange={e => setFormData({ ...formData, workHoursStart: parseInt(e.target.value) })}
-                  InputProps={{ inputProps: { min: 0, max: 23 } }}
-                  helperText="Hora de inicio (0-23)"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  label="Hora Fin"
-                  fullWidth
-                  type="number"
-                  value={formData.workHoursEnd || 19}
-                  onChange={e => setFormData({ ...formData, workHoursEnd: parseInt(e.target.value) })}
-                  InputProps={{ inputProps: { min: 0, max: 23 } }}
-                  helperText="Hora de fin (0-23)"
+                  helperText="Distancia máxima permitida desde el kiosco"
                 />
               </Grid>
 
               <Grid item xs={12} sm={6}>
+                <TextField
+                  label="ID del Kiosco (opcional)"
+                  fullWidth
+                  value={formData.hubId || ''}
+                  onChange={e => setFormData({ ...formData, hubId: e.target.value || null })}
+                  placeholder="Ej: KIO001"
+                  helperText="Identificador interno del kiosco"
+                />
+              </Grid>
+
+              {/* Horarios por día de la semana */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Horarios por Día
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Configura horarios específicos para cada día de la semana
+                </Typography>
+              </Grid>
+
+              {DAYS_OF_WEEK.map(day => {
+                const schedule = formData.weeklySchedule?.[day.value];
+                return (
+                  <Grid item xs={12} key={day.value}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={3}>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={schedule?.isOpen || false}
+                                onChange={(e) => handleScheduleChange(day.value, 'isOpen', e.target.checked)}
+                              />
+                            }
+                            label={<Typography fontWeight={600}>{day.label}</Typography>}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            label="Hora Inicio"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            value={schedule?.startHour || 9}
+                            onChange={(e) => handleScheduleChange(day.value, 'startHour', parseInt(e.target.value))}
+                            disabled={!schedule?.isOpen}
+                            InputProps={{ inputProps: { min: 0, max: 23 } }}
+                            helperText="0-23"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            label="Hora Fin"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            value={schedule?.endHour || 19}
+                            onChange={(e) => handleScheduleChange(day.value, 'endHour', parseInt(e.target.value))}
+                            disabled={!schedule?.isOpen}
+                            InputProps={{ inputProps: { min: 0, max: 23 } }}
+                            helperText="0-23"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={1}>
+                          {schedule?.isOpen && (
+                            <Chip
+                              label={`${schedule.startHour}:00 - ${schedule.endHour}:00`}
+                              size="small"
+                              color="primary"
+                            />
+                          )}
+                          {!schedule?.isOpen && (
+                            <Chip
+                              label="Cerrado"
+                              size="small"
+                              color="default"
+                            />
+                          )}
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
+                );
+              })}
+
+              {/* Configuración adicional */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Configuración Adicional
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
-                  <InputLabel>Estado</InputLabel>
+                  <InputLabel>Estado del Kiosco</InputLabel>
                   <Select
                     value={formData.status || 'ACTIVE'}
                     onChange={e => setFormData({ ...formData, status: e.target.value as any })}
-                    label="Estado"
+                    label="Estado del Kiosco"
                   >
                     <MenuItem value="ACTIVE">Activo</MenuItem>
                     <MenuItem value="INACTIVE">Inactivo</MenuItem>
@@ -551,26 +680,16 @@ const Kioscos: React.FC = () => {
 
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
-                  <InputLabel>Requiere Presencia</InputLabel>
+                  <InputLabel>Requiere Presencia Física</InputLabel>
                   <Select
                     value={formData.requiresPresence !== undefined ? formData.requiresPresence : true}
                     onChange={e => setFormData({ ...formData, requiresPresence: e.target.value as boolean })}
-                    label="Requiere Presencia"
+                    label="Requiere Presencia Física"
                   >
-                    <MenuItem value={true as any}>Sí</MenuItem>
-                    <MenuItem value={false as any}>No</MenuItem>
+                    <MenuItem value={true as any}>Sí, requiere check-in</MenuItem>
+                    <MenuItem value={false as any}>No, trabajo remoto</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  label="Hub ID (opcional)"
-                  fullWidth
-                  value={formData.hubId || ''}
-                  onChange={e => setFormData({ ...formData, hubId: e.target.value || null })}
-                  placeholder="ID de integración con HubSpot"
-                />
               </Grid>
             </Grid>
           </Box>
@@ -582,6 +701,18 @@ const Kioscos: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Dialog de importación masiva */}
+      <KioskImport
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={() => {
+          setImportDialogOpen(false);
+          fetchKiosks();
+          setSuccess('Kioscos importados exitosamente');
+          setTimeout(() => setSuccess(null), 3000);
+        }}
+      />
     </Box>
   );
 };
