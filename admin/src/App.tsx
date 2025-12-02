@@ -13,6 +13,7 @@ import Metas from './pages/Metas';
 import Ligas from './pages/Ligas';
 import Giros from './pages/Giros';
 import Kioscos from './pages/Kioscos';
+import MapaVendedores from './pages/MapaVendedores';
 import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
@@ -230,6 +231,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="kioscos" element={<Kioscos />} />
+        <Route path="mapa" element={<MapaVendedores />} />
         <Route path="metas" element={<Metas />} />
         <Route path="ligas" element={<Ligas />} />
         <Route path="giros" element={<Giros />} />
