@@ -46,14 +46,22 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-// Coincide con League.kt
-type LeagueTier = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE' | 'MASTER' | 'LEYENDA';
-
 type LeagueStatus = 'PENDING' | 'ACTIVE' | 'FINISHED';
+
+interface LeagueTier {
+  id: string;
+  name: string;
+  code: string; // Código único (ej: BRONCE, ORO, etc.)
+  minPoints: number;
+  color: string;
+  order: number; // Para ordenar los tiers
+  createdAt?: Timestamp;
+}
 
 interface League {
   id: string;
-  tier: LeagueTier;
+  tierId: string; // ID del tier en lugar de código hardcodeado
+  tierName?: string; // Cache del nombre del tier
   season: number;
   name: string;
   startDate: Timestamp;
@@ -84,36 +92,6 @@ interface User {
   status: string;
 }
 
-const tierLabels: Record<LeagueTier, string> = {
-  'BRONCE': 'Bronce',
-  'PLATA': 'Plata',
-  'ORO': 'Oro',
-  'PLATINO': 'Platino',
-  'DIAMANTE': 'Diamante',
-  'MASTER': 'Master',
-  'LEYENDA': 'Leyenda'
-};
-
-const tierColors: Record<LeagueTier, string> = {
-  'BRONCE': '#CD7F32',
-  'PLATA': '#C0C0C0',
-  'ORO': '#FFD700',
-  'PLATINO': '#E5E4E2',
-  'DIAMANTE': '#B9F2FF',
-  'MASTER': '#FF1744',
-  'LEYENDA': '#9C27B0'
-};
-
-const tierMinPoints: Record<LeagueTier, number> = {
-  'BRONCE': 0,
-  'PLATA': 1000,
-  'ORO': 2500,
-  'PLATINO': 5000,
-  'DIAMANTE': 10000,
-  'MASTER': 20000,
-  'LEYENDA': 50000
-};
-
 const statusLabels: Record<LeagueStatus, string> = {
   'PENDING': 'Pendiente',
   'ACTIVE': 'Activa',
@@ -128,6 +106,7 @@ const statusColors: Record<LeagueStatus, "warning" | "success" | "default"> = {
 
 const Ligas: React.FC = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
+  const [tiers, setTiers] = useState<LeagueTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
@@ -140,8 +119,19 @@ const Ligas: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
+  // Estados para el diálogo de tiers
+  const [tiersDialogOpen, setTiersDialogOpen] = useState(false);
+  const [editingTier, setEditingTier] = useState<LeagueTier | null>(null);
+  const [tierFormData, setTierFormData] = useState({
+    name: '',
+    code: '',
+    minPoints: 0,
+    color: '#16b877',
+    order: 0
+  });
+
   const [formData, setFormData] = useState<Omit<League, 'id'>>({
-    tier: 'BRONCE',
+    tierId: '',
     season: 1,
     name: '',
     startDate: Timestamp.now(),
@@ -153,9 +143,23 @@ const Ligas: React.FC = () => {
   });
 
   useEffect(() => {
+    fetchTiers();
     fetchLeagues();
     fetchUsers();
   }, []);
+
+  const fetchTiers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'leagueTiers'));
+      const tiersData: LeagueTier[] = [];
+      querySnapshot.forEach((doc) => {
+        tiersData.push({ id: doc.id, ...doc.data() } as LeagueTier);
+      });
+      setTiers(tiersData.sort((a, b) => a.order - b.order));
+    } catch (err) {
+      console.error('Error al cargar tiers:', err);
+    }
+  };
 
   const fetchLeagues = async () => {
     try {
@@ -177,7 +181,7 @@ const Ligas: React.FC = () => {
     if (league) {
       setEditingLeague(league);
       setFormData({
-        tier: league.tier,
+        tierId: league.tierId,
         season: league.season,
         name: league.name,
         startDate: league.startDate,
@@ -191,7 +195,7 @@ const Ligas: React.FC = () => {
       setEditingLeague(null);
       const nextSeason = leagues.length > 0 ? Math.max(...leagues.map(l => l.season)) + 1 : 1;
       setFormData({
-        tier: 'BRONCE',
+        tierId: tiers.length > 0 ? tiers[0].id : '',
         season: nextSeason,
         name: '',
         startDate: Timestamp.now(),
@@ -224,13 +228,26 @@ const Ligas: React.FC = () => {
         return;
       }
 
+      if (!formData.tierId) {
+        setError('Debes seleccionar un tier para la liga');
+        return;
+      }
+
       if (formData.startDate.seconds >= formData.endDate.seconds) {
         setError('La fecha de fin debe ser posterior a la fecha de inicio');
         return;
       }
 
+      // Obtener el nombre del tier para guardarlo en cache
+      const tier = getTierById(formData.tierId);
+      if (!tier) {
+        setError('Tier seleccionado no encontrado');
+        return;
+      }
+
       const dataToSave = {
         ...formData,
+        tierName: tier.name, // Guardar nombre del tier en cache
         ...(editingLeague ? {} : { createdAt: Timestamp.now() })
       };
 
@@ -373,6 +390,110 @@ const Ligas: React.FC = () => {
     }
   };
 
+  // Funciones para gestionar tiers
+  const handleOpenTiersDialog = (tier?: LeagueTier) => {
+    if (tier) {
+      setEditingTier(tier);
+      setTierFormData({
+        name: tier.name,
+        code: tier.code,
+        minPoints: tier.minPoints,
+        color: tier.color,
+        order: tier.order
+      });
+    } else {
+      setEditingTier(null);
+      const nextOrder = tiers.length > 0 ? Math.max(...tiers.map(t => t.order)) + 1 : 0;
+      setTierFormData({
+        name: '',
+        code: '',
+        minPoints: 0,
+        color: '#16b877',
+        order: nextOrder
+      });
+    }
+    setTiersDialogOpen(true);
+  };
+
+  const handleCloseTiersDialog = () => {
+    setTiersDialogOpen(false);
+    setEditingTier(null);
+    setError('');
+  };
+
+  const handleTierInputChange = (field: keyof typeof tierFormData, value: any) => {
+    setTierFormData({ ...tierFormData, [field]: value });
+  };
+
+  const handleSubmitTier = async () => {
+    try {
+      setError('');
+
+      if (!tierFormData.name || !tierFormData.code) {
+        setError('Nombre y código son obligatorios');
+        return;
+      }
+
+      if (tierFormData.minPoints < 0) {
+        setError('Los puntos mínimos no pueden ser negativos');
+        return;
+      }
+
+      // Verificar código único (si no es edición o si cambió el código)
+      if (!editingTier || (editingTier && editingTier.code !== tierFormData.code)) {
+        const existing = tiers.find(t => t.code === tierFormData.code.toUpperCase());
+        if (existing) {
+          setError('Ya existe un tier con ese código');
+          return;
+        }
+      }
+
+      const dataToSave = {
+        name: tierFormData.name,
+        code: tierFormData.code.toUpperCase(),
+        minPoints: tierFormData.minPoints,
+        color: tierFormData.color,
+        order: tierFormData.order,
+        ...(editingTier ? {} : { createdAt: Timestamp.now() })
+      };
+
+      if (editingTier) {
+        await updateDoc(doc(db, 'leagueTiers', editingTier.id), dataToSave);
+      } else {
+        await addDoc(collection(db, 'leagueTiers'), dataToSave);
+      }
+
+      await fetchTiers();
+      handleCloseTiersDialog();
+    } catch (err) {
+      setError('Error al guardar el tier');
+      console.error(err);
+    }
+  };
+
+  const handleDeleteTier = async (tierId: string) => {
+    // Verificar si hay ligas usando este tier
+    const leaguesUsingTier = leagues.filter(l => l.tierId === tierId);
+    if (leaguesUsingTier.length > 0) {
+      setError(`No se puede eliminar: ${leaguesUsingTier.length} liga(s) están usando este tier`);
+      return;
+    }
+
+    if (window.confirm('¿Estás seguro de eliminar este tier?')) {
+      try {
+        await deleteDoc(doc(db, 'leagueTiers', tierId));
+        await fetchTiers();
+      } catch (err) {
+        setError('Error al eliminar el tier');
+        console.error(err);
+      }
+    }
+  };
+
+  const getTierById = (tierId: string) => {
+    return tiers.find(t => t.id === tierId);
+  };
+
   if (loading) {
     return <Typography>Cargando...</Typography>;
   }
@@ -386,24 +507,31 @@ const Ligas: React.FC = () => {
             Gestiona las ligas de competencia y temporadas
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Nueva Liga
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<EmojiEventsIcon />}
+            onClick={() => handleOpenTiersDialog()}
+          >
+            Gestionar Tiers
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+          >
+            Nueva Liga
+          </Button>
+        </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        <strong>Sistema de Ligas hardcodeado en League.kt (líneas 40-52):</strong>
-        <br />
-        7 tiers: Bronce (0 pts), Plata (1K), Oro (2.5K), Platino (5K), Diamante (10K), Master (20K), Leyenda (50K)
-        <br />
-        <strong>Para aplicar:</strong> La app Android debe leer configuración dinámica de Firestore.
-      </Alert>
+      {tiers.length === 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>No hay tiers configurados.</strong> Haz clic en "Gestionar Tiers" para crear los tiers de las ligas.
+        </Alert>
+      )}
 
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} md={3}>
@@ -449,33 +577,51 @@ const Ligas: React.FC = () => {
                 Tiers Disponibles
               </Typography>
               <Typography variant="h4">
-                {Object.keys(tierLabels).length}
+                {tiers.length}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Paper sx={{ mb: 3, p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Configuración de Tiers
-        </Typography>
-        <Grid container spacing={1}>
-          {Object.entries(tierLabels).map(([key, label]) => (
-            <Grid item key={key}>
-              <Chip
-                icon={<EmojiEventsIcon />}
-                label={`${label} (${tierMinPoints[key as LeagueTier].toLocaleString()} pts)`}
-                sx={{
-                  bgcolor: tierColors[key as LeagueTier],
-                  color: key === 'BRONCE' || key === 'PLATINO' || key === 'DIAMANTE' ? '#000' : '#fff',
-                  fontWeight: 'bold'
-                }}
-              />
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
+      {tiers.length > 0 && (
+        <Paper sx={{ mb: 3, p: 2 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">
+              Configuración de Tiers
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenTiersDialog()}
+            >
+              Nuevo Tier
+            </Button>
+          </Box>
+          <Grid container spacing={1}>
+            {tiers.map((tier) => (
+              <Grid item key={tier.id}>
+                <Chip
+                  icon={<EmojiEventsIcon />}
+                  label={`${tier.name} (${tier.minPoints.toLocaleString()} pts)`}
+                  onDelete={() => handleDeleteTier(tier.id)}
+                  onClick={() => handleOpenTiersDialog(tier)}
+                  sx={{
+                    bgcolor: tier.color,
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      opacity: 0.8
+                    }
+                  }}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
 
       <TableContainer component={Paper}>
         <Table>
@@ -500,15 +646,27 @@ const Ligas: React.FC = () => {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    icon={<EmojiEventsIcon />}
-                    label={tierLabels[league.tier]}
-                    size="small"
-                    sx={{
-                      bgcolor: tierColors[league.tier],
-                      color: ['BRONCE', 'PLATINO', 'DIAMANTE'].includes(league.tier) ? '#000' : '#fff'
-                    }}
-                  />
+                  {(() => {
+                    const tier = getTierById(league.tierId);
+                    return tier ? (
+                      <Chip
+                        icon={<EmojiEventsIcon />}
+                        label={tier.name}
+                        size="small"
+                        sx={{
+                          bgcolor: tier.color,
+                          color: '#fff',
+                          fontWeight: 600
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Tier no encontrado"
+                        size="small"
+                        color="error"
+                      />
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>Temporada {league.season}</TableCell>
                 <TableCell>
@@ -583,15 +741,21 @@ const Ligas: React.FC = () => {
                 <FormControl fullWidth required>
                   <InputLabel>Tier</InputLabel>
                   <Select
-                    value={formData.tier}
-                    onChange={(e) => handleInputChange('tier', e.target.value)}
+                    value={formData.tierId}
+                    onChange={(e) => handleInputChange('tierId', e.target.value)}
                     label="Tier"
                   >
-                    {Object.entries(tierLabels).map(([key, label]) => (
-                      <MenuItem key={key} value={key}>
-                        {label} ({tierMinPoints[key as LeagueTier].toLocaleString()} pts mínimo)
+                    {tiers.length === 0 ? (
+                      <MenuItem value="" disabled>
+                        No hay tiers disponibles
                       </MenuItem>
-                    ))}
+                    ) : (
+                      tiers.map((tier) => (
+                        <MenuItem key={tier.id} value={tier.id}>
+                          {tier.name} ({tier.minPoints.toLocaleString()} pts mínimo)
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
                 </FormControl>
               </Grid>
@@ -687,6 +851,87 @@ const Ligas: React.FC = () => {
           <Button onClick={handleCloseDialog}>Cancelar</Button>
           <Button onClick={handleSubmit} variant="contained">
             {editingLeague ? 'Actualizar' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Gestión de Tiers */}
+      <Dialog open={tiersDialogOpen} onClose={handleCloseTiersDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingTier ? 'Editar Tier' : 'Nuevo Tier'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Nombre del Tier"
+              fullWidth
+              required
+              value={tierFormData.name}
+              onChange={(e) => handleTierInputChange('name', e.target.value)}
+              placeholder="Ej: Bronce, Plata, Oro..."
+              helperText="Nombre visible del tier"
+            />
+            <TextField
+              label="Código"
+              fullWidth
+              required
+              value={tierFormData.code}
+              onChange={(e) => handleTierInputChange('code', e.target.value.toUpperCase())}
+              placeholder="Ej: BRONCE, ORO"
+              helperText="Código único en mayúsculas (ej: BRONCE, ORO, PLATINO)"
+              inputProps={{ style: { textTransform: 'uppercase' } }}
+            />
+            <TextField
+              label="Puntos Mínimos"
+              type="number"
+              fullWidth
+              required
+              value={tierFormData.minPoints}
+              onChange={(e) => handleTierInputChange('minPoints', parseInt(e.target.value) || 0)}
+              placeholder="0"
+              helperText="Puntos necesarios para acceder a este tier"
+              inputProps={{ min: 0 }}
+            />
+            <Box>
+              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                Color del Tier
+              </Typography>
+              <Box display="flex" gap={2} alignItems="center">
+                <TextField
+                  type="color"
+                  value={tierFormData.color}
+                  onChange={(e) => handleTierInputChange('color', e.target.value)}
+                  sx={{ width: '80px' }}
+                />
+                <Chip
+                  icon={<EmojiEventsIcon />}
+                  label={tierFormData.name || 'Vista Previa'}
+                  sx={{
+                    bgcolor: tierFormData.color,
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    flex: 1
+                  }}
+                />
+              </Box>
+            </Box>
+            <TextField
+              label="Orden"
+              type="number"
+              fullWidth
+              required
+              value={tierFormData.order}
+              onChange={(e) => handleTierInputChange('order', parseInt(e.target.value) || 0)}
+              placeholder="0"
+              helperText="Orden de clasificación (0 = más bajo, mayor = más alto)"
+              inputProps={{ min: 0 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTiersDialog}>Cancelar</Button>
+          <Button onClick={handleSubmitTier} variant="contained">
+            {editingTier ? 'Actualizar' : 'Crear'}
           </Button>
         </DialogActions>
       </Dialog>
