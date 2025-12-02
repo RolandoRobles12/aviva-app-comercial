@@ -33,7 +33,7 @@ import com.promotoresavivatunegocio_1.database.entities.VisitLocal
         SyncQueue::class
     ],
     version = 1,
-    exportSchema = true
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 

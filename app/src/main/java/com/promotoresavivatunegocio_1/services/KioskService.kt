@@ -118,7 +118,7 @@ class KioskService {
         return try {
             val kioskProductType = Kiosk.getProductTypeFromString(productType)
             val snapshot = kiosksCollection
-                .whereEqualTo("productType", kioskProductType)
+                .whereEqualTo("productType", kioskProductType.toStringValue())
                 .whereEqualTo("isActive", true)
                 .orderBy("name")
                 .get()
@@ -313,9 +313,9 @@ class KioskService {
                 activeKiosks = allKiosks.count { it.isActive },
                 inactiveKiosks = allKiosks.count { !it.isActive },
                 kiosksByProductType = mapOf(
-                    "bodega_aurrera" to allKiosks.count { it.productType == Kiosk.ProductType.BODEGA_AURRERA },
-                    "aviva_contigo" to allKiosks.count { it.productType == Kiosk.ProductType.AVIVA_CONTIGO },
-                    "construrama" to allKiosks.count { it.productType == Kiosk.ProductType.CONSTRURAMA }
+                    "bodega_aurrera" to allKiosks.count { it.productType == Kiosk.PRODUCT_TYPE_BODEGA_AURRERA },
+                    "aviva_contigo" to allKiosks.count { it.productType == Kiosk.PRODUCT_TYPE_AVIVA_CONTIGO },
+                    "construrama" to allKiosks.count { it.productType == Kiosk.PRODUCT_TYPE_CONSTRURAMA }
                 ),
                 kiosksByState = allKiosks.groupingBy { it.state }.eachCount(),
                 averageCheckInsPerDay = allKiosks.map { it.averageCheckInsPerDay }.average().takeIf { !it.isNaN() } ?: 0.0
