@@ -24,7 +24,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import { collection, addDoc, Timestamp, GeoPoint } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { Kiosk, ProductType, WeeklySchedule, DEFAULT_WEEKLY_SCHEDULE } from '../types/kiosk';
+import type { Kiosk, ProductType } from '../types/kiosk';
 import { PRODUCT_TYPES, MEXICAN_STATES } from '../types/kiosk';
 
 interface ImportRow {
