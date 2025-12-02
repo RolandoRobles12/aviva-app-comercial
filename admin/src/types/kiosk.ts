@@ -8,7 +8,27 @@ export type KioskStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'CLOSED';
 /**
  * Tipos de producto disponibles
  */
-export type ProductType = 'bodega_aurrera' | 'aviva_contigo' | 'construrama';
+export type ProductType =
+  | 'bodega_aurrera'
+  | 'aviva_contigo'
+  | 'construrama'
+  | 'elektra'
+  | 'coppel'
+  | 'famsa'
+  | 'liverpool'
+  | 'palacio_hierro'
+  | 'sears'
+  | 'suburbia'
+  | 'home_depot'
+  | 'office_depot'
+  | 'soriana'
+  | 'walmart'
+  | 'chedraui'
+  | 'heb'
+  | 'comercial_mexicana'
+  | 'sam_club'
+  | 'costco'
+  | 'otro';
 
 /**
  * Días de la semana
@@ -146,8 +166,25 @@ export const visitStatusColors: Record<VisitStatus, 'info' | 'success' | 'warnin
  */
 export const PRODUCT_TYPES: Array<{ value: ProductType; label: string }> = [
   { value: 'bodega_aurrera', label: 'Bodega Aurrera' },
+  { value: 'walmart', label: 'Walmart' },
+  { value: 'soriana', label: 'Soriana' },
+  { value: 'chedraui', label: 'Chedraui' },
+  { value: 'heb', label: 'HEB' },
+  { value: 'comercial_mexicana', label: 'Comercial Mexicana' },
+  { value: 'sam_club', label: "Sam's Club" },
+  { value: 'costco', label: 'Costco' },
+  { value: 'elektra', label: 'Elektra' },
+  { value: 'coppel', label: 'Coppel' },
+  { value: 'famsa', label: 'Famsa' },
+  { value: 'liverpool', label: 'Liverpool' },
+  { value: 'palacio_hierro', label: 'El Palacio de Hierro' },
+  { value: 'sears', label: 'Sears' },
+  { value: 'suburbia', label: 'Suburbia' },
+  { value: 'construrama', label: 'Construrama' },
+  { value: 'home_depot', label: 'Home Depot' },
+  { value: 'office_depot', label: 'Office Depot' },
   { value: 'aviva_contigo', label: 'Aviva Contigo' },
-  { value: 'construrama', label: 'Construrama' }
+  { value: 'otro', label: 'Otro' }
 ];
 
 /**

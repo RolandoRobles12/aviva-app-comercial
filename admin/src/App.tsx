@@ -14,6 +14,7 @@ import Ligas from './pages/Ligas';
 import Giros from './pages/Giros';
 import Kioscos from './pages/Kioscos';
 import MapaVendedores from './pages/MapaVendedores';
+import RutasPromotores from './pages/RutasPromotores';
 import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
@@ -232,6 +233,7 @@ function AppRoutes() {
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="kioscos" element={<Kioscos />} />
         <Route path="mapa" element={<MapaVendedores />} />
+        <Route path="rutas" element={<RutasPromotores />} />
         <Route path="metas" element={<Metas />} />
         <Route path="ligas" element={<Ligas />} />
         <Route path="giros" element={<Giros />} />
