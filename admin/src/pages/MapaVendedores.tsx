@@ -333,7 +333,12 @@ const MapaVendedores: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 120px)', display: 'flex', position: 'relative' }}>
+    <Box sx={{
+      height: '100%',
+      minHeight: 'calc(100vh - 180px)',
+      display: 'flex',
+      position: 'relative'
+    }}>
       {/* Barra superior de estadísticas */}
       <Paper
         elevation={3}
@@ -413,48 +418,59 @@ const MapaVendedores: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             borderRight: 1,
-            borderColor: 'divider'
+            borderColor: 'divider',
+            overflow: 'hidden'
           }}
         >
-          <Box sx={{ p: 2 }}>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
-              Vendedores ({filteredVendors.length})
-            </Typography>
+          {/* Header sticky del panel */}
+          <Box sx={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            bgcolor: 'background.paper',
+            flexShrink: 0
+          }}>
+            <Box sx={{ p: 2 }}>
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                Vendedores ({filteredVendors.length})
+              </Typography>
 
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Buscar..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                )
-              }}
-              sx={{ mb: 2 }}
-            />
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  )
+                }}
+                sx={{ mb: 2 }}
+              />
 
-            <Stack spacing={1}>
-              <FormControlLabel
-                control={<Switch checked={showOnlyActive} onChange={(e) => setShowOnlyActive(e.target.checked)} />}
-                label={<Typography variant="body2">Solo activos</Typography>}
-              />
-              <FormControlLabel
-                control={<Switch checked={showKiosks} onChange={(e) => setShowKiosks(e.target.checked)} />}
-                label={<Typography variant="body2">Mostrar kioscos</Typography>}
-              />
-              <FormControlLabel
-                control={<Switch checked={showRadiusCircles} onChange={(e) => setShowRadiusCircles(e.target.checked)} />}
-                label={<Typography variant="body2">Mostrar radios</Typography>}
-              />
-            </Stack>
+              <Stack spacing={1}>
+                <FormControlLabel
+                  control={<Switch checked={showOnlyActive} onChange={(e) => setShowOnlyActive(e.target.checked)} />}
+                  label={<Typography variant="body2">Solo activos</Typography>}
+                />
+                <FormControlLabel
+                  control={<Switch checked={showKiosks} onChange={(e) => setShowKiosks(e.target.checked)} />}
+                  label={<Typography variant="body2">Mostrar kioscos</Typography>}
+                />
+                <FormControlLabel
+                  control={<Switch checked={showRadiusCircles} onChange={(e) => setShowRadiusCircles(e.target.checked)} />}
+                  label={<Typography variant="body2">Mostrar radios</Typography>}
+                />
+              </Stack>
+            </Box>
+
+            <Divider />
           </Box>
 
-          <Divider />
-
+          {/* Lista scrollable de vendedores */}
           <Box sx={{ flex: 1, overflow: 'auto' }}>
             <List dense>
               {filteredVendors.map(vendor => (
@@ -505,8 +521,13 @@ const MapaVendedores: React.FC = () => {
         </Paper>
       </Collapse>
 
-      {/* Mapa */}
-      <Box sx={{ flex: 1, position: 'relative' }}>
+      {/* Contenedor del Mapa */}
+      <Box sx={{
+        flex: 1,
+        minWidth: 0,
+        position: 'relative',
+        height: '100%'
+      }}>
         {loading && (
           <Box sx={{
             position: 'absolute',
