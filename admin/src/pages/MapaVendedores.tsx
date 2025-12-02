@@ -334,10 +334,11 @@ const MapaVendedores: React.FC = () => {
 
   return (
     <Box sx={{
-      height: '100%',
-      minHeight: 'calc(100vh - 180px)',
+      margin: -3,
+      height: 'calc(100vh - 64px)',
       display: 'flex',
-      position: 'relative'
+      position: 'relative',
+      bgcolor: 'background.default'
     }}>
       {/* Barra superior de estadísticas */}
       <Paper
