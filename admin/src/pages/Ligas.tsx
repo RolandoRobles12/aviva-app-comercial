@@ -30,6 +30,9 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import PeopleIcon from '@mui/icons-material/People';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import {
   collection,
   getDocs,
@@ -37,7 +40,9 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  Timestamp
+  Timestamp,
+  query,
+  where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -58,6 +63,25 @@ interface League {
   relegationSpots: number;
   status: LeagueStatus;
   createdAt?: Timestamp;
+}
+
+interface LeagueParticipant {
+  id: string;
+  leagueId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  points: number;
+  position: number;
+  joinedAt: Timestamp;
+}
+
+interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  status: string;
 }
 
 const tierLabels: Record<LeagueTier, string> = {
@@ -109,6 +133,13 @@ const Ligas: React.FC = () => {
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const [error, setError] = useState<string>('');
 
+  // Estados para el diálogo de participantes
+  const [participantsDialogOpen, setParticipantsDialogOpen] = useState(false);
+  const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
+  const [participants, setParticipants] = useState<LeagueParticipant[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+
   const [formData, setFormData] = useState<Omit<League, 'id'>>({
     tier: 'BRONCE',
     season: 1,
@@ -123,6 +154,7 @@ const Ligas: React.FC = () => {
 
   useEffect(() => {
     fetchLeagues();
+    fetchUsers();
   }, []);
 
   const fetchLeagues = async () => {
@@ -230,6 +262,115 @@ const Ligas: React.FC = () => {
 
   const formatDate = (timestamp: Timestamp) => {
     return timestamp.toDate().toLocaleDateString('es-MX');
+  };
+
+  // Funciones para gestionar participantes
+  const fetchUsers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const usersData: User[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Solo usuarios activos y que no sean admins
+        if (data.status === 'ACTIVE' && data.role !== 'ADMIN' && data.role !== 'SUPER_ADMIN') {
+          usersData.push({
+            id: doc.id,
+            email: data.email,
+            displayName: data.displayName,
+            role: data.role,
+            status: data.status
+          });
+        }
+      });
+      setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    }
+  };
+
+  const fetchParticipants = async (leagueId: string) => {
+    try {
+      const q = query(collection(db, 'leagueParticipants'), where('leagueId', '==', leagueId));
+      const querySnapshot = await getDocs(q);
+      const participantsData: LeagueParticipant[] = [];
+      querySnapshot.forEach((doc) => {
+        participantsData.push({ id: doc.id, ...doc.data() } as LeagueParticipant);
+      });
+      setParticipants(participantsData.sort((a, b) => b.points - a.points));
+    } catch (err) {
+      console.error('Error al cargar participantes:', err);
+      setError('Error al cargar participantes');
+    }
+  };
+
+  const handleOpenParticipantsDialog = async (league: League) => {
+    setSelectedLeague(league);
+    await fetchParticipants(league.id);
+    setParticipantsDialogOpen(true);
+  };
+
+  const handleCloseParticipantsDialog = () => {
+    setParticipantsDialogOpen(false);
+    setSelectedLeague(null);
+    setParticipants([]);
+    setSelectedUserId('');
+    setError('');
+  };
+
+  const handleAddParticipant = async () => {
+    if (!selectedUserId || !selectedLeague) return;
+
+    try {
+      const user = users.find(u => u.id === selectedUserId);
+      if (!user) {
+        setError('Usuario no encontrado');
+        return;
+      }
+
+      // Verificar que no esté ya en la liga
+      const existing = participants.find(p => p.userId === selectedUserId);
+      if (existing) {
+        setError('El usuario ya está en esta liga');
+        return;
+      }
+
+      // Verificar capacidad máxima
+      if (participants.length >= selectedLeague.maxParticipants) {
+        setError(`La liga ha alcanzado su capacidad máxima (${selectedLeague.maxParticipants} participantes)`);
+        return;
+      }
+
+      await addDoc(collection(db, 'leagueParticipants'), {
+        leagueId: selectedLeague.id,
+        userId: user.id,
+        userName: user.displayName,
+        userEmail: user.email,
+        points: 0,
+        position: participants.length + 1,
+        joinedAt: Timestamp.now()
+      });
+
+      await fetchParticipants(selectedLeague.id);
+      setSelectedUserId('');
+      setError('');
+    } catch (err) {
+      console.error('Error al agregar participante:', err);
+      setError('Error al agregar participante');
+    }
+  };
+
+  const handleRemoveParticipant = async (participantId: string) => {
+    if (!selectedLeague) return;
+
+    if (window.confirm('¿Estás seguro de remover este participante de la liga?')) {
+      try {
+        await deleteDoc(doc(db, 'leagueParticipants', participantId));
+        await fetchParticipants(selectedLeague.id);
+      } catch (err) {
+        console.error('Error al remover participante:', err);
+        setError('Error al remover participante');
+      }
+    }
   };
 
   if (loading) {
@@ -393,7 +534,16 @@ const Ligas: React.FC = () => {
                 <TableCell align="right">
                   <IconButton
                     size="small"
+                    color="primary"
+                    onClick={() => handleOpenParticipantsDialog(league)}
+                    title="Ver/Gestionar Participantes"
+                  >
+                    <PeopleIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
                     onClick={() => handleOpenDialog(league)}
+                    title="Editar Liga"
                   >
                     <EditIcon />
                   </IconButton>
@@ -401,6 +551,7 @@ const Ligas: React.FC = () => {
                     size="small"
                     color="error"
                     onClick={() => handleDelete(league.id)}
+                    title="Eliminar Liga"
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -537,6 +688,138 @@ const Ligas: React.FC = () => {
           <Button onClick={handleSubmit} variant="contained">
             {editingLeague ? 'Actualizar' : 'Crear'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Participantes */}
+      <Dialog open={participantsDialogOpen} onClose={handleCloseParticipantsDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <PeopleIcon color="primary" />
+            <Box>
+              <Typography variant="h6">
+                Participantes: {selectedLeague?.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {participants.length} / {selectedLeague?.maxParticipants} participantes
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+          {/* Formulario para agregar participantes */}
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+            <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+              Agregar Participante
+            </Typography>
+            <Box display="flex" gap={2} alignItems="flex-start">
+              <FormControl fullWidth>
+                <InputLabel>Seleccionar Usuario</InputLabel>
+                <Select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  label="Seleccionar Usuario"
+                  disabled={participants.length >= (selectedLeague?.maxParticipants || 0)}
+                >
+                  <MenuItem value="">
+                    <em>Seleccione un usuario...</em>
+                  </MenuItem>
+                  {users
+                    .filter(u => !participants.find(p => p.userId === u.id))
+                    .map(user => (
+                      <MenuItem key={user.id} value={user.id}>
+                        {user.displayName} ({user.email})
+                      </MenuItem>
+                    ))
+                  }
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                startIcon={<PersonAddIcon />}
+                onClick={handleAddParticipant}
+                disabled={!selectedUserId || participants.length >= (selectedLeague?.maxParticipants || 0)}
+                sx={{ minWidth: '140px', height: '56px' }}
+              >
+                Agregar
+              </Button>
+            </Box>
+            {participants.length >= (selectedLeague?.maxParticipants || 0) && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                La liga ha alcanzado su capacidad máxima
+              </Alert>
+            )}
+          </Box>
+
+          {/* Lista de participantes */}
+          {participants.length === 0 ? (
+            <Alert severity="info">
+              No hay participantes en esta liga. Usa el formulario arriba para agregar usuarios.
+            </Alert>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Posición</TableCell>
+                    <TableCell>Nombre</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell align="center">Puntos</TableCell>
+                    <TableCell align="center">Fecha Ingreso</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {participants.map((participant, index) => (
+                    <TableRow key={participant.id}>
+                      <TableCell>
+                        <Chip
+                          label={`#${index + 1}`}
+                          size="small"
+                          color={index === 0 ? 'success' : index === 1 ? 'info' : index === 2 ? 'warning' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>
+                          {participant.userName}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {participant.userEmail}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography variant="body2" fontWeight={600}>
+                          {participant.points.toLocaleString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography variant="caption">
+                          {participant.joinedAt.toDate().toLocaleDateString('es-MX')}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveParticipant(participant.id)}
+                          title="Remover de la liga"
+                        >
+                          <PersonRemoveIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseParticipantsDialog}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Box>
