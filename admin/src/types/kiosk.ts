@@ -8,7 +8,31 @@ export type KioskStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'CLOSED';
 /**
  * Tipos de producto disponibles
  */
-export type ProductType = 'bodega_aurrera' | 'aviva_contigo' | 'construrama';
+export type ProductType =
+  | 'bodega_aurrera'
+  | 'aviva_contigo'
+  | 'aviva_tu_negocio'
+  | 'construrama'
+  | 'disensa'
+  | 'casa_marchand'
+  | 'salauno'
+  | 'elektra'
+  | 'coppel'
+  | 'famsa'
+  | 'liverpool'
+  | 'palacio_hierro'
+  | 'sears'
+  | 'suburbia'
+  | 'home_depot'
+  | 'office_depot'
+  | 'soriana'
+  | 'walmart'
+  | 'chedraui'
+  | 'heb'
+  | 'comercial_mexicana'
+  | 'sam_club'
+  | 'costco'
+  | 'otro';
 
 /**
  * Días de la semana
@@ -145,9 +169,43 @@ export const visitStatusColors: Record<VisitStatus, 'info' | 'success' | 'warnin
  * Tipos de producto disponibles con sus labels
  */
 export const PRODUCT_TYPES: Array<{ value: ProductType; label: string }> = [
-  { value: 'bodega_aurrera', label: 'Bodega Aurrera' },
+  // Productos Aviva
   { value: 'aviva_contigo', label: 'Aviva Contigo' },
-  { value: 'construrama', label: 'Construrama' }
+  { value: 'aviva_tu_negocio', label: 'Aviva Tu Negocio' },
+  { value: 'construrama', label: 'Construrama' },
+  { value: 'disensa', label: 'Disensa' },
+  { value: 'casa_marchand', label: 'Casa Marchand' },
+  { value: 'salauno', label: 'Salauno' },
+
+  // Supermercados y Tiendas de Autoservicio
+  { value: 'bodega_aurrera', label: 'Bodega Aurrera' },
+  { value: 'walmart', label: 'Walmart' },
+  { value: 'soriana', label: 'Soriana' },
+  { value: 'chedraui', label: 'Chedraui' },
+  { value: 'heb', label: 'HEB' },
+  { value: 'comercial_mexicana', label: 'Comercial Mexicana' },
+
+  // Clubes de Precio
+  { value: 'sam_club', label: "Sam's Club" },
+  { value: 'costco', label: 'Costco' },
+
+  // Electrónica y Muebles
+  { value: 'elektra', label: 'Elektra' },
+  { value: 'coppel', label: 'Coppel' },
+  { value: 'famsa', label: 'Famsa' },
+
+  // Tiendas Departamentales
+  { value: 'liverpool', label: 'Liverpool' },
+  { value: 'palacio_hierro', label: 'El Palacio de Hierro' },
+  { value: 'sears', label: 'Sears' },
+  { value: 'suburbia', label: 'Suburbia' },
+
+  // Ferreterías y Oficina
+  { value: 'home_depot', label: 'Home Depot' },
+  { value: 'office_depot', label: 'Office Depot' },
+
+  // Otro
+  { value: 'otro', label: 'Otro' }
 ];
 
 /**
