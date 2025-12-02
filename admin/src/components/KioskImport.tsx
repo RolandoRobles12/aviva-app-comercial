@@ -25,7 +25,15 @@ import ErrorIcon from '@mui/icons-material/Error';
 import { collection, addDoc, Timestamp, GeoPoint } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Kiosk, ProductType } from '../types/kiosk';
-import { PRODUCT_TYPES, MEXICAN_STATES } from '../types/kiosk';
+import { MEXICAN_STATES } from '../types/kiosk';
+
+interface Product {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  isActive: boolean;
+}
 
 interface ImportRow {
   row: number;
@@ -46,9 +54,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  products: Product[];
 }
 
-const KioskImport: React.FC<Props> = ({ open, onClose, onSuccess }) => {
+const KioskImport: React.FC<Props> = ({ open, onClose, onSuccess, products }) => {
   const [file, setFile] = useState<File | null>(null);
   const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
@@ -114,8 +123,8 @@ const KioskImport: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     if (!row.state) return { valid: false, error: 'Estado requerido' };
 
     // Validate product type
-    const validProductType = PRODUCT_TYPES.find(
-      pt => pt.value === row.productType || pt.label.toLowerCase() === row.productType.toLowerCase()
+    const validProductType = products.find(
+      p => p.code === row.productType || p.name.toLowerCase() === row.productType.toLowerCase()
     );
     if (!validProductType) {
       return { valid: false, error: `Tipo de producto inválido: ${row.productType}` };
@@ -145,10 +154,10 @@ const KioskImport: React.FC<Props> = ({ open, onClose, onSuccess }) => {
   };
 
   const normalizeProductType = (productType: string): ProductType => {
-    const pt = PRODUCT_TYPES.find(
-      p => p.value === productType || p.label.toLowerCase() === productType.toLowerCase()
+    const product = products.find(
+      p => p.code === productType || p.name.toLowerCase() === productType.toLowerCase()
     );
-    return pt?.value || 'bodega_aurrera';
+    return (product?.code || products[0]?.code || '') as ProductType;
   };
 
   const handleImport = async () => {
