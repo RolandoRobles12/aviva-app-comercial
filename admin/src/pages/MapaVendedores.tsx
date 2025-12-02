@@ -22,14 +22,12 @@ import {
   alpha,
   useTheme,
   ListItemButton,
-  Button,
   Collapse,
   InputAdornment
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
   MyLocation as MyLocationIcon,
-  Person as PersonIcon,
   Search as SearchIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
@@ -56,13 +54,13 @@ const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 }; // Ciudad de México
 
-// Colores
+// Colores con claves que coinciden con los status
 const COLORS = {
-  activeInZone: '#10B981',    // Verde
-  outOfZone: '#EF4444',       // Rojo
-  inTransit: '#3B82F6',       // Azul
-  inactive: '#9CA3AF',        // Gris
-  kiosk: '#8B5CF6',           // Morado
+  active_in_zone: '#10B981',    // Verde
+  out_of_zone: '#EF4444',       // Rojo
+  in_transit: '#3B82F6',        // Azul
+  inactive: '#9CA3AF',          // Gris
+  kiosk: '#8B5CF6',             // Morado
   radiusCircle: 'rgba(16, 185, 129, 0.15)'
 };
 
@@ -359,28 +357,28 @@ const MapaVendedores: React.FC = () => {
             <Divider orientation="vertical" flexItem />
             <Box>
               <Stack direction="row" spacing={1} alignItems="center">
-                <CheckCircle sx={{ color: COLORS.activeInZone, fontSize: 20 }} />
+                <CheckCircle sx={{ color: COLORS.active_in_zone, fontSize: 20 }} />
                 <Box>
                   <Typography variant="caption">En Zona</Typography>
-                  <Typography variant="h6" fontWeight={600} color={COLORS.activeInZone}>{stats.inZone}</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.active_in_zone}>{stats.inZone}</Typography>
                 </Box>
               </Stack>
             </Box>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center">
-                <Warning sx={{ color: COLORS.outOfZone, fontSize: 20 }} />
+                <Warning sx={{ color: COLORS.out_of_zone, fontSize: 20 }} />
                 <Box>
                   <Typography variant="caption">Fuera</Typography>
-                  <Typography variant="h6" fontWeight={600} color={COLORS.outOfZone}>{stats.outZone}</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.out_of_zone}>{stats.outZone}</Typography>
                 </Box>
               </Stack>
             </Box>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center">
-                <Info sx={{ color: COLORS.inTransit, fontSize: 20 }} />
+                <Info sx={{ color: COLORS.in_transit, fontSize: 20 }} />
                 <Box>
                   <Typography variant="caption">Tránsito</Typography>
-                  <Typography variant="h6" fontWeight={600} color={COLORS.inTransit}>{stats.transit}</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.in_transit}>{stats.transit}</Typography>
                 </Box>
               </Stack>
             </Box>
@@ -563,7 +561,7 @@ const MapaVendedores: React.FC = () => {
                   options={{
                     fillColor: COLORS.radiusCircle,
                     fillOpacity: 0.2,
-                    strokeColor: COLORS.activeInZone,
+                    strokeColor: COLORS.active_in_zone,
                     strokeOpacity: 0.5,
                     strokeWeight: 2
                   }}
