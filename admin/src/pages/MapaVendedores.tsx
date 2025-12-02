@@ -7,7 +7,6 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Drawer,
   List,
   ListItem,
   ListItemText,
@@ -19,26 +18,26 @@ import {
   Divider,
   Tooltip,
   Badge,
-  Card,
-  CardContent,
-  Grid,
   Stack,
   alpha,
   useTheme,
-  ListItemButton
+  ListItemButton,
+  Button,
+  Collapse,
+  InputAdornment
 } from '@mui/material';
 import {
-  FilterList as FilterIcon,
   Refresh as RefreshIcon,
   MyLocation as MyLocationIcon,
-  Store as StoreIcon,
   Person as PersonIcon,
-  Close as CloseIcon,
-  TrendingUp,
+  Search as SearchIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  CheckCircle,
   Warning,
-  CheckCircle
+  Info
 } from '@mui/icons-material';
-import { GoogleMap, useLoadScript, Marker, Circle, Polyline, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useLoadScript, Marker, Circle, InfoWindow } from '@react-google-maps/api';
 import {
   collection,
   query,
@@ -46,24 +45,9 @@ import {
   where,
   Timestamp,
   GeoPoint,
-  getDocs,
-  orderBy
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type {
-  VendorMapData,
-  KioskMapData,
-  MapFilters,
-  VendorStatus,
-  MapStats,
-  RoutePoint
-} from '../types/map';
-import {
-  DEFAULT_MAP_COLORS,
-  vendorStatusLabels,
-  createVendorMarkerIcon,
-  createKioskMarkerIcon
-} from '../types/map';
 
 // IMPORTANTE: libraries debe ser constante fuera del componente
 const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
@@ -71,19 +55,60 @@ const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
 // Configuración del mapa
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 }; // Ciudad de México
-const MAP_OPTIONS: google.maps.MapOptions = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  mapTypeControl: false,
-  streetViewControl: false,
-  fullscreenControl: true,
-  styles: [
-    {
-      featureType: 'poi',
-      elementType: 'labels',
-      stylers: [{ visibility: 'off' }]
-    }
-  ]
+
+// Colores
+const COLORS = {
+  activeInZone: '#10B981',    // Verde
+  outOfZone: '#EF4444',       // Rojo
+  inTransit: '#3B82F6',       // Azul
+  inactive: '#9CA3AF',        // Gris
+  kiosk: '#8B5CF6',           // Morado
+  radiusCircle: 'rgba(16, 185, 129, 0.15)'
+};
+
+// Tipos
+interface VendorData {
+  id: string;
+  displayName: string;
+  email: string;
+  photoUrl?: string;
+  currentLocation: GeoPoint;
+  lastLocationUpdate: Timestamp;
+  status: 'active_in_zone' | 'out_of_zone' | 'in_transit' | 'inactive';
+  assignedKioskId?: string;
+  assignedKioskName?: string;
+  distanceFromKiosk?: number;
+  allowedRadius?: number;
+}
+
+interface KioskData {
+  id: string;
+  name: string;
+  location: GeoPoint;
+  address: string;
+  city: string;
+  state: string;
+  radiusMeters: number;
+}
+
+const createVendorIcon = (status: string): string => {
+  const color = COLORS[status as keyof typeof COLORS] || COLORS.inactive;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="14" fill="${color}" opacity="0.3"/>
+      <circle cx="16" cy="16" r="10" fill="${color}"/>
+      <circle cx="16" cy="16" r="4" fill="white"/>
+    </svg>
+  `)}`;
+};
+
+const createKioskIcon = (): string => {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="24" height="24" rx="4" fill="${COLORS.kiosk}" opacity="0.9"/>
+      <path d="M14 16 L14 28 M20 16 L20 28 M26 16 L26 28 M14 22 L26 22" stroke="white" stroke-width="2" fill="none"/>
+    </svg>
+  `)}`;
 };
 
 const MapaVendedores: React.FC = () => {
@@ -93,92 +118,78 @@ const MapaVendedores: React.FC = () => {
     libraries: GOOGLE_MAPS_LIBRARIES
   });
 
-  // Estado
-  const [vendors, setVendors] = useState<VendorMapData[]>([]);
-  const [kiosks, setKiosks] = useState<KioskMapData[]>([]);
+  const [vendors, setVendors] = useState<VendorData[]>([]);
+  const [kiosks, setKiosks] = useState<KioskData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filtersPanelOpen, setFiltersPanelOpen] = useState(true);
-  const [selectedVendor, setSelectedVendor] = useState<VendorMapData | null>(null);
-  const [selectedKiosk, setSelectedKiosk] = useState<KioskMapData | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<VendorData | null>(null);
+  const [selectedKiosk, setSelectedKiosk] = useState<KioskData | null>(null);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-
-  // Filtros
-  const [filters, setFilters] = useState<MapFilters>({
-    productTypes: [],
-    states: [],
-    cities: [],
-    vendorStatuses: [],
-    showOnlyActive: false, // Cambiado a false para mostrar todos por defecto
-    vendorTypes: [],
-    dateRange: null,
-    showLiveData: true,
-    showKiosks: true,
-    showRoutes: false, // Desactivado por defecto para mejor performance
-    showRadiusCircles: true,
-    searchQuery: ''
-  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showKiosks, setShowKiosks] = useState(true);
+  const [showRadiusCircles, setShowRadiusCircles] = useState(true);
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Cargar kioscos
   useEffect(() => {
     const loadKiosks = async () => {
       try {
         const snapshot = await getDocs(collection(db, 'kiosks'));
-        const kioskData: KioskMapData[] = snapshot.docs.map(doc => {
+        const kioskData: KioskData[] = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
             name: data.name || 'Sin nombre',
-            productType: data.productType || 'unknown',
             location: data.location || data.coordinates || new GeoPoint(19.4326, -99.1332),
             address: data.address || 'Sin dirección',
-            city: data.city || 'Sin ciudad',
-            state: data.state || 'Sin estado',
-            radiusMeters: data.radiusMeters || data.radiusOverride || 100,
-            isActive: data.isActive !== false,
-            status: data.status || 'ACTIVE',
-            assignedVendors: 0,
-            activeVendorsNow: 0,
-            averageCheckInsPerDay: data.averageCheckInsPerDay || 0
+            city: data.city || '',
+            state: data.state || '',
+            radiusMeters: data.radiusMeters || data.radiusOverride || 100
           };
         });
         setKiosks(kioskData);
-        console.log('Kiosks loaded:', kioskData.length);
+        console.log('✅ Kiosks loaded:', kioskData.length);
       } catch (err) {
-        console.error('Error loading kiosks:', err);
-        setError('Error al cargar kioscos');
+        console.error('❌ Error loading kiosks:', err);
       }
     };
-
     loadKiosks();
   }, []);
 
-  // Cargar y escuchar vendedores en tiempo real
+  // Cargar vendedores
   useEffect(() => {
     setLoading(true);
+    const q = query(collection(db, 'users'), where('isActive', '==', true));
 
-    const q = query(
-      collection(db, 'users'),
-      where('isActive', '==', true)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
+    const unsubscribe = onSnapshot(q,
       async (snapshot) => {
         try {
-          const vendorsList: VendorMapData[] = [];
+          const vendorsList: VendorData[] = [];
 
           for (const doc of snapshot.docs) {
             const data = doc.data();
-
-            // Solo incluir usuarios con ubicación
             if (!data.lastLocation) continue;
 
-            // Determinar estado del vendedor
-            const status = determineVendorStatus(data, kiosks);
+            // Determinar estado
+            let status: VendorData['status'] = 'inactive';
+            const lastUpdate = data.lastLocationUpdate?.toDate();
 
-            // Calcular distancia del kiosco si tiene asignado
+            if (lastUpdate && (Date.now() - lastUpdate.getTime()) <= 30 * 60 * 1000) {
+              if (data.assignedKioskId) {
+                const kiosk = kiosks.find(k => k.id === data.assignedKioskId);
+                if (kiosk) {
+                  const distance = calculateDistance(data.lastLocation, kiosk.location);
+                  status = distance <= kiosk.radiusMeters ? 'active_in_zone' : 'out_of_zone';
+                } else {
+                  status = 'in_transit';
+                }
+              } else {
+                status = 'in_transit';
+              }
+            }
+
+            // Calcular distancia
             let distanceFromKiosk: number | undefined;
             let allowedRadius: number | undefined;
             if (data.assignedKioskId && kiosks.length > 0) {
@@ -189,226 +200,96 @@ const MapaVendedores: React.FC = () => {
               }
             }
 
-            const vendor: VendorMapData = {
+            vendorsList.push({
               id: doc.id,
-              uid: data.uid || '',
               displayName: data.displayName || 'Sin nombre',
               email: data.email || '',
               photoUrl: data.photoUrl || data.profileImageUrl,
               currentLocation: data.lastLocation,
               lastLocationUpdate: data.lastLocationUpdate || Timestamp.now(),
-              locationAccuracy: data.lastLocationAccuracy,
               status,
-              vendorType: data.role === 'EMBAJADOR_AVIVA_TU_COMPRA' ? 'fixed_location' : 'route',
-              productType: Array.isArray(data.productTypes) && data.productTypes.length > 0 ? data.productTypes[0] : 'unknown',
-              productLine: data.productLine || '',
               assignedKioskId: data.assignedKioskId,
               assignedKioskName: kiosks.find(k => k.id === data.assignedKioskId)?.name,
-              todayRoute: undefined, // Se carga bajo demanda
-              isInAllowedZone: status === 'active_in_zone',
               distanceFromKiosk,
-              allowedRadius,
-              lastCheckIn: data.lastCheckIn,
-              checkInCount: 0,
-              role: data.role || '',
-              isActive: data.isActive !== false && data.status === 'ACTIVE'
-            };
-
-            vendorsList.push(vendor);
+              allowedRadius
+            });
           }
 
           setVendors(vendorsList);
           setLoading(false);
           setError(null);
-          console.log('Vendors loaded:', vendorsList.length);
-        } catch (err) {
-          console.error('Error processing vendors:', err);
+          console.log('✅ Vendors loaded:', vendorsList.length);
+        } catch (err: any) {
+          console.error('❌ Error processing vendors:', err);
           setError('Error al procesar vendedores');
           setLoading(false);
         }
       },
       (err) => {
-        console.error('Error listening to vendors:', err);
-        setError('Error al escuchar actualizaciones: ' + err.message);
+        console.error('❌ Error listening:', err);
+        setError('Error al escuchar actualizaciones');
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [autoRefresh, kiosks]);
+  }, [kiosks]);
 
-  // Determinar estado del vendedor
-  const determineVendorStatus = (userData: any, kiosksList: KioskMapData[]): VendorStatus => {
-    if (!userData.isActive || userData.status !== 'ACTIVE') {
-      return 'inactive';
-    }
-
-    const lastUpdate = userData.lastLocationUpdate?.toDate();
-    if (!lastUpdate || (Date.now() - lastUpdate.getTime()) > 30 * 60 * 1000) {
-      return 'inactive'; // Sin actualización en 30 minutos
-    }
-
-    // Si tiene kiosco asignado, verificar si está en zona
-    if (userData.assignedKioskId) {
-      const kiosk = kiosksList.find(k => k.id === userData.assignedKioskId);
-      if (kiosk && userData.lastLocation) {
-        const distance = calculateDistance(userData.lastLocation, kiosk.location);
-        if (distance <= kiosk.radiusMeters) {
-          return 'active_in_zone';
-        } else {
-          return 'out_of_zone';
-        }
-      }
-    }
-
-    // Vendedor en ruta
-    return 'in_transit';
-  };
-
-  // Calcular distancia entre dos puntos (Haversine)
   const calculateDistance = (point1: GeoPoint, point2: GeoPoint): number => {
-    const R = 6371000; // Radio de la Tierra en metros
-    const lat1Rad = (point1.latitude * Math.PI) / 180;
-    const lat2Rad = (point2.latitude * Math.PI) / 180;
-    const deltaLatRad = ((point2.latitude - point1.latitude) * Math.PI) / 180;
-    const deltaLonRad = ((point2.longitude - point1.longitude) * Math.PI) / 180;
+    const R = 6371000;
+    const lat1 = (point1.latitude * Math.PI) / 180;
+    const lat2 = (point2.latitude * Math.PI) / 180;
+    const deltaLat = ((point2.latitude - point1.latitude) * Math.PI) / 180;
+    const deltaLon = ((point2.longitude - point1.longitude) * Math.PI) / 180;
 
-    const a =
-      Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-      Math.cos(lat1Rad) *
-        Math.cos(lat2Rad) *
-        Math.sin(deltaLonRad / 2) *
-        Math.sin(deltaLonRad / 2);
-
+    const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
-  // Filtrar vendedores
   const filteredVendors = useMemo(() => {
     return vendors.filter(vendor => {
-      // Filtro de búsqueda
-      if (filters.searchQuery) {
-        const search = filters.searchQuery.toLowerCase();
-        const matchesSearch =
-          vendor.displayName.toLowerCase().includes(search) ||
-          vendor.email.toLowerCase().includes(search) ||
-          vendor.assignedKioskName?.toLowerCase().includes(search);
-        if (!matchesSearch) return false;
+      if (searchQuery) {
+        const search = searchQuery.toLowerCase();
+        const matches = vendor.displayName.toLowerCase().includes(search) ||
+                       vendor.email.toLowerCase().includes(search) ||
+                       vendor.assignedKioskName?.toLowerCase().includes(search);
+        if (!matches) return false;
       }
-
-      // Filtro de tipos de producto
-      if (filters.productTypes.length > 0 && !filters.productTypes.includes(vendor.productType)) {
-        return false;
-      }
-
-      // Filtro de estados de vendedor
-      if (filters.vendorStatuses.length > 0 && !filters.vendorStatuses.includes(vendor.status)) {
-        return false;
-      }
-
-      // Filtro de solo activos
-      if (filters.showOnlyActive && !vendor.isActive) {
-        return false;
-      }
-
-      // Filtro de tipos de vendedor
-      if (filters.vendorTypes.length > 0 && !filters.vendorTypes.includes(vendor.vendorType)) {
-        return false;
-      }
-
+      if (showOnlyActive && vendor.status === 'inactive') return false;
       return true;
     });
-  }, [vendors, filters]);
+  }, [vendors, searchQuery, showOnlyActive]);
 
-  // Filtrar kioscos
-  const filteredKiosks = useMemo(() => {
-    if (!filters.showKiosks) return [];
-    return kiosks.filter(kiosk => {
-      if (filters.productTypes.length > 0 && !filters.productTypes.includes(kiosk.productType)) {
-        return false;
-      }
-      if (filters.states.length > 0 && !filters.states.includes(kiosk.state)) {
-        return false;
-      }
-      if (filters.cities.length > 0 && !filters.cities.includes(kiosk.city)) {
-        return false;
-      }
-      return true;
-    });
-  }, [kiosks, filters]);
+  const stats = useMemo(() => {
+    const inZone = filteredVendors.filter(v => v.status === 'active_in_zone').length;
+    const outZone = filteredVendors.filter(v => v.status === 'out_of_zone').length;
+    const transit = filteredVendors.filter(v => v.status === 'in_transit').length;
+    return { total: filteredVendors.length, inZone, outZone, transit };
+  }, [filteredVendors]);
 
-  // Calcular estadísticas
-  const stats: MapStats = useMemo(() => {
-    const activeVendors = filteredVendors.filter(v => v.status !== 'inactive').length;
-    const vendorsInZone = filteredVendors.filter(v => v.status === 'active_in_zone').length;
-    const vendorsOutOfZone = filteredVendors.filter(v => v.status === 'out_of_zone').length;
-    const inactiveVendors = filteredVendors.filter(v => v.status === 'inactive').length;
-
-    const distances = filteredVendors
-      .filter(v => v.distanceFromKiosk !== undefined)
-      .map(v => v.distanceFromKiosk!);
-    const averageDistance = distances.length > 0
-      ? distances.reduce((a, b) => a + b, 0) / distances.length
-      : 0;
-
-    return {
-      totalVendors: filteredVendors.length,
-      activeVendors,
-      vendorsInZone,
-      vendorsOutOfZone,
-      inactiveVendors,
-      totalKiosks: filteredKiosks.length,
-      averageDistance,
-      lastUpdate: new Date()
-    };
-  }, [filteredVendors, filteredKiosks]);
-
-  // Centrar mapa en vendedores
-  const centerMapOnVendors = useCallback(() => {
-    if (!mapRef || (filteredVendors.length === 0 && filteredKiosks.length === 0)) return;
-
+  const centerMap = useCallback(() => {
+    if (!mapRef || filteredVendors.length === 0) return;
     const bounds = new google.maps.LatLngBounds();
-    let hasPoints = false;
-
-    filteredVendors.forEach(vendor => {
-      bounds.extend({
-        lat: vendor.currentLocation.latitude,
-        lng: vendor.currentLocation.longitude
-      });
-      hasPoints = true;
-    });
-
-    filteredKiosks.forEach(kiosk => {
-      bounds.extend({
-        lat: kiosk.location.latitude,
-        lng: kiosk.location.longitude
-      });
-      hasPoints = true;
-    });
-
-    if (hasPoints) {
-      mapRef.fitBounds(bounds);
+    filteredVendors.forEach(v => bounds.extend({ lat: v.currentLocation.latitude, lng: v.currentLocation.longitude }));
+    if (showKiosks) {
+      kiosks.forEach(k => bounds.extend({ lat: k.location.latitude, lng: k.location.longitude }));
     }
-  }, [mapRef, filteredVendors, filteredKiosks]);
-
-  // Refrescar datos
-  const handleRefresh = useCallback(() => {
-    setLoading(true);
-    setAutoRefresh(prev => !prev);
-  }, []);
+    mapRef.fitBounds(bounds);
+  }, [mapRef, filteredVendors, kiosks, showKiosks]);
 
   if (loadError) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 4 }}>
         <Alert severity="error">
-          Error al cargar Google Maps: {loadError.message}
-          <br /><br />
-          <strong>Solución:</strong> Verifica que:
+          <Typography variant="h6" gutterBottom>Error al cargar Google Maps</Typography>
+          <Typography paragraph>{loadError.message}</Typography>
+          <Typography variant="subtitle2">Verifica:</Typography>
           <ul>
-            <li>La variable VITE_GOOGLE_MAPS_API_KEY esté configurada</li>
-            <li>La API Key sea válida</li>
-            <li>Las APIs estén habilitadas en Google Cloud Console</li>
+            <li>Que la API Key esté configurada correctamente</li>
+            <li>Que las APIs estén habilitadas en Google Cloud Console</li>
           </ul>
         </Alert>
       </Box>
@@ -417,234 +298,180 @@ const MapaVendedores: React.FC = () => {
 
   if (!isLoaded) {
     return (
-      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="80vh">
         <CircularProgress size={60} />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          Cargando Google Maps...
-        </Typography>
+        <Typography variant="body1" sx={{ mt: 2 }}>Cargando Google Maps...</Typography>
       </Box>
     );
   }
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 4 }}>
         <Alert severity="warning">
-          <Typography variant="h6" gutterBottom>
-            API Key de Google Maps no configurada
-          </Typography>
+          <Typography variant="h6" gutterBottom>⚠️ API Key no configurada</Typography>
           <Typography paragraph>
-            Para usar el mapa, necesitas configurar la variable de entorno con tu API Key de Google Maps.
+            Necesitas configurar tu API Key de Google Maps.
           </Typography>
-          <Typography variant="subtitle2" gutterBottom>
-            Opción 1: Variable de entorno temporal (PowerShell)
-          </Typography>
-          <Box component="code" sx={{ display: 'block', bgcolor: 'grey.100', p: 1, borderRadius: 1, mb: 2 }}>
-            $env:VITE_GOOGLE_MAPS_API_KEY = "tu_api_key_aqui"; npm run dev
-          </Box>
-          <Typography variant="subtitle2" gutterBottom>
-            Opción 2: Archivo .env
-          </Typography>
-          <Typography variant="body2">
-            Crea un archivo <code>.env</code> en la carpeta admin con:
-          </Typography>
-          <Box component="code" sx={{ display: 'block', bgcolor: 'grey.100', p: 1, borderRadius: 1, mt: 1 }}>
-            VITE_GOOGLE_MAPS_API_KEY=tu_api_key_aqui
-          </Box>
+          <Paper sx={{ p: 2, bgcolor: 'grey.100', mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>Paso 1: En PowerShell ACTUAL, ejecuta:</Typography>
+            <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'grey.900', color: 'white', borderRadius: 1 }}>
+              $env:VITE_GOOGLE_MAPS_API_KEY = "tu_api_key"
+            </Box>
+          </Paper>
+          <Paper sx={{ p: 2, bgcolor: 'grey.100' }}>
+            <Typography variant="subtitle2" gutterBottom>Paso 2: Reinicia el servidor:</Typography>
+            <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'grey.900', color: 'white', borderRadius: 1 }}>
+              npm run dev
+            </Box>
+          </Paper>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <strong>Nota:</strong> El comando <code>setx</code> solo funciona para sesiones FUTURAS.
+            Debes usar <code>$env:</code> en la sesión actual.
+          </Alert>
         </Alert>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 140px)', display: 'flex', position: 'relative' }}>
-      {/* Barra de estadísticas */}
-      <Box
+    <Box sx={{ height: 'calc(100vh - 120px)', display: 'flex', position: 'relative' }}>
+      {/* Barra superior de estadísticas */}
+      <Paper
+        elevation={3}
         sx={{
           position: 'absolute',
           top: 16,
-          left: filtersPanelOpen ? 380 : 16,
+          left: sidebarOpen ? 376 : 16,
           right: 16,
           zIndex: 1000,
+          px: 3,
+          py: 2,
           transition: 'left 0.3s'
         }}
       >
-        <Paper elevation={3} sx={{ px: 3, py: 2, borderRadius: 3 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs>
-              <Stack direction="row" spacing={4}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" spacing={4}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Total</Typography>
+              <Typography variant="h5" fontWeight={700}>{stats.total}</Typography>
+            </Box>
+            <Divider orientation="vertical" flexItem />
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CheckCircle sx={{ color: COLORS.activeInZone, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    Total Vendedores
-                  </Typography>
-                  <Typography variant="h4" fontWeight={700} color="primary">
-                    {stats.totalVendors}
-                  </Typography>
-                </Box>
-                <Divider orientation="vertical" flexItem />
-                <Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CheckCircle sx={{ color: 'success.main', fontSize: 20 }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        En Zona
-                      </Typography>
-                      <Typography variant="h6" fontWeight={600} color="success.main">
-                        {stats.vendorsInZone}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Box>
-                <Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Warning sx={{ color: 'error.main', fontSize: 20 }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Fuera de Zona
-                      </Typography>
-                      <Typography variant="h6" fontWeight={600} color="error.main">
-                        {stats.vendorsOutOfZone}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Box>
-                <Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <TrendingUp sx={{ color: 'info.main', fontSize: 20 }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        En Tránsito
-                      </Typography>
-                      <Typography variant="h6" fontWeight={600} color="info.main">
-                        {stats.activeVendors - stats.vendorsInZone}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                  <Typography variant="caption">En Zona</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.activeInZone}>{stats.inZone}</Typography>
                 </Box>
               </Stack>
-            </Grid>
-            <Grid item>
-              <Stack direction="row" spacing={1}>
-                <Tooltip title="Refrescar datos">
-                  <IconButton onClick={handleRefresh} disabled={loading}>
-                    <RefreshIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Centrar en vendedores">
-                  <IconButton onClick={centerMapOnVendors}>
-                    <MyLocationIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title={filtersPanelOpen ? 'Ocultar filtros' : 'Mostrar filtros'}>
-                  <IconButton onClick={() => setFiltersPanelOpen(!filtersPanelOpen)}>
-                    <FilterIcon />
-                  </IconButton>
-                </Tooltip>
+            </Box>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Warning sx={{ color: COLORS.outOfZone, fontSize: 20 }} />
+                <Box>
+                  <Typography variant="caption">Fuera</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.outOfZone}>{stats.outZone}</Typography>
+                </Box>
               </Stack>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Box>
+            </Box>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Info sx={{ color: COLORS.inTransit, fontSize: 20 }} />
+                <Box>
+                  <Typography variant="caption">Tránsito</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.inTransit}>{stats.transit}</Typography>
+                </Box>
+              </Stack>
+            </Box>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Refrescar">
+              <IconButton onClick={() => window.location.reload()} size="small">
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Centrar mapa">
+              <IconButton onClick={centerMap} size="small">
+                <MyLocationIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
+              <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
+                {sidebarOpen ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
+      </Paper>
 
-      {/* Panel de filtros lateral */}
-      <Drawer
-        variant="persistent"
-        anchor="left"
-        open={filtersPanelOpen}
-        sx={{
-          width: 360,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
+      {/* Panel lateral */}
+      <Collapse orientation="horizontal" in={sidebarOpen}>
+        <Paper
+          elevation={2}
+          sx={{
             width: 360,
-            position: 'relative',
-            borderRight: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.default'
-          }
-        }}
-      >
-        <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" fontWeight={700}>
-              Filtros y Vendedores
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            borderRight: 1,
+            borderColor: 'divider'
+          }}
+        >
+          <Box sx={{ p: 2 }}>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Vendedores ({filteredVendors.length})
             </Typography>
-            <IconButton size="small" onClick={() => setFiltersPanelOpen(false)}>
-              <CloseIcon />
-            </IconButton>
+
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Buscar..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                )
+              }}
+              sx={{ mb: 2 }}
+            />
+
+            <Stack spacing={1}>
+              <FormControlLabel
+                control={<Switch checked={showOnlyActive} onChange={(e) => setShowOnlyActive(e.target.checked)} />}
+                label={<Typography variant="body2">Solo activos</Typography>}
+              />
+              <FormControlLabel
+                control={<Switch checked={showKiosks} onChange={(e) => setShowKiosks(e.target.checked)} />}
+                label={<Typography variant="body2">Mostrar kioscos</Typography>}
+              />
+              <FormControlLabel
+                control={<Switch checked={showRadiusCircles} onChange={(e) => setShowRadiusCircles(e.target.checked)} />}
+                label={<Typography variant="body2">Mostrar radios</Typography>}
+              />
+            </Stack>
           </Box>
 
-          {/* Búsqueda */}
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Buscar vendedor..."
-            value={filters.searchQuery}
-            onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
+          <Divider />
 
-          {/* Filtros rápidos */}
-          <Stack spacing={1} sx={{ mb: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={filters.showOnlyActive}
-                  onChange={(e) => setFilters(prev => ({ ...prev, showOnlyActive: e.target.checked }))}
-                />
-              }
-              label="Solo activos"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={filters.showKiosks}
-                  onChange={(e) => setFilters(prev => ({ ...prev, showKiosks: e.target.checked }))}
-                />
-              }
-              label="Mostrar kioscos"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={filters.showRadiusCircles}
-                  onChange={(e) => setFilters(prev => ({ ...prev, showRadiusCircles: e.target.checked }))}
-                />
-              }
-              label="Mostrar radios"
-            />
-          </Stack>
-
-          <Divider sx={{ my: 2 }} />
-
-          {/* Lista de vendedores */}
-          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-            Vendedores ({filteredVendors.length})
-          </Typography>
           <Box sx={{ flex: 1, overflow: 'auto' }}>
             <List dense>
               {filteredVendors.map(vendor => (
-                <ListItem
-                  key={vendor.id}
-                  disablePadding
-                  sx={{ mb: 0.5 }}
-                >
+                <ListItem key={vendor.id} disablePadding>
                   <ListItemButton
                     selected={selectedVendor?.id === vendor.id}
                     onClick={() => {
                       setSelectedVendor(vendor);
                       if (mapRef) {
-                        mapRef.panTo({
-                          lat: vendor.currentLocation.latitude,
-                          lng: vendor.currentLocation.longitude
-                        });
+                        mapRef.panTo({ lat: vendor.currentLocation.latitude, lng: vendor.currentLocation.longitude });
                         mapRef.setZoom(15);
                       }
                     }}
                     sx={{
-                      borderRadius: 2,
-                      '&.Mui-selected': {
-                        bgcolor: alpha(theme.palette.primary.main, 0.1)
-                      }
+                      '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
                     }}
                   >
                     <ListItemAvatar>
@@ -652,80 +479,51 @@ const MapaVendedores: React.FC = () => {
                         overlap="circular"
                         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                         badgeContent={
-                          <Box
-                            sx={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: '50%',
-                              bgcolor: DEFAULT_MAP_COLORS.vendorMarkers[vendor.status],
-                              border: '2px solid white'
-                            }}
-                          />
+                          <Box sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: COLORS[vendor.status],
+                            border: '2px solid white'
+                          }} />
                         }
                       >
-                        <Avatar src={vendor.photoUrl} alt={vendor.displayName}>
-                          {vendor.displayName[0]?.toUpperCase() || '?'}
+                        <Avatar src={vendor.photoUrl} sx={{ width: 40, height: 40 }}>
+                          {vendor.displayName[0]?.toUpperCase()}
                         </Avatar>
                       </Badge>
                     </ListItemAvatar>
                     <ListItemText
                       primary={vendor.displayName}
-                      secondary={
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <Typography variant="caption" component="span">
-                            {vendorStatusLabels[vendor.status]}
-                          </Typography>
-                          {vendor.assignedKioskName && (
-                            <>
-                              <Typography variant="caption" component="span">
-                                •
-                              </Typography>
-                              <Typography variant="caption" component="span">
-                                {vendor.assignedKioskName}
-                              </Typography>
-                            </>
-                          )}
-                        </Stack>
-                      }
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: 600
-                      }}
+                      secondary={vendor.assignedKioskName || 'Sin kiosco'}
+                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 600 }}
+                      secondaryTypographyProps={{ fontSize: '0.75rem' }}
                     />
                   </ListItemButton>
                 </ListItem>
               ))}
-              {filteredVendors.length === 0 && !loading && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <PersonIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                  <Typography variant="body2" color="text.secondary">
-                    No hay vendedores que coincidan con los filtros
-                  </Typography>
-                </Box>
-              )}
             </List>
           </Box>
-        </Box>
-      </Drawer>
+        </Paper>
+      </Collapse>
 
       {/* Mapa */}
       <Box sx={{ flex: 1, position: 'relative' }}>
         {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 1000,
-              bgcolor: 'rgba(255, 255, 255, 0.9)',
-              p: 3,
-              borderRadius: 2
-            }}
-          >
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1000,
+            bgcolor: 'rgba(255,255,255,0.95)',
+            p: 3,
+            borderRadius: 2,
+            boxShadow: 3
+          }}>
             <Stack alignItems="center" spacing={2}>
               <CircularProgress />
-              <Typography variant="body2">Cargando vendedores...</Typography>
+              <Typography>Cargando datos...</Typography>
             </Stack>
           </Box>
         )}
@@ -738,36 +536,35 @@ const MapaVendedores: React.FC = () => {
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={MAP_CENTER}
           zoom={6}
-          options={MAP_OPTIONS}
+          options={{
+            zoomControl: true,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true
+          }}
           onLoad={setMapRef}
         >
-          {/* Marcadores de kioscos */}
-          {filteredKiosks.map(kiosk => (
+          {/* Kioscos */}
+          {showKiosks && kiosks.map(kiosk => (
             <React.Fragment key={kiosk.id}>
               <Marker
-                position={{
-                  lat: kiosk.location.latitude,
-                  lng: kiosk.location.longitude
-                }}
+                position={{ lat: kiosk.location.latitude, lng: kiosk.location.longitude }}
                 icon={{
-                  url: createKioskMarkerIcon(),
-                  scaledSize: new google.maps.Size(50, 50),
-                  anchor: new google.maps.Point(25, 25)
+                  url: createKioskIcon(),
+                  scaledSize: new google.maps.Size(40, 40),
+                  anchor: new google.maps.Point(20, 20)
                 }}
                 onClick={() => setSelectedKiosk(kiosk)}
               />
-              {filters.showRadiusCircles && (
+              {showRadiusCircles && (
                 <Circle
-                  center={{
-                    lat: kiosk.location.latitude,
-                    lng: kiosk.location.longitude
-                  }}
+                  center={{ lat: kiosk.location.latitude, lng: kiosk.location.longitude }}
                   radius={kiosk.radiusMeters}
                   options={{
-                    fillColor: DEFAULT_MAP_COLORS.radiusCircles,
+                    fillColor: COLORS.radiusCircle,
                     fillOpacity: 0.2,
-                    strokeColor: DEFAULT_MAP_COLORS.vendorMarkers.active_in_zone,
-                    strokeOpacity: 0.6,
+                    strokeColor: COLORS.activeInZone,
+                    strokeOpacity: 0.5,
                     strokeWeight: 2
                   }}
                 />
@@ -775,135 +572,80 @@ const MapaVendedores: React.FC = () => {
             </React.Fragment>
           ))}
 
-          {/* Marcadores de vendedores */}
+          {/* Vendedores */}
           {filteredVendors.map(vendor => (
             <Marker
               key={vendor.id}
-              position={{
-                lat: vendor.currentLocation.latitude,
-                lng: vendor.currentLocation.longitude
-              }}
+              position={{ lat: vendor.currentLocation.latitude, lng: vendor.currentLocation.longitude }}
               icon={{
-                url: createVendorMarkerIcon(vendor.status),
-                scaledSize: new google.maps.Size(40, 40),
-                anchor: new google.maps.Point(20, 20)
+                url: createVendorIcon(vendor.status),
+                scaledSize: new google.maps.Size(32, 32),
+                anchor: new google.maps.Point(16, 16)
               }}
               onClick={() => setSelectedVendor(vendor)}
               animation={vendor.status === 'out_of_zone' ? google.maps.Animation.BOUNCE : undefined}
             />
           ))}
 
-          {/* Info Window para vendedor seleccionado */}
+          {/* Info Window Vendedor */}
           {selectedVendor && (
             <InfoWindow
-              position={{
-                lat: selectedVendor.currentLocation.latitude,
-                lng: selectedVendor.currentLocation.longitude
-              }}
+              position={{ lat: selectedVendor.currentLocation.latitude, lng: selectedVendor.currentLocation.longitude }}
               onCloseClick={() => setSelectedVendor(null)}
             >
-              <Card elevation={0} sx={{ minWidth: 250, maxWidth: 300 }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Avatar src={selectedVendor.photoUrl} sx={{ width: 48, height: 48 }}>
-                        {selectedVendor.displayName[0]?.toUpperCase() || '?'}
-                      </Avatar>
-                      <Box flex={1}>
-                        <Typography variant="subtitle1" fontWeight={700}>
-                          {selectedVendor.displayName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {selectedVendor.email}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    <Chip
-                      label={vendorStatusLabels[selectedVendor.status]}
-                      size="small"
-                      sx={{
-                        bgcolor: DEFAULT_MAP_COLORS.vendorMarkers[selectedVendor.status],
-                        color: 'white',
-                        fontWeight: 600
-                      }}
-                    />
-                    {selectedVendor.assignedKioskName && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Kiosco Asignado:
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {selectedVendor.assignedKioskName}
-                        </Typography>
-                      </Box>
-                    )}
-                    {selectedVendor.distanceFromKiosk !== undefined && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Distancia:
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {Math.round(selectedVendor.distanceFromKiosk)}m
-                          {selectedVendor.allowedRadius && (
-                            <Typography component="span" variant="caption" color="text.secondary">
-                              {' '}/ {selectedVendor.allowedRadius}m permitidos
-                            </Typography>
-                          )}
-                        </Typography>
-                      </Box>
-                    )}
+              <Box sx={{ minWidth: 200, maxWidth: 300 }}>
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Avatar src={selectedVendor.photoUrl} sx={{ width: 48, height: 48 }}>
+                      {selectedVendor.displayName[0]?.toUpperCase()}
+                    </Avatar>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Última actualización:
-                      </Typography>
-                      <Typography variant="body2">
-                        {selectedVendor.lastLocationUpdate.toDate().toLocaleString('es-MX', {
-                          dateStyle: 'short',
-                          timeStyle: 'short'
-                        })}
-                      </Typography>
+                      <Typography variant="subtitle1" fontWeight={700}>{selectedVendor.displayName}</Typography>
+                      <Typography variant="caption" color="text.secondary">{selectedVendor.email}</Typography>
                     </Box>
                   </Stack>
-                </CardContent>
-              </Card>
+                  <Chip
+                    label={
+                      selectedVendor.status === 'active_in_zone' ? 'En Zona' :
+                      selectedVendor.status === 'out_of_zone' ? 'Fuera de Zona' :
+                      selectedVendor.status === 'in_transit' ? 'En Tránsito' : 'Inactivo'
+                    }
+                    size="small"
+                    sx={{ bgcolor: COLORS[selectedVendor.status], color: 'white', fontWeight: 600 }}
+                  />
+                  {selectedVendor.assignedKioskName && (
+                    <Typography variant="body2">
+                      <strong>Kiosco:</strong> {selectedVendor.assignedKioskName}
+                    </Typography>
+                  )}
+                  {selectedVendor.distanceFromKiosk !== undefined && (
+                    <Typography variant="body2">
+                      <strong>Distancia:</strong> {Math.round(selectedVendor.distanceFromKiosk)}m
+                      {selectedVendor.allowedRadius && ` / ${selectedVendor.allowedRadius}m`}
+                    </Typography>
+                  )}
+                  <Typography variant="caption">
+                    {selectedVendor.lastLocationUpdate.toDate().toLocaleString('es-MX')}
+                  </Typography>
+                </Stack>
+              </Box>
             </InfoWindow>
           )}
 
-          {/* Info Window para kiosco seleccionado */}
+          {/* Info Window Kiosco */}
           {selectedKiosk && (
             <InfoWindow
-              position={{
-                lat: selectedKiosk.location.latitude,
-                lng: selectedKiosk.location.longitude
-              }}
+              position={{ lat: selectedKiosk.location.latitude, lng: selectedKiosk.location.longitude }}
               onCloseClick={() => setSelectedKiosk(null)}
             >
-              <Card elevation={0} sx={{ minWidth: 250, maxWidth: 300 }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <StoreIcon color="primary" />
-                      <Typography variant="subtitle1" fontWeight={700}>
-                        {selectedKiosk.name}
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {selectedKiosk.address}
-                    </Typography>
-                    <Typography variant="caption">
-                      {selectedKiosk.city}, {selectedKiosk.state}
-                    </Typography>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Radio permitido:
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {selectedKiosk.radiusMeters}m
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
+              <Box sx={{ minWidth: 200 }}>
+                <Typography variant="subtitle1" fontWeight={700}>{selectedKiosk.name}</Typography>
+                <Typography variant="body2">{selectedKiosk.address}</Typography>
+                <Typography variant="caption">{selectedKiosk.city}, {selectedKiosk.state}</Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>Radio:</strong> {selectedKiosk.radiusMeters}m
+                </Typography>
+              </Box>
             </InfoWindow>
           )}
         </GoogleMap>
