@@ -38,6 +38,7 @@ const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/', category: 'main' },
   { text: 'Usuarios', icon: <PeopleIcon />, path: '/usuarios', category: 'main' },
   { text: 'Kioscos', icon: <StoreIcon />, path: '/kioscos', category: 'main' },
+  { text: 'Productos', icon: <CategoryIcon />, path: '/productos', category: 'main' },
   { text: 'Mapa en Vivo', icon: <MapIcon />, path: '/mapa', category: 'main' },
   { text: 'Rutas Promotores', icon: <RouteIcon />, path: '/rutas', category: 'main' },
   { text: 'Metas', icon: <TrendingUpIcon />, path: '/metas', category: 'gamification' },
