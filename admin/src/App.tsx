@@ -12,13 +12,10 @@ import Usuarios from './pages/Usuarios';
 import Metas from './pages/Metas';
 import Ligas from './pages/Ligas';
 import Giros from './pages/Giros';
-import HubSpot from './pages/HubSpot';
 import Kioscos from './pages/Kioscos';
 import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
-import UbicacionesConfig from './pages/UbicacionesConfig';
-import AlertasUbicacion from './pages/AlertasUbicacion';
 
 const theme = createTheme({
   palette: {
@@ -232,15 +229,12 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="usuarios" element={<Usuarios />} />
+        <Route path="kioscos" element={<Kioscos />} />
         <Route path="metas" element={<Metas />} />
         <Route path="ligas" element={<Ligas />} />
         <Route path="giros" element={<Giros />} />
-        <Route path="hubspot" element={<HubSpot />} />
-        <Route path="kioscos" element={<Kioscos />} />
         <Route path="administradores" element={<Administradores />} />
         <Route path="auditoria" element={<Auditoria />} />
-        <Route path="ubicaciones" element={<UbicacionesConfig />} />
-        <Route path="alertas-ubicacion" element={<AlertasUbicacion />} />
         <Route path="config" element={<Configuracion />} />
       </Route>
     </Routes>
