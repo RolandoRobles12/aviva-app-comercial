@@ -30,6 +30,9 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import PeopleIcon from '@mui/icons-material/People';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import {
   collection,
   getDocs,
@@ -37,18 +40,28 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  Timestamp
+  Timestamp,
+  query,
+  where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-// Coincide con League.kt
-type LeagueTier = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE' | 'MASTER' | 'LEYENDA';
-
 type LeagueStatus = 'PENDING' | 'ACTIVE' | 'FINISHED';
+
+interface LeagueTier {
+  id: string;
+  name: string;
+  code: string; // Código único (ej: BRONCE, ORO, etc.)
+  minPoints: number;
+  color: string;
+  order: number; // Para ordenar los tiers
+  createdAt?: Timestamp;
+}
 
 interface League {
   id: string;
-  tier: LeagueTier;
+  tierId: string; // ID del tier en lugar de código hardcodeado
+  tierName?: string; // Cache del nombre del tier
   season: number;
   name: string;
   startDate: Timestamp;
@@ -60,35 +73,24 @@ interface League {
   createdAt?: Timestamp;
 }
 
-const tierLabels: Record<LeagueTier, string> = {
-  'BRONCE': 'Bronce',
-  'PLATA': 'Plata',
-  'ORO': 'Oro',
-  'PLATINO': 'Platino',
-  'DIAMANTE': 'Diamante',
-  'MASTER': 'Master',
-  'LEYENDA': 'Leyenda'
-};
+interface LeagueParticipant {
+  id: string;
+  leagueId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  points: number;
+  position: number;
+  joinedAt: Timestamp;
+}
 
-const tierColors: Record<LeagueTier, string> = {
-  'BRONCE': '#CD7F32',
-  'PLATA': '#C0C0C0',
-  'ORO': '#FFD700',
-  'PLATINO': '#E5E4E2',
-  'DIAMANTE': '#B9F2FF',
-  'MASTER': '#FF1744',
-  'LEYENDA': '#9C27B0'
-};
-
-const tierMinPoints: Record<LeagueTier, number> = {
-  'BRONCE': 0,
-  'PLATA': 1000,
-  'ORO': 2500,
-  'PLATINO': 5000,
-  'DIAMANTE': 10000,
-  'MASTER': 20000,
-  'LEYENDA': 50000
-};
+interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  status: string;
+}
 
 const statusLabels: Record<LeagueStatus, string> = {
   'PENDING': 'Pendiente',
@@ -104,13 +106,32 @@ const statusColors: Record<LeagueStatus, "warning" | "success" | "default"> = {
 
 const Ligas: React.FC = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
+  const [tiers, setTiers] = useState<LeagueTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const [error, setError] = useState<string>('');
 
+  // Estados para el diálogo de participantes
+  const [participantsDialogOpen, setParticipantsDialogOpen] = useState(false);
+  const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
+  const [participants, setParticipants] = useState<LeagueParticipant[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+
+  // Estados para el diálogo de tiers
+  const [tiersDialogOpen, setTiersDialogOpen] = useState(false);
+  const [editingTier, setEditingTier] = useState<LeagueTier | null>(null);
+  const [tierFormData, setTierFormData] = useState({
+    name: '',
+    code: '',
+    minPoints: 0,
+    color: '#16b877',
+    order: 0
+  });
+
   const [formData, setFormData] = useState<Omit<League, 'id'>>({
-    tier: 'BRONCE',
+    tierId: '',
     season: 1,
     name: '',
     startDate: Timestamp.now(),
@@ -122,8 +143,23 @@ const Ligas: React.FC = () => {
   });
 
   useEffect(() => {
+    fetchTiers();
     fetchLeagues();
+    fetchUsers();
   }, []);
+
+  const fetchTiers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'leagueTiers'));
+      const tiersData: LeagueTier[] = [];
+      querySnapshot.forEach((doc) => {
+        tiersData.push({ id: doc.id, ...doc.data() } as LeagueTier);
+      });
+      setTiers(tiersData.sort((a, b) => a.order - b.order));
+    } catch (err) {
+      console.error('Error al cargar tiers:', err);
+    }
+  };
 
   const fetchLeagues = async () => {
     try {
@@ -145,7 +181,7 @@ const Ligas: React.FC = () => {
     if (league) {
       setEditingLeague(league);
       setFormData({
-        tier: league.tier,
+        tierId: league.tierId,
         season: league.season,
         name: league.name,
         startDate: league.startDate,
@@ -159,7 +195,7 @@ const Ligas: React.FC = () => {
       setEditingLeague(null);
       const nextSeason = leagues.length > 0 ? Math.max(...leagues.map(l => l.season)) + 1 : 1;
       setFormData({
-        tier: 'BRONCE',
+        tierId: tiers.length > 0 ? tiers[0].id : '',
         season: nextSeason,
         name: '',
         startDate: Timestamp.now(),
@@ -192,13 +228,26 @@ const Ligas: React.FC = () => {
         return;
       }
 
+      if (!formData.tierId) {
+        setError('Debes seleccionar un tier para la liga');
+        return;
+      }
+
       if (formData.startDate.seconds >= formData.endDate.seconds) {
         setError('La fecha de fin debe ser posterior a la fecha de inicio');
         return;
       }
 
+      // Obtener el nombre del tier para guardarlo en cache
+      const tier = getTierById(formData.tierId);
+      if (!tier) {
+        setError('Tier seleccionado no encontrado');
+        return;
+      }
+
       const dataToSave = {
         ...formData,
+        tierName: tier.name, // Guardar nombre del tier en cache
         ...(editingLeague ? {} : { createdAt: Timestamp.now() })
       };
 
@@ -232,6 +281,219 @@ const Ligas: React.FC = () => {
     return timestamp.toDate().toLocaleDateString('es-MX');
   };
 
+  // Funciones para gestionar participantes
+  const fetchUsers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const usersData: User[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Solo usuarios activos y que no sean admins
+        if (data.status === 'ACTIVE' && data.role !== 'ADMIN' && data.role !== 'SUPER_ADMIN') {
+          usersData.push({
+            id: doc.id,
+            email: data.email,
+            displayName: data.displayName,
+            role: data.role,
+            status: data.status
+          });
+        }
+      });
+      setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    }
+  };
+
+  const fetchParticipants = async (leagueId: string) => {
+    try {
+      const q = query(collection(db, 'leagueParticipants'), where('leagueId', '==', leagueId));
+      const querySnapshot = await getDocs(q);
+      const participantsData: LeagueParticipant[] = [];
+      querySnapshot.forEach((doc) => {
+        participantsData.push({ id: doc.id, ...doc.data() } as LeagueParticipant);
+      });
+      setParticipants(participantsData.sort((a, b) => b.points - a.points));
+    } catch (err) {
+      console.error('Error al cargar participantes:', err);
+      setError('Error al cargar participantes');
+    }
+  };
+
+  const handleOpenParticipantsDialog = async (league: League) => {
+    setSelectedLeague(league);
+    await fetchParticipants(league.id);
+    setParticipantsDialogOpen(true);
+  };
+
+  const handleCloseParticipantsDialog = () => {
+    setParticipantsDialogOpen(false);
+    setSelectedLeague(null);
+    setParticipants([]);
+    setSelectedUserId('');
+    setError('');
+  };
+
+  const handleAddParticipant = async () => {
+    if (!selectedUserId || !selectedLeague) return;
+
+    try {
+      const user = users.find(u => u.id === selectedUserId);
+      if (!user) {
+        setError('Usuario no encontrado');
+        return;
+      }
+
+      // Verificar que no esté ya en la liga
+      const existing = participants.find(p => p.userId === selectedUserId);
+      if (existing) {
+        setError('El usuario ya está en esta liga');
+        return;
+      }
+
+      // Verificar capacidad máxima
+      if (participants.length >= selectedLeague.maxParticipants) {
+        setError(`La liga ha alcanzado su capacidad máxima (${selectedLeague.maxParticipants} participantes)`);
+        return;
+      }
+
+      await addDoc(collection(db, 'leagueParticipants'), {
+        leagueId: selectedLeague.id,
+        userId: user.id,
+        userName: user.displayName,
+        userEmail: user.email,
+        points: 0,
+        position: participants.length + 1,
+        joinedAt: Timestamp.now()
+      });
+
+      await fetchParticipants(selectedLeague.id);
+      setSelectedUserId('');
+      setError('');
+    } catch (err) {
+      console.error('Error al agregar participante:', err);
+      setError('Error al agregar participante');
+    }
+  };
+
+  const handleRemoveParticipant = async (participantId: string) => {
+    if (!selectedLeague) return;
+
+    if (window.confirm('¿Estás seguro de remover este participante de la liga?')) {
+      try {
+        await deleteDoc(doc(db, 'leagueParticipants', participantId));
+        await fetchParticipants(selectedLeague.id);
+      } catch (err) {
+        console.error('Error al remover participante:', err);
+        setError('Error al remover participante');
+      }
+    }
+  };
+
+  // Funciones para gestionar tiers
+  const handleOpenTiersDialog = (tier?: LeagueTier) => {
+    if (tier) {
+      setEditingTier(tier);
+      setTierFormData({
+        name: tier.name,
+        code: tier.code,
+        minPoints: tier.minPoints,
+        color: tier.color,
+        order: tier.order
+      });
+    } else {
+      setEditingTier(null);
+      const nextOrder = tiers.length > 0 ? Math.max(...tiers.map(t => t.order)) + 1 : 0;
+      setTierFormData({
+        name: '',
+        code: '',
+        minPoints: 0,
+        color: '#16b877',
+        order: nextOrder
+      });
+    }
+    setTiersDialogOpen(true);
+  };
+
+  const handleCloseTiersDialog = () => {
+    setTiersDialogOpen(false);
+    setEditingTier(null);
+    setError('');
+  };
+
+  const handleTierInputChange = (field: keyof typeof tierFormData, value: any) => {
+    setTierFormData({ ...tierFormData, [field]: value });
+  };
+
+  const handleSubmitTier = async () => {
+    try {
+      setError('');
+
+      if (!tierFormData.name || !tierFormData.code) {
+        setError('Nombre y código son obligatorios');
+        return;
+      }
+
+      if (tierFormData.minPoints < 0) {
+        setError('Los puntos mínimos no pueden ser negativos');
+        return;
+      }
+
+      // Verificar código único (si no es edición o si cambió el código)
+      if (!editingTier || (editingTier && editingTier.code !== tierFormData.code)) {
+        const existing = tiers.find(t => t.code === tierFormData.code.toUpperCase());
+        if (existing) {
+          setError('Ya existe un tier con ese código');
+          return;
+        }
+      }
+
+      const dataToSave = {
+        name: tierFormData.name,
+        code: tierFormData.code.toUpperCase(),
+        minPoints: tierFormData.minPoints,
+        color: tierFormData.color,
+        order: tierFormData.order,
+        ...(editingTier ? {} : { createdAt: Timestamp.now() })
+      };
+
+      if (editingTier) {
+        await updateDoc(doc(db, 'leagueTiers', editingTier.id), dataToSave);
+      } else {
+        await addDoc(collection(db, 'leagueTiers'), dataToSave);
+      }
+
+      await fetchTiers();
+      handleCloseTiersDialog();
+    } catch (err) {
+      setError('Error al guardar el tier');
+      console.error(err);
+    }
+  };
+
+  const handleDeleteTier = async (tierId: string) => {
+    // Verificar si hay ligas usando este tier
+    const leaguesUsingTier = leagues.filter(l => l.tierId === tierId);
+    if (leaguesUsingTier.length > 0) {
+      setError(`No se puede eliminar: ${leaguesUsingTier.length} liga(s) están usando este tier`);
+      return;
+    }
+
+    if (window.confirm('¿Estás seguro de eliminar este tier?')) {
+      try {
+        await deleteDoc(doc(db, 'leagueTiers', tierId));
+        await fetchTiers();
+      } catch (err) {
+        setError('Error al eliminar el tier');
+        console.error(err);
+      }
+    }
+  };
+
+  const getTierById = (tierId: string) => {
+    return tiers.find(t => t.id === tierId);
+  };
+
   if (loading) {
     return <Typography>Cargando...</Typography>;
   }
@@ -245,24 +507,31 @@ const Ligas: React.FC = () => {
             Gestiona las ligas de competencia y temporadas
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Nueva Liga
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<EmojiEventsIcon />}
+            onClick={() => handleOpenTiersDialog()}
+          >
+            Gestionar Tiers
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+          >
+            Nueva Liga
+          </Button>
+        </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        <strong>Sistema de Ligas hardcodeado en League.kt (líneas 40-52):</strong>
-        <br />
-        7 tiers: Bronce (0 pts), Plata (1K), Oro (2.5K), Platino (5K), Diamante (10K), Master (20K), Leyenda (50K)
-        <br />
-        <strong>Para aplicar:</strong> La app Android debe leer configuración dinámica de Firestore.
-      </Alert>
+      {tiers.length === 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>No hay tiers configurados.</strong> Haz clic en "Gestionar Tiers" para crear los tiers de las ligas.
+        </Alert>
+      )}
 
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} md={3}>
@@ -308,33 +577,51 @@ const Ligas: React.FC = () => {
                 Tiers Disponibles
               </Typography>
               <Typography variant="h4">
-                {Object.keys(tierLabels).length}
+                {tiers.length}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Paper sx={{ mb: 3, p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Configuración de Tiers
-        </Typography>
-        <Grid container spacing={1}>
-          {Object.entries(tierLabels).map(([key, label]) => (
-            <Grid item key={key}>
-              <Chip
-                icon={<EmojiEventsIcon />}
-                label={`${label} (${tierMinPoints[key as LeagueTier].toLocaleString()} pts)`}
-                sx={{
-                  bgcolor: tierColors[key as LeagueTier],
-                  color: key === 'BRONCE' || key === 'PLATINO' || key === 'DIAMANTE' ? '#000' : '#fff',
-                  fontWeight: 'bold'
-                }}
-              />
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
+      {tiers.length > 0 && (
+        <Paper sx={{ mb: 3, p: 2 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">
+              Configuración de Tiers
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenTiersDialog()}
+            >
+              Nuevo Tier
+            </Button>
+          </Box>
+          <Grid container spacing={1}>
+            {tiers.map((tier) => (
+              <Grid item key={tier.id}>
+                <Chip
+                  icon={<EmojiEventsIcon />}
+                  label={`${tier.name} (${tier.minPoints.toLocaleString()} pts)`}
+                  onDelete={() => handleDeleteTier(tier.id)}
+                  onClick={() => handleOpenTiersDialog(tier)}
+                  sx={{
+                    bgcolor: tier.color,
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      opacity: 0.8
+                    }
+                  }}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
 
       <TableContainer component={Paper}>
         <Table>
@@ -359,15 +646,27 @@ const Ligas: React.FC = () => {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    icon={<EmojiEventsIcon />}
-                    label={tierLabels[league.tier]}
-                    size="small"
-                    sx={{
-                      bgcolor: tierColors[league.tier],
-                      color: ['BRONCE', 'PLATINO', 'DIAMANTE'].includes(league.tier) ? '#000' : '#fff'
-                    }}
-                  />
+                  {(() => {
+                    const tier = getTierById(league.tierId);
+                    return tier ? (
+                      <Chip
+                        icon={<EmojiEventsIcon />}
+                        label={tier.name}
+                        size="small"
+                        sx={{
+                          bgcolor: tier.color,
+                          color: '#fff',
+                          fontWeight: 600
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Tier no encontrado"
+                        size="small"
+                        color="error"
+                      />
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>Temporada {league.season}</TableCell>
                 <TableCell>
@@ -393,7 +692,16 @@ const Ligas: React.FC = () => {
                 <TableCell align="right">
                   <IconButton
                     size="small"
+                    color="primary"
+                    onClick={() => handleOpenParticipantsDialog(league)}
+                    title="Ver/Gestionar Participantes"
+                  >
+                    <PeopleIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
                     onClick={() => handleOpenDialog(league)}
+                    title="Editar Liga"
                   >
                     <EditIcon />
                   </IconButton>
@@ -401,6 +709,7 @@ const Ligas: React.FC = () => {
                     size="small"
                     color="error"
                     onClick={() => handleDelete(league.id)}
+                    title="Eliminar Liga"
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -432,15 +741,21 @@ const Ligas: React.FC = () => {
                 <FormControl fullWidth required>
                   <InputLabel>Tier</InputLabel>
                   <Select
-                    value={formData.tier}
-                    onChange={(e) => handleInputChange('tier', e.target.value)}
+                    value={formData.tierId}
+                    onChange={(e) => handleInputChange('tierId', e.target.value)}
                     label="Tier"
                   >
-                    {Object.entries(tierLabels).map(([key, label]) => (
-                      <MenuItem key={key} value={key}>
-                        {label} ({tierMinPoints[key as LeagueTier].toLocaleString()} pts mínimo)
+                    {tiers.length === 0 ? (
+                      <MenuItem value="" disabled>
+                        No hay tiers disponibles
                       </MenuItem>
-                    ))}
+                    ) : (
+                      tiers.map((tier) => (
+                        <MenuItem key={tier.id} value={tier.id}>
+                          {tier.name} ({tier.minPoints.toLocaleString()} pts mínimo)
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
                 </FormControl>
               </Grid>
@@ -537,6 +852,219 @@ const Ligas: React.FC = () => {
           <Button onClick={handleSubmit} variant="contained">
             {editingLeague ? 'Actualizar' : 'Crear'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Gestión de Tiers */}
+      <Dialog open={tiersDialogOpen} onClose={handleCloseTiersDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingTier ? 'Editar Tier' : 'Nuevo Tier'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Nombre del Tier"
+              fullWidth
+              required
+              value={tierFormData.name}
+              onChange={(e) => handleTierInputChange('name', e.target.value)}
+              placeholder="Ej: Bronce, Plata, Oro..."
+              helperText="Nombre visible del tier"
+            />
+            <TextField
+              label="Código"
+              fullWidth
+              required
+              value={tierFormData.code}
+              onChange={(e) => handleTierInputChange('code', e.target.value.toUpperCase())}
+              placeholder="Ej: BRONCE, ORO"
+              helperText="Código único en mayúsculas (ej: BRONCE, ORO, PLATINO)"
+              inputProps={{ style: { textTransform: 'uppercase' } }}
+            />
+            <TextField
+              label="Puntos Mínimos"
+              type="number"
+              fullWidth
+              required
+              value={tierFormData.minPoints}
+              onChange={(e) => handleTierInputChange('minPoints', parseInt(e.target.value) || 0)}
+              placeholder="0"
+              helperText="Puntos necesarios para acceder a este tier"
+              inputProps={{ min: 0 }}
+            />
+            <Box>
+              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                Color del Tier
+              </Typography>
+              <Box display="flex" gap={2} alignItems="center">
+                <TextField
+                  type="color"
+                  value={tierFormData.color}
+                  onChange={(e) => handleTierInputChange('color', e.target.value)}
+                  sx={{ width: '80px' }}
+                />
+                <Chip
+                  icon={<EmojiEventsIcon />}
+                  label={tierFormData.name || 'Vista Previa'}
+                  sx={{
+                    bgcolor: tierFormData.color,
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    flex: 1
+                  }}
+                />
+              </Box>
+            </Box>
+            <TextField
+              label="Orden"
+              type="number"
+              fullWidth
+              required
+              value={tierFormData.order}
+              onChange={(e) => handleTierInputChange('order', parseInt(e.target.value) || 0)}
+              placeholder="0"
+              helperText="Orden de clasificación (0 = más bajo, mayor = más alto)"
+              inputProps={{ min: 0 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTiersDialog}>Cancelar</Button>
+          <Button onClick={handleSubmitTier} variant="contained">
+            {editingTier ? 'Actualizar' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Participantes */}
+      <Dialog open={participantsDialogOpen} onClose={handleCloseParticipantsDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <PeopleIcon color="primary" />
+            <Box>
+              <Typography variant="h6">
+                Participantes: {selectedLeague?.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {participants.length} / {selectedLeague?.maxParticipants} participantes
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+          {/* Formulario para agregar participantes */}
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+            <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+              Agregar Participante
+            </Typography>
+            <Box display="flex" gap={2} alignItems="flex-start">
+              <FormControl fullWidth>
+                <InputLabel>Seleccionar Usuario</InputLabel>
+                <Select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  label="Seleccionar Usuario"
+                  disabled={participants.length >= (selectedLeague?.maxParticipants || 0)}
+                >
+                  <MenuItem value="">
+                    <em>Seleccione un usuario...</em>
+                  </MenuItem>
+                  {users
+                    .filter(u => !participants.find(p => p.userId === u.id))
+                    .map(user => (
+                      <MenuItem key={user.id} value={user.id}>
+                        {user.displayName} ({user.email})
+                      </MenuItem>
+                    ))
+                  }
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                startIcon={<PersonAddIcon />}
+                onClick={handleAddParticipant}
+                disabled={!selectedUserId || participants.length >= (selectedLeague?.maxParticipants || 0)}
+                sx={{ minWidth: '140px', height: '56px' }}
+              >
+                Agregar
+              </Button>
+            </Box>
+            {participants.length >= (selectedLeague?.maxParticipants || 0) && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                La liga ha alcanzado su capacidad máxima
+              </Alert>
+            )}
+          </Box>
+
+          {/* Lista de participantes */}
+          {participants.length === 0 ? (
+            <Alert severity="info">
+              No hay participantes en esta liga. Usa el formulario arriba para agregar usuarios.
+            </Alert>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Posición</TableCell>
+                    <TableCell>Nombre</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell align="center">Puntos</TableCell>
+                    <TableCell align="center">Fecha Ingreso</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {participants.map((participant, index) => (
+                    <TableRow key={participant.id}>
+                      <TableCell>
+                        <Chip
+                          label={`#${index + 1}`}
+                          size="small"
+                          color={index === 0 ? 'success' : index === 1 ? 'info' : index === 2 ? 'warning' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>
+                          {participant.userName}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {participant.userEmail}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography variant="body2" fontWeight={600}>
+                          {participant.points.toLocaleString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography variant="caption">
+                          {participant.joinedAt.toDate().toLocaleDateString('es-MX')}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveParticipant(participant.id)}
+                          title="Remover de la liga"
+                        >
+                          <PersonRemoveIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseParticipantsDialog}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Box>

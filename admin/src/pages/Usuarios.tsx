@@ -53,7 +53,7 @@ interface User {
   displayName: string;
   photoUrl?: string;
   role: UserRole;
-  productLine: ProductLine;
+  productLine?: ProductLine; // Opcional: solo para roles de vendedor/promotor
   status: UserStatus;
   phoneNumber?: string;
   employeeId?: string;
@@ -118,7 +118,7 @@ const Usuarios: React.FC = () => {
     email: '',
     displayName: '',
     role: 'PROMOTOR_AVIVA_TU_NEGOCIO',
-    productLine: 'AVIVA_TU_NEGOCIO',
+    productLine: 'AVIVA_TU_NEGOCIO', // Por defecto para promotores
     status: 'ACTIVE',
     phoneNumber: '',
     employeeId: '',
@@ -225,7 +225,12 @@ const Usuarios: React.FC = () => {
   };
 
   const handleInputChange = (field: keyof typeof formData, value: any) => {
-    setFormData({ ...formData, [field]: value });
+    // Si se cambia el rol a ADMIN o SUPER_ADMIN, limpiar productLine
+    if (field === 'role' && (value === 'ADMIN' || value === 'SUPER_ADMIN')) {
+      setFormData({ ...formData, [field]: value, productLine: undefined as any });
+    } else {
+      setFormData({ ...formData, [field]: value });
+    }
   };
 
   const handleSubmit = async () => {
@@ -244,11 +249,24 @@ const Usuarios: React.FC = () => {
         return;
       }
 
-      const dataToSave = {
+      // Validar que productLine sea requerido solo para roles de vendedor
+      const isAdminRole = formData.role === 'ADMIN' || formData.role === 'SUPER_ADMIN';
+      if (!isAdminRole && !formData.productLine) {
+        setError('Línea de producto es obligatoria para roles de vendedor');
+        return;
+      }
+
+      // Preparar datos para guardar - remover productLine si es admin
+      const dataToSave: any = {
         ...formData,
         updatedAt: Timestamp.now(),
         ...(editingUser ? {} : { createdAt: Timestamp.now() })
       };
+
+      // Si es admin, asegurarse de que productLine no se guarde
+      if (isAdminRole) {
+        delete dataToSave.productLine;
+      }
 
       if (editingUser) {
         await updateDoc(doc(db, 'users', editingUser.id), dataToSave);
@@ -356,7 +374,9 @@ const Usuarios: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2">
-                    {productLineLabels[user.productLine]}
+                    {user.productLine ? productLineLabels[user.productLine] : (
+                      <span style={{ color: '#999', fontStyle: 'italic' }}>N/A (Admin)</span>
+                    )}
                   </Typography>
                 </TableCell>
                 <TableCell>{getManagerName(user.managerId)}</TableCell>
@@ -459,22 +479,25 @@ const Usuarios: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Línea de Producto</InputLabel>
-                  <Select
-                    value={formData.productLine}
-                    onChange={(e) => handleInputChange('productLine', e.target.value)}
-                    label="Línea de Producto"
-                  >
-                    {Object.entries(productLineLabels).map(([key, label]) => (
-                      <MenuItem key={key} value={key}>
-                        {label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+              {/* Solo mostrar Línea de Producto si el rol NO es ADMIN ni SUPER_ADMIN */}
+              {formData.role !== 'ADMIN' && formData.role !== 'SUPER_ADMIN' && (
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Línea de Producto</InputLabel>
+                    <Select
+                      value={formData.productLine || ''}
+                      onChange={(e) => handleInputChange('productLine', e.target.value)}
+                      label="Línea de Producto"
+                    >
+                      {Object.entries(productLineLabels).map(([key, label]) => (
+                        <MenuItem key={key} value={key}>
+                          {label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              )}
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Gerente/Supervisor</InputLabel>

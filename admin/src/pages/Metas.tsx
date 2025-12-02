@@ -31,8 +31,9 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import {
   collection,
   getDocs,
@@ -44,26 +45,53 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-// Tipos de metas
-type MetaPeriodo = 'SEMANAL' | 'MENSUAL' | 'TRIMESTRAL';
+// ==================== INTERFACES DEL SCORECARD ====================
 
-type MetaTipo = 'GLOBAL' | 'INDIVIDUAL' | 'EQUIPO';
+// Tipos de métricas del Scorecard
+type MetricaScorecard = 'CAC' | 'CALIDAD' | 'NIM' | 'CRECIMIENTO';
 
-// Categorías de bonos
-type CategoriaBono = 'CAC_A' | 'CAC_B' | 'CAC_C';
+// Categorías de métricas (pueden ser letras o números)
+type CategoriaMetrica = 'A' | 'B' | 'C' | '1' | '2' | '3';
 
-interface ConfiguracionBono {
+// Configuración de rangos para cada métrica
+interface RangoMetrica {
+  categoria: CategoriaMetrica;
+  min: number;
+  max: number;
+  puntaje: number;
+}
+
+// Configuración completa de una métrica del Scorecard
+interface ConfiguracionMetrica {
   id: string;
-  categoria: CategoriaBono;
+  metrica: MetricaScorecard;
   nombre: string;
-  colocacionMinima: number; // en centavos
-  colocacionMaxima: number; // en centavos
-  montoBono: number; // en centavos
-  llamadasMinimas: number;
-  tasaCierreMinima: number; // porcentaje
+  descripcion: string;
+  pesoMaximo: number; // Puntos máximos que puede otorgar esta métrica
+  rangos: RangoMetrica[];
   activo: boolean;
   orden: number;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
+
+// Configuración del multiplicador de bonos
+interface ConfiguracionMultiplicador {
+  id: string;
+  puntajeMin: number;
+  puntajeMax: number;
+  multiplicador: number; // Ej: 0.5 para 0.5X, 1.0 para 1.0X
+  baseSalarial: number; // Base en centavos
+  descripcion: string;
+  activo: boolean;
+  orden: number;
+  createdAt?: Timestamp;
+}
+
+// ==================== INTERFACES DE METAS ====================
+
+type MetaPeriodo = 'SEMANAL' | 'MENSUAL' | 'TRIMESTRAL';
+type MetaTipo = 'GLOBAL' | 'INDIVIDUAL' | 'EQUIPO';
 
 interface Meta {
   id: string;
@@ -78,8 +106,8 @@ interface Meta {
   tasaCierreObjetivo: number; // porcentaje
 
   // Asignación
-  userId?: string; // Para metas individuales
-  teamId?: string; // Para metas de equipo
+  userId?: string;
+  teamId?: string;
 
   // Fechas
   fechaInicio: Timestamp;
@@ -89,6 +117,8 @@ interface Meta {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
+// ==================== LABELS Y CONSTANTES ====================
 
 const periodoLabels: Record<MetaPeriodo, string> = {
   'SEMANAL': 'Semanal',
@@ -102,27 +132,41 @@ const tipoLabels: Record<MetaTipo, string> = {
   'EQUIPO': 'Por Equipo'
 };
 
-const categoriaBonoLabels: Record<CategoriaBono, string> = {
-  'CAC_A': 'CAC A - Premium',
-  'CAC_B': 'CAC B - Estándar',
-  'CAC_C': 'CAC C - Básico'
+const metricaLabels: Record<MetricaScorecard, string> = {
+  'CAC': 'CAC (Costo de Adquisición)',
+  'CALIDAD': 'Calidad de Cartera',
+  'NIM': 'NIM (Net Interest Margin)',
+  'CRECIMIENTO': 'Crecimiento de Portafolio'
+};
+
+const metricaDescripciones: Record<MetricaScorecard, string> = {
+  'CAC': 'Costo Operativo / Venta Mensual',
+  'CALIDAD': 'Calificación entre los clientes que hacen sus primeros pagos y los clientes que no pagan',
+  'NIM': 'Pagos hechos por los clientes menos el costo de fondeo y las pérdidas de crédito',
+  'CRECIMIENTO': 'Crecimiento del portafolio contra el mes anterior'
 };
 
 const Metas: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
 
-  // Metas
+  // Estados para Metas
   const [metas, setMetas] = useState<Meta[]>([]);
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
 
-  // Bonos
-  const [bonos, setBonos] = useState<ConfiguracionBono[]>([]);
-  const [bonoDialogOpen, setBonoDialogOpen] = useState(false);
-  const [editingBono, setEditingBono] = useState<ConfiguracionBono | null>(null);
+  // Estados para Configuración de Métricas del Scorecard
+  const [metricas, setMetricas] = useState<ConfiguracionMetrica[]>([]);
+  const [metricaDialogOpen, setMetricaDialogOpen] = useState(false);
+  const [editingMetrica, setEditingMetrica] = useState<ConfiguracionMetrica | null>(null);
+
+  // Estados para Multiplicadores de Bonos
+  const [multiplicadores, setMultiplicadores] = useState<ConfiguracionMultiplicador[]>([]);
+  const [multiplicadorDialogOpen, setMultiplicadorDialogOpen] = useState(false);
+  const [editingMultiplicador, setEditingMultiplicador] = useState<ConfiguracionMultiplicador | null>(null);
 
   const [error, setError] = useState<string>('');
 
+  // Form Data para Metas
   const [metaFormData, setMetaFormData] = useState<Omit<Meta, 'id'>>({
     nombre: '',
     descripcion: '',
@@ -136,22 +180,35 @@ const Metas: React.FC = () => {
     activo: true
   });
 
-  const [bonoFormData, setBonoFormData] = useState<Omit<ConfiguracionBono, 'id'>>({
-    categoria: 'CAC_C',
+  // Form Data para Métrica
+  const [metricaFormData, setMetricaFormData] = useState<Omit<ConfiguracionMetrica, 'id'>>({
+    metrica: 'CAC',
     nombre: '',
-    colocacionMinima: 0,
-    colocacionMaxima: 15000000,
-    montoBono: 250000, // $2,500
-    llamadasMinimas: 50,
-    tasaCierreMinima: 20,
+    descripcion: '',
+    pesoMaximo: 25,
+    rangos: [],
+    activo: true,
+    orden: 1
+  });
+
+  // Form Data para Multiplicador
+  const [multiplicadorFormData, setMultiplicadorFormData] = useState<Omit<ConfiguracionMultiplicador, 'id'>>({
+    puntajeMin: 0,
+    puntajeMax: 25,
+    multiplicador: 0.25,
+    baseSalarial: 1353600, // $13,536 base
+    descripcion: '',
     activo: true,
     orden: 1
   });
 
   useEffect(() => {
     fetchMetas();
-    fetchBonos();
+    fetchMetricas();
+    fetchMultiplicadores();
   }, []);
+
+  // ==================== FETCH FUNCTIONS ====================
 
   const fetchMetas = async () => {
     try {
@@ -167,21 +224,36 @@ const Metas: React.FC = () => {
     }
   };
 
-  const fetchBonos = async () => {
+  const fetchMetricas = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'configuracion_bonos'));
-      const bonosData: ConfiguracionBono[] = [];
+      const querySnapshot = await getDocs(collection(db, 'scorecard_metricas'));
+      const metricasData: ConfiguracionMetrica[] = [];
       querySnapshot.forEach((doc) => {
-        bonosData.push({ id: doc.id, ...doc.data() } as ConfiguracionBono);
+        metricasData.push({ id: doc.id, ...doc.data() } as ConfiguracionMetrica);
       });
-      setBonos(bonosData.sort((a, b) => a.orden - b.orden));
+      setMetricas(metricasData.sort((a, b) => a.orden - b.orden));
     } catch (err) {
-      setError('Error al cargar configuración de bonos');
+      setError('Error al cargar métricas del scorecard');
       console.error(err);
     }
   };
 
-  // Handlers para Metas
+  const fetchMultiplicadores = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'scorecard_multiplicadores'));
+      const multiplicadoresData: ConfiguracionMultiplicador[] = [];
+      querySnapshot.forEach((doc) => {
+        multiplicadoresData.push({ id: doc.id, ...doc.data() } as ConfiguracionMultiplicador);
+      });
+      setMultiplicadores(multiplicadoresData.sort((a, b) => a.orden - b.orden));
+    } catch (err) {
+      setError('Error al cargar multiplicadores');
+      console.error(err);
+    }
+  };
+
+  // ==================== HANDLERS PARA METAS ====================
+
   const handleOpenMetaDialog = (meta?: Meta) => {
     if (meta) {
       setEditingMeta(meta);
@@ -268,87 +340,166 @@ const Metas: React.FC = () => {
     }
   };
 
-  // Handlers para Bonos
-  const handleOpenBonoDialog = (bono?: ConfiguracionBono) => {
-    if (bono) {
-      setEditingBono(bono);
-      setBonoFormData({
-        categoria: bono.categoria,
-        nombre: bono.nombre,
-        colocacionMinima: bono.colocacionMinima,
-        colocacionMaxima: bono.colocacionMaxima,
-        montoBono: bono.montoBono,
-        llamadasMinimas: bono.llamadasMinimas,
-        tasaCierreMinima: bono.tasaCierreMinima,
-        activo: bono.activo,
-        orden: bono.orden
+  // ==================== HANDLERS PARA MÉTRICAS ====================
+
+  const handleOpenMetricaDialog = (metrica?: ConfiguracionMetrica) => {
+    if (metrica) {
+      setEditingMetrica(metrica);
+      setMetricaFormData({
+        metrica: metrica.metrica,
+        nombre: metrica.nombre,
+        descripcion: metrica.descripcion,
+        pesoMaximo: metrica.pesoMaximo,
+        rangos: metrica.rangos,
+        activo: metrica.activo,
+        orden: metrica.orden
       });
     } else {
-      setEditingBono(null);
-      setBonoFormData({
-        categoria: 'CAC_C',
+      setEditingMetrica(null);
+      setMetricaFormData({
+        metrica: 'CAC',
         nombre: '',
-        colocacionMinima: 0,
-        colocacionMaxima: 15000000,
-        montoBono: 250000,
-        llamadasMinimas: 50,
-        tasaCierreMinima: 20,
+        descripcion: '',
+        pesoMaximo: 25,
+        rangos: [],
         activo: true,
-        orden: bonos.length + 1
+        orden: metricas.length + 1
       });
     }
-    setBonoDialogOpen(true);
+    setMetricaDialogOpen(true);
   };
 
-  const handleCloseBonoDialog = () => {
-    setBonoDialogOpen(false);
-    setEditingBono(null);
+  const handleCloseMetricaDialog = () => {
+    setMetricaDialogOpen(false);
+    setEditingMetrica(null);
     setError('');
   };
 
-  const handleBonoInputChange = (field: keyof typeof bonoFormData, value: any) => {
-    setBonoFormData({ ...bonoFormData, [field]: value });
+  const handleMetricaInputChange = (field: keyof typeof metricaFormData, value: any) => {
+    setMetricaFormData({ ...metricaFormData, [field]: value });
   };
 
-  const handleSubmitBono = async () => {
+  const handleSubmitMetrica = async () => {
     try {
       setError('');
 
-      if (!bonoFormData.nombre) {
-        setError('El nombre del bono es obligatorio');
+      if (!metricaFormData.nombre) {
+        setError('El nombre de la métrica es obligatorio');
         return;
       }
 
-      if (bonoFormData.colocacionMinima >= bonoFormData.colocacionMaxima) {
-        setError('La colocación mínima debe ser menor a la máxima');
-        return;
-      }
+      const dataToSave = {
+        ...metricaFormData,
+        updatedAt: Timestamp.now(),
+        ...(editingMetrica ? {} : { createdAt: Timestamp.now() })
+      };
 
-      if (editingBono) {
-        await updateDoc(doc(db, 'configuracion_bonos', editingBono.id), bonoFormData);
+      if (editingMetrica) {
+        await updateDoc(doc(db, 'scorecard_metricas', editingMetrica.id), dataToSave);
       } else {
-        await addDoc(collection(db, 'configuracion_bonos'), bonoFormData);
+        await addDoc(collection(db, 'scorecard_metricas'), dataToSave);
       }
 
-      await fetchBonos();
-      handleCloseBonoDialog();
+      await fetchMetricas();
+      handleCloseMetricaDialog();
     } catch (err) {
-      setError('Error al guardar el bono');
+      setError('Error al guardar la métrica');
       console.error(err);
     }
   };
 
-  const handleDeleteBono = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar esta configuración de bono?')) {
+  const handleDeleteMetrica = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar esta métrica?')) {
       try {
-        await deleteDoc(doc(db, 'configuracion_bonos', id));
-        await fetchBonos();
+        await deleteDoc(doc(db, 'scorecard_metricas', id));
+        await fetchMetricas();
       } catch (err) {
-        setError('Error al eliminar el bono');
+        setError('Error al eliminar la métrica');
         console.error(err);
       }
     }
   };
+
+  // ==================== HANDLERS PARA MULTIPLICADORES ====================
+
+  const handleOpenMultiplicadorDialog = (multiplicador?: ConfiguracionMultiplicador) => {
+    if (multiplicador) {
+      setEditingMultiplicador(multiplicador);
+      setMultiplicadorFormData({
+        puntajeMin: multiplicador.puntajeMin,
+        puntajeMax: multiplicador.puntajeMax,
+        multiplicador: multiplicador.multiplicador,
+        baseSalarial: multiplicador.baseSalarial,
+        descripcion: multiplicador.descripcion,
+        activo: multiplicador.activo,
+        orden: multiplicador.orden
+      });
+    } else {
+      setEditingMultiplicador(null);
+      setMultiplicadorFormData({
+        puntajeMin: 0,
+        puntajeMax: 25,
+        multiplicador: 0.25,
+        baseSalarial: 1353600,
+        descripcion: '',
+        activo: true,
+        orden: multiplicadores.length + 1
+      });
+    }
+    setMultiplicadorDialogOpen(true);
+  };
+
+  const handleCloseMultiplicadorDialog = () => {
+    setMultiplicadorDialogOpen(false);
+    setEditingMultiplicador(null);
+    setError('');
+  };
+
+  const handleMultiplicadorInputChange = (field: keyof typeof multiplicadorFormData, value: any) => {
+    setMultiplicadorFormData({ ...multiplicadorFormData, [field]: value });
+  };
+
+  const handleSubmitMultiplicador = async () => {
+    try {
+      setError('');
+
+      if (multiplicadorFormData.puntajeMin >= multiplicadorFormData.puntajeMax) {
+        setError('El puntaje mínimo debe ser menor al máximo');
+        return;
+      }
+
+      const dataToSave = {
+        ...multiplicadorFormData,
+        ...(editingMultiplicador ? {} : { createdAt: Timestamp.now() })
+      };
+
+      if (editingMultiplicador) {
+        await updateDoc(doc(db, 'scorecard_multiplicadores', editingMultiplicador.id), dataToSave);
+      } else {
+        await addDoc(collection(db, 'scorecard_multiplicadores'), dataToSave);
+      }
+
+      await fetchMultiplicadores();
+      handleCloseMultiplicadorDialog();
+    } catch (err) {
+      setError('Error al guardar el multiplicador');
+      console.error(err);
+    }
+  };
+
+  const handleDeleteMultiplicador = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar este multiplicador?')) {
+      try {
+        await deleteDoc(doc(db, 'scorecard_multiplicadores', id));
+        await fetchMultiplicadores();
+      } catch (err) {
+        setError('Error al eliminar el multiplicador');
+        console.error(err);
+      }
+    }
+  };
+
+  // ==================== UTILITY FUNCTIONS ====================
 
   const formatCurrency = (centavos: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -365,29 +516,30 @@ const Metas: React.FC = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h4">Metas Comerciales</Typography>
+          <Typography variant="h4">Metas y Scorecard</Typography>
           <Typography variant="body2" color="text.secondary" mt={1}>
-            Configura metas y bonos para los promotores
+            Configura metas, métricas del scorecard y bonos para los promotores
           </Typography>
         </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        <strong>Actualmente en MetasBonoFragment.kt:</strong> Los valores están hardcodeados (líneas 48-83).
-        <br />
-        <strong>Para aplicar:</strong> Modificar la app para que lea de Firestore estas configuraciones.
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <strong>Sistema de Scorecard de Incentivos:</strong> Configuración de las 4 métricas (CAC, CALIDAD, NIM, CRECIMIENTO)
+        que determinan el multiplicador de bonos. Los datos se leen desde Firestore colecciones:
+        <strong> scorecard_metricas</strong> y <strong>scorecard_multiplicadores</strong>.
       </Alert>
 
       <Paper sx={{ mb: 3 }}>
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
           <Tab label="Metas" icon={<TrendingUpIcon />} iconPosition="start" />
-          <Tab label="Configuración de Bonos" icon={<EmojiEventsIcon />} iconPosition="start" />
+          <Tab label="Métricas Scorecard" icon={<AssessmentIcon />} iconPosition="start" />
+          <Tab label="Multiplicadores de Bono" icon={<MonetizationOnIcon />} iconPosition="start" />
         </Tabs>
       </Paper>
 
-      {/* TAB 1: METAS */}
+      {/* ==================== TAB 1: METAS ==================== */}
       {tabValue === 0 && (
         <Box>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -501,74 +653,81 @@ const Metas: React.FC = () => {
         </Box>
       )}
 
-      {/* TAB 2: BONOS */}
+      {/* ==================== TAB 2: MÉTRICAS SCORECARD ==================== */}
       {tabValue === 1 && (
         <Box>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Configuración de Bonos (CAC)</Typography>
+            <Typography variant="h6">Configuración de Métricas del Scorecard</Typography>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => handleOpenBonoDialog()}
+              onClick={() => handleOpenMetricaDialog()}
             >
-              Nuevo Bono
+              Nueva Métrica
             </Button>
           </Box>
 
           <Alert severity="info" sx={{ mb: 2 }}>
-            Los bonos se calculan según la categoría CAC (Colocación, Asistencia, Cierre) alcanzada por el promotor.
+            El Scorecard se compone de 4 métricas principales: <strong>CAC</strong> (Costo de Adquisición),
+            <strong> CALIDAD</strong> (Calidad de Cartera), <strong> NIM</strong> (Net Interest Margin), y
+            <strong> CRECIMIENTO</strong> (Crecimiento de Portafolio). Cada métrica otorga puntos según rangos configurables.
           </Alert>
 
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Categoría</TableCell>
+                  <TableCell>Métrica</TableCell>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Rango de Colocación</TableCell>
-                  <TableCell>Monto del Bono</TableCell>
-                  <TableCell>Llamadas Mín.</TableCell>
-                  <TableCell>Tasa Cierre Mín.</TableCell>
+                  <TableCell>Descripción</TableCell>
+                  <TableCell>Peso Máximo</TableCell>
+                  <TableCell>Rangos</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell align="right">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {bonos.map((bono) => (
-                  <TableRow key={bono.id}>
+                {metricas.map((metrica) => (
+                  <TableRow key={metrica.id}>
                     <TableCell>
                       <Chip
-                        label={categoriaBonoLabels[bono.categoria]}
+                        label={metrica.metrica}
+                        color="primary"
                         size="small"
-                        color={
-                          bono.categoria === 'CAC_A' ? 'success' :
-                          bono.categoria === 'CAC_B' ? 'primary' : 'default'
-                        }
                       />
                     </TableCell>
-                    <TableCell>{bono.nombre}</TableCell>
                     <TableCell>
-                      {formatCurrency(bono.colocacionMinima)} - {formatCurrency(bono.colocacionMaxima)}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body1" fontWeight="bold" color="success.main">
-                        {formatCurrency(bono.montoBono)}
+                      <Typography variant="body2" fontWeight="bold">
+                        {metrica.nombre}
                       </Typography>
                     </TableCell>
-                    <TableCell>{bono.llamadasMinimas}</TableCell>
-                    <TableCell>{bono.tasaCierreMinima}%</TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {metrica.descripcion}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold">
+                        {metrica.pesoMaximo} pts
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption">
+                        {metrica.rangos.length} rangos configurados
+                      </Typography>
+                    </TableCell>
                     <TableCell>
                       <Chip
-                        label={bono.activo ? 'Activo' : 'Inactivo'}
-                        color={bono.activo ? 'success' : 'default'}
+                        label={metrica.activo ? 'Activa' : 'Inactiva'}
+                        color={metrica.activo ? 'success' : 'default'}
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" onClick={() => handleOpenBonoDialog(bono)}>
+                      <IconButton size="small" onClick={() => handleOpenMetricaDialog(metrica)}>
                         <EditIcon />
                       </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDeleteBono(bono.id)}>
+                      <IconButton size="small" color="error" onClick={() => handleDeleteMetrica(metrica.id)}>
                         <DeleteIcon />
                       </IconButton>
                     </TableCell>
@@ -580,7 +739,91 @@ const Metas: React.FC = () => {
         </Box>
       )}
 
-      {/* DIALOG: CREAR/EDITAR META */}
+      {/* ==================== TAB 3: MULTIPLICADORES ==================== */}
+      {tabValue === 2 && (
+        <Box>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">Multiplicadores de Bono</Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenMultiplicadorDialog()}
+            >
+              Nuevo Multiplicador
+            </Button>
+          </Box>
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Los multiplicadores determinan el bono final según el puntaje total del Scorecard.
+            <strong> Ganancia Mensual = Base Salarial × Multiplicador</strong>. El puntaje total se obtiene
+            sumando los puntos de las 4 métricas configuradas.
+          </Alert>
+
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Rango de Puntaje</TableCell>
+                  <TableCell>Multiplicador</TableCell>
+                  <TableCell>Base Salarial</TableCell>
+                  <TableCell>Ganancia Estimada</TableCell>
+                  <TableCell>Descripción</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell align="right">Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {multiplicadores.map((mult) => (
+                  <TableRow key={mult.id}>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold">
+                        {mult.puntajeMin} - {mult.puntajeMax} pts
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={`${mult.multiplicador}X`}
+                        color="secondary"
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(mult.baseSalarial)}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold" color="success.main">
+                        {formatCurrency(Math.round(mult.baseSalarial * mult.multiplicador))}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {mult.descripcion}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={mult.activo ? 'Activo' : 'Inactivo'}
+                        color={mult.activo ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => handleOpenMultiplicadorDialog(mult)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDeleteMultiplicador(mult.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
+
+      {/* ==================== DIALOG: CREAR/EDITAR META ==================== */}
       <Dialog open={metaDialogOpen} onClose={handleCloseMetaDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {editingMeta ? 'Editar Meta' : 'Nueva Meta'}
@@ -595,7 +838,7 @@ const Metas: React.FC = () => {
                   required
                   value={metaFormData.nombre}
                   onChange={(e) => handleMetaInputChange('nombre', e.target.value)}
-                  placeholder="Ej: Meta Semanal Julio 2024"
+                  placeholder="Ej: Meta Semanal Octubre 2025"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -684,23 +927,27 @@ const Metas: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* DIALOG: CREAR/EDITAR BONO */}
-      <Dialog open={bonoDialogOpen} onClose={handleCloseBonoDialog} maxWidth="md" fullWidth>
+      {/* ==================== DIALOG: CREAR/EDITAR MÉTRICA ==================== */}
+      <Dialog open={metricaDialogOpen} onClose={handleCloseMetricaDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingBono ? 'Editar Configuración de Bono' : 'Nueva Configuración de Bono'}
+          {editingMetrica ? 'Editar Métrica del Scorecard' : 'Nueva Métrica del Scorecard'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required>
-                  <InputLabel>Categoría CAC</InputLabel>
+                  <InputLabel>Métrica</InputLabel>
                   <Select
-                    value={bonoFormData.categoria}
-                    onChange={(e) => handleBonoInputChange('categoria', e.target.value)}
-                    label="Categoría CAC"
+                    value={metricaFormData.metrica}
+                    onChange={(e) => {
+                      const metrica = e.target.value as MetricaScorecard;
+                      handleMetricaInputChange('metrica', metrica);
+                      handleMetricaInputChange('descripcion', metricaDescripciones[metrica]);
+                    }}
+                    label="Métrica"
                   >
-                    {Object.entries(categoriaBonoLabels).map(([key, label]) => (
+                    {Object.entries(metricaLabels).map(([key, label]) => (
                       <MenuItem key={key} value={key}>
                         {label}
                       </MenuItem>
@@ -710,75 +957,144 @@ const Metas: React.FC = () => {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Nombre del Bono"
+                  label="Nombre"
                   fullWidth
                   required
-                  value={bonoFormData.nombre}
-                  onChange={(e) => handleBonoInputChange('nombre', e.target.value)}
-                  placeholder="Ej: Bono CAC A - Premium"
+                  value={metricaFormData.nombre}
+                  onChange={(e) => handleMetricaInputChange('nombre', e.target.value)}
+                  placeholder="Ej: Costo de Adquisición"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Descripción"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={metricaFormData.descripcion}
+                  onChange={(e) => handleMetricaInputChange('descripcion', e.target.value)}
+                  placeholder="Descripción de cómo se calcula la métrica"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Colocación Mínima (MXN)"
+                  label="Peso Máximo (Puntos)"
                   type="number"
                   fullWidth
                   required
-                  value={bonoFormData.colocacionMinima / 100}
-                  onChange={(e) => handleBonoInputChange('colocacionMinima', parseFloat(e.target.value) * 100)}
-                  helperText={formatCurrency(bonoFormData.colocacionMinima)}
+                  value={metricaFormData.pesoMaximo}
+                  onChange={(e) => handleMetricaInputChange('pesoMaximo', parseInt(e.target.value))}
+                  helperText="Puntos máximos que puede otorgar esta métrica"
+                  inputProps={{ min: 1, max: 100 }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Colocación Máxima (MXN)"
+                  label="Orden"
                   type="number"
                   fullWidth
                   required
-                  value={bonoFormData.colocacionMaxima / 100}
-                  onChange={(e) => handleBonoInputChange('colocacionMaxima', parseFloat(e.target.value) * 100)}
-                  helperText={formatCurrency(bonoFormData.colocacionMaxima)}
+                  value={metricaFormData.orden}
+                  onChange={(e) => handleMetricaInputChange('orden', parseInt(e.target.value))}
+                  helperText="Orden de visualización en el scorecard"
+                  inputProps={{ min: 1 }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+            </Grid>
+
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <strong>Nota:</strong> La configuración de rangos (categorías A, B, C, etc.) se implementará
+              en una futura actualización. Por ahora, usa los rangos predefinidos en la app.
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseMetricaDialog}>Cancelar</Button>
+          <Button onClick={handleSubmitMetrica} variant="contained">
+            {editingMetrica ? 'Actualizar' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== DIALOG: CREAR/EDITAR MULTIPLICADOR ==================== */}
+      <Dialog open={multiplicadorDialogOpen} onClose={handleCloseMultiplicadorDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingMultiplicador ? 'Editar Multiplicador' : 'Nuevo Multiplicador'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
                 <TextField
-                  label="Monto del Bono (MXN)"
+                  label="Puntaje Mínimo"
                   type="number"
                   fullWidth
                   required
-                  value={bonoFormData.montoBono / 100}
-                  onChange={(e) => handleBonoInputChange('montoBono', parseFloat(e.target.value) * 100)}
-                  helperText={formatCurrency(bonoFormData.montoBono)}
+                  value={multiplicadorFormData.puntajeMin}
+                  onChange={(e) => handleMultiplicadorInputChange('puntajeMin', parseInt(e.target.value))}
+                  inputProps={{ min: 0, max: 100 }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <TextField
-                  label="Llamadas Mínimas"
+                  label="Puntaje Máximo"
                   type="number"
                   fullWidth
                   required
-                  value={bonoFormData.llamadasMinimas}
-                  onChange={(e) => handleBonoInputChange('llamadasMinimas', parseInt(e.target.value))}
+                  value={multiplicadorFormData.puntajeMax}
+                  onChange={(e) => handleMultiplicadorInputChange('puntajeMax', parseInt(e.target.value))}
+                  inputProps={{ min: 0, max: 100 }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <TextField
-                  label="Tasa de Cierre Mínima (%)"
+                  label="Multiplicador"
                   type="number"
                   fullWidth
                   required
-                  value={bonoFormData.tasaCierreMinima}
-                  onChange={(e) => handleBonoInputChange('tasaCierreMinima', parseFloat(e.target.value))}
-                  inputProps={{ min: 0, max: 100, step: 0.1 }}
+                  value={multiplicadorFormData.multiplicador}
+                  onChange={(e) => handleMultiplicadorInputChange('multiplicador', parseFloat(e.target.value))}
+                  helperText={`Multiplicador: ${multiplicadorFormData.multiplicador}X`}
+                  inputProps={{ min: 0, max: 5, step: 0.1 }}
                 />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Base Salarial (MXN)"
+                  type="number"
+                  fullWidth
+                  required
+                  value={multiplicadorFormData.baseSalarial / 100}
+                  onChange={(e) => handleMultiplicadorInputChange('baseSalarial', parseFloat(e.target.value) * 100)}
+                  helperText={formatCurrency(multiplicadorFormData.baseSalarial)}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Descripción"
+                  fullWidth
+                  value={multiplicadorFormData.descripcion}
+                  onChange={(e) => handleMultiplicadorInputChange('descripcion', e.target.value)}
+                  placeholder="Ej: Multiplicador para puntaje bajo"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Alert severity="info">
+                  <strong>Ganancia Estimada:</strong> {formatCurrency(Math.round(multiplicadorFormData.baseSalarial * multiplicadorFormData.multiplicador))}
+                  <br />
+                  <Typography variant="caption">
+                    (Base {formatCurrency(multiplicadorFormData.baseSalarial)} × {multiplicadorFormData.multiplicador}X)
+                  </Typography>
+                </Alert>
               </Grid>
             </Grid>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseBonoDialog}>Cancelar</Button>
-          <Button onClick={handleSubmitBono} variant="contained">
-            {editingBono ? 'Actualizar' : 'Crear'}
+          <Button onClick={handleCloseMultiplicadorDialog}>Cancelar</Button>
+          <Button onClick={handleSubmitMultiplicador} variant="contained">
+            {editingMultiplicador ? 'Actualizar' : 'Crear'}
           </Button>
         </DialogActions>
       </Dialog>
