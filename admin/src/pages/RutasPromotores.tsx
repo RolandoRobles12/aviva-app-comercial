@@ -20,23 +20,17 @@ import {
   ListItemIcon,
   Tooltip,
   Collapse,
-  alpha,
-  useTheme,
   ListItemButton
 } from '@mui/material';
 import {
   Route as RouteIcon,
-  Person as PersonIcon,
-  Today as TodayIcon,
   Place as PlaceIcon,
   Storefront as StorefrontIcon,
   Refresh as RefreshIcon,
   MyLocation as MyLocationIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
-  CheckCircle,
-  Warning,
-  Info as InfoIcon
+  Warning
 } from '@mui/icons-material';
 import RouteIcon from '@mui/icons-material/Route';
 import PersonIcon from '@mui/icons-material/Person';
@@ -92,7 +86,6 @@ interface LongStop {
 type QuickFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
 const RutasPromotores: React.FC = () => {
-  const theme = useTheme();
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES
