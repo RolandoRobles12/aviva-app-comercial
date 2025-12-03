@@ -32,12 +32,6 @@ import {
   VisibilityOff as VisibilityOffIcon,
   Warning
 } from '@mui/icons-material';
-import RouteIcon from '@mui/icons-material/Route';
-import PersonIcon from '@mui/icons-material/Person';
-import TodayIcon from '@mui/icons-material/Today';
-import PlaceIcon from '@mui/icons-material/Place';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
 import { GoogleMap, useLoadScript, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import {
   collection,
@@ -75,6 +69,18 @@ interface LocationPoint {
   userId: string;
 }
 
+interface KioskVisit {
+  id: string;
+  userId: string;
+  userName: string;
+  kioskName: string;
+  checkInTime: Timestamp;
+  checkOutTime?: Timestamp;
+  durationMinutes?: number;
+  checkInLocation: GeoPoint;
+  status: string;
+}
+
 interface LongStop {
   id: string;
   userId: string;
@@ -97,11 +103,13 @@ const RutasPromotores: React.FC = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [locationPoints, setLocationPoints] = useState<LocationPoint[]>([]);
+  const [kioskVisits, setKioskVisits] = useState<KioskVisit[]>([]);
   const [longStops, setLongStops] = useState<LongStop[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<LocationPoint | null>(null);
+  const [selectedVisit, setSelectedVisit] = useState<KioskVisit | null>(null);
   const [selectedLongStop, setSelectedLongStop] = useState<LongStop | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -196,8 +204,10 @@ const RutasPromotores: React.FC = () => {
     setLoading(true);
     setError(null);
     setLocationPoints([]);
+    setKioskVisits([]);
     setLongStops([]);
     setSelectedPoint(null);
+    setSelectedVisit(null);
     setSelectedLongStop(null);
 
     try {
@@ -207,9 +217,10 @@ const RutasPromotores: React.FC = () => {
       const endTimestamp = Timestamp.fromDate(endDateObj);
 
       const allPoints: LocationPoint[] = [];
+      const allVisits: KioskVisit[] = [];
 
       for (const userId of selectedUserIds) {
-        // Cargar ubicaciones SOLO de 'locations' que YA EXISTE
+        // Cargar ubicaciones de la colección 'locations' que YA EXISTE
         const locQuery = query(
           collection(db, 'locations'),
           where('userId', '==', userId),
@@ -230,6 +241,31 @@ const RutasPromotores: React.FC = () => {
           };
         });
         allPoints.push(...userPoints);
+
+        // Cargar visitas a kioscos de la colección 'kioskVisits' que YA EXISTE
+        const visitsQuery = query(
+          collection(db, 'kioskVisits'),
+          where('userId', '==', userId),
+          where('checkInTime', '>=', startTimestamp),
+          where('checkInTime', '<=', endTimestamp)
+        );
+
+        const visitsSnapshot = await getDocs(visitsQuery);
+        const userVisits: KioskVisit[] = visitsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId,
+            userName: data.userName,
+            kioskName: data.kioskName,
+            checkInTime: data.checkInTime,
+            checkOutTime: data.checkOutTime,
+            durationMinutes: data.durationMinutes,
+            checkInLocation: data.checkInLocation,
+            status: data.status
+          };
+        });
+        allVisits.push(...userVisits);
       }
 
       allPoints.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
@@ -238,14 +274,14 @@ const RutasPromotores: React.FC = () => {
       const detectedLongStops = detectLongStops(allPoints);
 
       setLocationPoints(allPoints);
+      setKioskVisits(allVisits);
       setLongStops(detectedLongStops);
 
       // Ajustar vista del mapa a las rutas cargadas
       if (mapRef && (allPoints.length > 0 || allVisits.length > 0 || detectedLongStops.length > 0)) {
-      // Ajustar mapa
-      if (mapRef && (allPoints.length > 0 || detectedLongStops.length > 0)) {
         const bounds = new google.maps.LatLngBounds();
         allPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
+        allVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
         detectedLongStops.forEach(s => bounds.extend({ lat: s.location.latitude, lng: s.location.longitude }));
 
         // Ajustar el mapa con padding para mejor visualización
@@ -261,13 +297,12 @@ const RutasPromotores: React.FC = () => {
         setError(`No se encontraron datos de ubicación para ${selectedUserIds.length > 1 ? 'los promotores seleccionados' : 'el promotor seleccionado'} en el periodo del ${startDate} al ${endDate}.`);
       } else {
         console.log(`✅ Rutas cargadas: ${allPoints.length} puntos, ${allVisits.length} visitas, ${detectedLongStops.length} paradas largas`);
-      if (allPoints.length === 0) {
-        setError('No se encontraron datos para los promotores en este periodo');
       }
     } catch (err: any) {
       console.error('Error loading route:', err);
       setError(err.message || 'Error al cargar las rutas');
       setLocationPoints([]);
+      setKioskVisits([]);
       setLongStops([]);
     } finally {
       setLoading(false);
@@ -405,7 +440,7 @@ const RutasPromotores: React.FC = () => {
     return acc;
   }, {} as Record<string, LocationPoint[]>);
 
-  const hasData = locationPoints.length > 0 || longStops.length > 0;
+  const hasData = locationPoints.length > 0 || kioskVisits.length > 0 || longStops.length > 0;
 
   return (
     <Box sx={{
@@ -744,13 +779,6 @@ const RutasPromotores: React.FC = () => {
               </Typography>
             </Stack>
           </Box>
-        {/* Stats */}
-        {hasData && (
-          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-            <Chip icon={<PersonIcon />} label={`${selectedUserIds.length} promotores`} size="small" color="primary" variant="outlined" />
-            <Chip icon={<PlaceIcon />} label={`${locationPoints.length} puntos`} size="small" color="primary" variant="outlined" />
-            <Chip label={`${longStops.length} paradas largas`} size="small" color="warning" variant="outlined" />
-          </Stack>
         )}
 
         <GoogleMap
@@ -861,6 +889,7 @@ const RutasPromotores: React.FC = () => {
               onClick={() => {
                 setSelectedLongStop(stop);
                 setSelectedPoint(null);
+                setSelectedVisit(null);
               }}
             />
           ))}
@@ -879,6 +908,34 @@ const RutasPromotores: React.FC = () => {
                 {selectedPoint.accuracy && (
                   <Typography variant="body2"><strong>Precisión:</strong> ±{selectedPoint.accuracy.toFixed(0)}m</Typography>
                 )}
+              </Box>
+            </InfoWindow>
+          )}
+
+          {/* Info visitas kiosco */}
+          {selectedVisit && (
+            <InfoWindow
+              position={{ lat: selectedVisit.checkInLocation.latitude, lng: selectedVisit.checkInLocation.longitude }}
+              onCloseClick={() => setSelectedVisit(null)}
+            >
+              <Box sx={{ p: 1, minWidth: 200 }}>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>🏪 Visita a Kiosco</Typography>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="body2"><strong>Kiosco:</strong> {selectedVisit.kioskName}</Typography>
+                <Typography variant="body2"><strong>Promotor:</strong> {selectedVisit.userName}</Typography>
+                <Typography variant="body2"><strong>Entrada:</strong> {formatTime(selectedVisit.checkInTime)}</Typography>
+                {selectedVisit.checkOutTime && (
+                  <Typography variant="body2"><strong>Salida:</strong> {formatTime(selectedVisit.checkOutTime)}</Typography>
+                )}
+                {selectedVisit.durationMinutes && (
+                  <Typography variant="body2"><strong>Duración:</strong> {formatDuration(selectedVisit.durationMinutes)}</Typography>
+                )}
+                <Chip
+                  label={selectedVisit.status === 'COMPLETED' ? 'Completada' : 'Activa'}
+                  size="small"
+                  color="success"
+                  sx={{ mt: 1 }}
+                />
               </Box>
             </InfoWindow>
           )}
@@ -909,60 +966,6 @@ const RutasPromotores: React.FC = () => {
           )}
         </GoogleMap>
       </Box>
-
-      {/* Drawer lateral */}
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 350, p: 2 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="h6">Detalles</Typography>
-            <IconButton onClick={() => setDrawerOpen(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-          <Divider sx={{ mb: 2 }} />
-
-          {longStops.length > 0 && (
-            <>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                🛑 Paradas Largas ({longStops.length})
-              </Typography>
-              <List dense>
-                {longStops.map((stop) => (
-                  <ListItem
-                    key={stop.id}
-                    button
-                    onClick={() => {
-                      setSelectedLongStop(stop);
-                      setDrawerOpen(false);
-                      if (mapRef) {
-                        mapRef.panTo({ lat: stop.location.latitude, lng: stop.location.longitude });
-                        mapRef.setZoom(16);
-                      }
-                    }}
-                  >
-                    <ListItemIcon>
-                      <PlaceIcon color="warning" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={getUserName(stop.userId)}
-                      secondary={
-                        <>
-                          <Typography variant="caption" display="block">
-                            {formatTime(stop.startTime)}
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            ~{stop.durationMinutes} minutos
-                          </Typography>
-                        </>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </>
-          )}
-        </Box>
-      </Drawer>
     </Box>
   );
 };
