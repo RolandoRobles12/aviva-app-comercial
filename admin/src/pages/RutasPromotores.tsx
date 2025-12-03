@@ -13,15 +13,20 @@ import {
   Autocomplete,
   ToggleButtonGroup,
   ToggleButton,
-  Tooltip,
-  IconButton
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
 } from '@mui/material';
 import RouteIcon from '@mui/icons-material/Route';
 import PersonIcon from '@mui/icons-material/Person';
 import TodayIcon from '@mui/icons-material/Today';
 import PlaceIcon from '@mui/icons-material/Place';
 import StorefrontIcon from '@mui/icons-material/Storefront';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import { GoogleMap, useLoadScript, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import {
   collection,
@@ -56,13 +61,12 @@ interface KioskVisit {
   id: string;
   userId: string;
   userName: string;
-  kioskId: string;
   kioskName: string;
   checkInTime: Timestamp;
   checkOutTime?: Timestamp;
   durationMinutes?: number;
   checkInLocation: GeoPoint;
-  status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
+  status: string;
 }
 
 type QuickFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
@@ -85,6 +89,7 @@ const RutasPromotores: React.FC = () => {
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<LocationPoint | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<KioskVisit | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const getDateRangeForFilter = (filter: QuickFilter): { start: string; end: string } => {
     const now = new Date();
@@ -176,8 +181,6 @@ const RutasPromotores: React.FC = () => {
 
     setLoading(true);
     setError(null);
-
-    // LIMPIAR COMPLETAMENTE el estado anterior
     setLocationPoints([]);
     setKioskVisits([]);
     setSelectedPoint(null);
@@ -193,7 +196,7 @@ const RutasPromotores: React.FC = () => {
       const allVisits: KioskVisit[] = [];
 
       for (const userId of selectedUserIds) {
-        // Cargar ubicaciones
+        // Cargar ubicaciones de la colección 'locations' que YA EXISTE
         const locQuery = query(
           collection(db, 'locations'),
           where('userId', '==', userId),
@@ -208,14 +211,14 @@ const RutasPromotores: React.FC = () => {
           return {
             id: doc.id,
             timestamp: data.timestamp,
-            location: data.location || data.geoPoint,
+            location: data.location,
             accuracy: data.accuracy,
             userId: userId
           };
         });
         allPoints.push(...userPoints);
 
-        // Cargar visitas a kioscos
+        // Cargar visitas a kioscos de la colección 'kioskVisits' que YA EXISTE
         const visitsQuery = query(
           collection(db, 'kioskVisits'),
           where('userId', '==', userId),
@@ -230,7 +233,6 @@ const RutasPromotores: React.FC = () => {
             id: doc.id,
             userId: data.userId,
             userName: data.userName,
-            kioskId: data.kioskId,
             kioskName: data.kioskName,
             checkInTime: data.checkInTime,
             checkOutTime: data.checkOutTime,
@@ -244,23 +246,23 @@ const RutasPromotores: React.FC = () => {
 
       allPoints.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
 
-      if (allPoints.length === 0 && allVisits.length === 0) {
-        setError('No se encontraron datos para los promotores seleccionados en este periodo');
-      } else {
-        setLocationPoints(allPoints);
-        setKioskVisits(allVisits);
+      setLocationPoints(allPoints);
+      setKioskVisits(allVisits);
 
-        // Ajustar mapa
-        if (mapRef && (allPoints.length > 0 || allVisits.length > 0)) {
-          const bounds = new google.maps.LatLngBounds();
-          allPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
-          allVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
-          mapRef.fitBounds(bounds);
-        }
+      // Ajustar mapa
+      if (mapRef && (allPoints.length > 0 || allVisits.length > 0)) {
+        const bounds = new google.maps.LatLngBounds();
+        allPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
+        allVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
+        mapRef.fitBounds(bounds);
+      }
+
+      if (allPoints.length === 0 && allVisits.length === 0) {
+        setError('No se encontraron datos para los promotores en este periodo');
       }
     } catch (err: any) {
       console.error('Error loading route:', err);
-      setError(err.message || 'Error al cargar la ruta');
+      setError(err.message || 'Error al cargar las rutas');
       setLocationPoints([]);
       setKioskVisits([]);
     } finally {
@@ -322,30 +324,18 @@ const RutasPromotores: React.FC = () => {
   const hasData = locationPoints.length > 0 || kioskVisits.length > 0;
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Header compacto fijo */}
-      <Paper
-        elevation={2}
-        sx={{
-          p: 2,
-          borderRadius: 0,
-          borderBottom: 1,
-          borderColor: 'divider'
-        }}
-      >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <RouteIcon color="primary" />
-            <Typography variant="h5" fontWeight={600}>
-              Rutas de Promotores
-            </Typography>
-          </Stack>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header compacto */}
+      <Paper elevation={2} sx={{ p: 2, borderRadius: 0, zIndex: 1200 }}>
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+          <RouteIcon color="primary" />
+          <Typography variant="h5" fontWeight={600}>
+            Rutas de Promotores
+          </Typography>
           {hasData && (
-            <Tooltip title="Recargar">
-              <IconButton onClick={handleLoadRoute} disabled={loading}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
+            <IconButton size="small" onClick={() => setDrawerOpen(true)}>
+              <MenuIcon />
+            </IconButton>
           )}
         </Stack>
 
@@ -369,7 +359,7 @@ const RutasPromotores: React.FC = () => {
           <ToggleButton value="custom">Personalizado</ToggleButton>
         </ToggleButtonGroup>
 
-        {/* Filtros principales */}
+        {/* Controles */}
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
           <Autocomplete
             multiple
@@ -378,15 +368,6 @@ const RutasPromotores: React.FC = () => {
             value={users.filter(u => selectedUserIds.includes(u.id))}
             onChange={(_, newValue) => setSelectedUserIds(newValue.map(u => u.id))}
             getOptionLabel={(option) => option.displayName}
-            renderOption={(props, option) => (
-              <li {...props}>
-                <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-                {option.displayName}
-                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  ({option.email})
-                </Typography>
-              </li>
-            )}
             renderInput={(params) => <TextField {...params} label="Promotores" size="small" />}
             renderTags={(value, getTagProps) =>
               value.map((option, index) => (
@@ -444,36 +425,18 @@ const RutasPromotores: React.FC = () => {
           </Alert>
         )}
 
-        {/* Estadísticas compactas */}
+        {/* Stats */}
         {hasData && (
           <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-            <Chip
-              icon={<PersonIcon />}
-              label={`${selectedUserIds.length} promotor${selectedUserIds.length !== 1 ? 'es' : ''}`}
-              size="small"
-              color="primary"
-              variant="outlined"
-            />
-            <Chip
-              icon={<PlaceIcon />}
-              label={`${locationPoints.length} puntos`}
-              size="small"
-              color="primary"
-              variant="outlined"
-            />
-            <Chip
-              icon={<StorefrontIcon />}
-              label={`${kioskVisits.length} visita${kioskVisits.length !== 1 ? 's' : ''} a kioscos`}
-              size="small"
-              color="secondary"
-              variant="outlined"
-            />
+            <Chip icon={<PersonIcon />} label={`${selectedUserIds.length} promotores`} size="small" color="primary" variant="outlined" />
+            <Chip icon={<PlaceIcon />} label={`${locationPoints.length} puntos`} size="small" color="primary" variant="outlined" />
+            <Chip icon={<StorefrontIcon />} label={`${kioskVisits.length} paradas`} size="small" color="secondary" variant="outlined" />
           </Stack>
         )}
       </Paper>
 
-      {/* Mapa pantalla completa */}
-      <Box sx={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      {/* Mapa */}
+      <Box sx={{ flex: 1, position: 'relative' }}>
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={MAP_CENTER}
@@ -486,7 +449,7 @@ const RutasPromotores: React.FC = () => {
           }}
           onLoad={setMapRef}
         >
-          {/* Polylines por usuario */}
+          {/* Rutas por usuario */}
           {Object.entries(pointsByUser).map(([userId, points]) => {
             if (points.length < 2) return null;
             return (
@@ -496,9 +459,9 @@ const RutasPromotores: React.FC = () => {
                 options={{
                   strokeColor: getUserColor(userId),
                   strokeOpacity: 0.7,
-                  strokeWeight: 3,
+                  strokeWeight: 4,
                   icons: [{
-                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 2 },
+                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3 },
                     offset: '100%',
                     repeat: '100px'
                   }]
@@ -507,16 +470,16 @@ const RutasPromotores: React.FC = () => {
             );
           })}
 
-          {/* Marcadores de ubicación */}
+          {/* Puntos de ruta */}
           {locationPoints.map((point) => (
             <Marker
               key={point.id}
               position={{ lat: point.location.latitude, lng: point.location.longitude }}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 6,
+                scale: 5,
                 fillColor: getUserColor(point.userId),
-                fillOpacity: 0.8,
+                fillOpacity: 0.7,
                 strokeColor: 'white',
                 strokeWeight: 1.5
               }}
@@ -527,22 +490,22 @@ const RutasPromotores: React.FC = () => {
             />
           ))}
 
-          {/* Marcadores de visitas a kioscos */}
+          {/* Paradas largas (kioscos) */}
           {kioskVisits.map((visit) => (
             <Marker
               key={visit.id}
               position={{ lat: visit.checkInLocation.latitude, lng: visit.checkInLocation.longitude }}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 12,
-                fillColor: visit.status === 'COMPLETED' ? '#4CAF50' : visit.status === 'ACTIVE' ? '#2196F3' : '#FF9800',
+                scale: 15,
+                fillColor: visit.status === 'COMPLETED' ? '#4CAF50' : '#2196F3',
                 fillOpacity: 0.9,
                 strokeColor: 'white',
-                strokeWeight: 2
+                strokeWeight: 3
               }}
               label={{
                 text: '🏪',
-                fontSize: '16px'
+                fontSize: '20px'
               }}
               onClick={() => {
                 setSelectedVisit(visit);
@@ -551,66 +514,46 @@ const RutasPromotores: React.FC = () => {
             />
           ))}
 
-          {/* InfoWindow para puntos */}
+          {/* Info puntos */}
           {selectedPoint && (
             <InfoWindow
               position={{ lat: selectedPoint.location.latitude, lng: selectedPoint.location.longitude }}
               onCloseClick={() => setSelectedPoint(null)}
             >
               <Box sx={{ p: 1 }}>
-                <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-                  Punto de Ubicación
-                </Typography>
+                <Typography variant="subtitle2" fontWeight={700}>Punto de Ruta</Typography>
                 <Divider sx={{ my: 1 }} />
-                <Typography variant="body2">
-                  <strong>Promotor:</strong> {getUserName(selectedPoint.userId)}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Hora:</strong> {formatTime(selectedPoint.timestamp)}
-                </Typography>
+                <Typography variant="body2"><strong>Promotor:</strong> {getUserName(selectedPoint.userId)}</Typography>
+                <Typography variant="body2"><strong>Hora:</strong> {formatTime(selectedPoint.timestamp)}</Typography>
                 {selectedPoint.accuracy && (
-                  <Typography variant="body2">
-                    <strong>Precisión:</strong> ±{selectedPoint.accuracy.toFixed(0)}m
-                  </Typography>
+                  <Typography variant="body2"><strong>Precisión:</strong> ±{selectedPoint.accuracy.toFixed(0)}m</Typography>
                 )}
               </Box>
             </InfoWindow>
           )}
 
-          {/* InfoWindow para visitas */}
+          {/* Info paradas */}
           {selectedVisit && (
             <InfoWindow
               position={{ lat: selectedVisit.checkInLocation.latitude, lng: selectedVisit.checkInLocation.longitude }}
               onCloseClick={() => setSelectedVisit(null)}
             >
-              <Box sx={{ p: 1 }}>
-                <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-                  🏪 Visita a Kiosco
-                </Typography>
+              <Box sx={{ p: 1, minWidth: 200 }}>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>🏪 Parada Larga</Typography>
                 <Divider sx={{ my: 1 }} />
-                <Typography variant="body2">
-                  <strong>Kiosco:</strong> {selectedVisit.kioskName}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Promotor:</strong> {selectedVisit.userName}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Entrada:</strong> {formatTime(selectedVisit.checkInTime)}
-                </Typography>
+                <Typography variant="body2"><strong>Kiosco:</strong> {selectedVisit.kioskName}</Typography>
+                <Typography variant="body2"><strong>Promotor:</strong> {selectedVisit.userName}</Typography>
+                <Typography variant="body2"><strong>Entrada:</strong> {formatTime(selectedVisit.checkInTime)}</Typography>
                 {selectedVisit.checkOutTime && (
-                  <Typography variant="body2">
-                    <strong>Salida:</strong> {formatTime(selectedVisit.checkOutTime)}
-                  </Typography>
+                  <Typography variant="body2"><strong>Salida:</strong> {formatTime(selectedVisit.checkOutTime)}</Typography>
                 )}
                 {selectedVisit.durationMinutes && (
-                  <Typography variant="body2">
-                    <strong>Duración:</strong> {formatDuration(selectedVisit.durationMinutes)}
-                  </Typography>
+                  <Typography variant="body2"><strong>Duración:</strong> {formatDuration(selectedVisit.durationMinutes)}</Typography>
                 )}
                 <Chip
-                  label={selectedVisit.status === 'COMPLETED' ? 'Completada' : selectedVisit.status === 'ACTIVE' ? 'En curso' : 'Abandonada'}
+                  label={selectedVisit.status === 'COMPLETED' ? 'Completada' : 'Activa'}
                   size="small"
-                  color={selectedVisit.status === 'COMPLETED' ? 'success' : selectedVisit.status === 'ACTIVE' ? 'primary' : 'warning'}
+                  color={selectedVisit.status === 'COMPLETED' ? 'success' : 'primary'}
                   sx={{ mt: 1 }}
                 />
               </Box>
@@ -618,7 +561,7 @@ const RutasPromotores: React.FC = () => {
           )}
         </GoogleMap>
 
-        {/* Mensaje cuando no hay datos */}
+        {/* Placeholder */}
         {!hasData && !loading && (
           <Box
             sx={{
@@ -627,20 +570,73 @@ const RutasPromotores: React.FC = () => {
               left: '50%',
               transform: 'translate(-50%, -50%)',
               textAlign: 'center',
-              pointerEvents: 'none',
-              zIndex: 1
+              pointerEvents: 'none'
             }}
           >
             <RouteIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
+            <Typography variant="h6" color="text.secondary">
               Selecciona promotores y periodo
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Haz clic en "Cargar Rutas" para visualizar
+              Haz clic en "Cargar Rutas"
             </Typography>
           </Box>
         )}
       </Box>
+
+      {/* Drawer lateral */}
+      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <Box sx={{ width: 350, p: 2 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6">Detalles</Typography>
+            <IconButton onClick={() => setDrawerOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+          <Divider sx={{ mb: 2 }} />
+
+          {kioskVisits.length > 0 && (
+            <>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                Paradas Largas ({kioskVisits.length})
+              </Typography>
+              <List dense>
+                {kioskVisits.map((visit) => (
+                  <ListItem
+                    key={visit.id}
+                    button
+                    onClick={() => {
+                      setSelectedVisit(visit);
+                      setDrawerOpen(false);
+                      if (mapRef) {
+                        mapRef.panTo({ lat: visit.checkInLocation.latitude, lng: visit.checkInLocation.longitude });
+                        mapRef.setZoom(16);
+                      }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <StorefrontIcon color="secondary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={visit.kioskName}
+                      secondary={
+                        <>
+                          <Typography variant="caption" display="block">
+                            {getUserName(visit.userId)}
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            {formatTime(visit.checkInTime)} {visit.durationMinutes && `• ${formatDuration(visit.durationMinutes)}`}
+                          </Typography>
+                        </>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+        </Box>
+      </Drawer>
     </Box>
   );
 };
