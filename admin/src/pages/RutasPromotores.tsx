@@ -69,6 +69,14 @@ interface KioskVisit {
   status: string;
 }
 
+interface LongStop {
+  id: string;
+  userId: string;
+  location: GeoPoint;
+  startTime: Timestamp;
+  durationMinutes: number;
+}
+
 type QuickFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
 const RutasPromotores: React.FC = () => {
@@ -84,11 +92,13 @@ const RutasPromotores: React.FC = () => {
   const [endDate, setEndDate] = useState<string>('');
   const [locationPoints, setLocationPoints] = useState<LocationPoint[]>([]);
   const [kioskVisits, setKioskVisits] = useState<KioskVisit[]>([]);
+  const [longStops, setLongStops] = useState<LongStop[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<LocationPoint | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<KioskVisit | null>(null);
+  const [selectedLongStop, setSelectedLongStop] = useState<LongStop | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const getDateRangeForFilter = (filter: QuickFilter): { start: string; end: string } => {
@@ -183,8 +193,10 @@ const RutasPromotores: React.FC = () => {
     setError(null);
     setLocationPoints([]);
     setKioskVisits([]);
+    setLongStops([]);
     setSelectedPoint(null);
     setSelectedVisit(null);
+    setSelectedLongStop(null);
 
     try {
       const startDateObj = new Date(startDate + 'T00:00:00');
@@ -246,14 +258,19 @@ const RutasPromotores: React.FC = () => {
 
       allPoints.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
 
+      // Detectar paradas largas (misma lógica que la app Android)
+      const detectedLongStops = detectLongStops(allPoints);
+
       setLocationPoints(allPoints);
       setKioskVisits(allVisits);
+      setLongStops(detectedLongStops);
 
       // Ajustar mapa
-      if (mapRef && (allPoints.length > 0 || allVisits.length > 0)) {
+      if (mapRef && (allPoints.length > 0 || allVisits.length > 0 || detectedLongStops.length > 0)) {
         const bounds = new google.maps.LatLngBounds();
         allPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
         allVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
+        detectedLongStops.forEach(s => bounds.extend({ lat: s.location.latitude, lng: s.location.longitude }));
         mapRef.fitBounds(bounds);
       }
 
@@ -265,9 +282,65 @@ const RutasPromotores: React.FC = () => {
       setError(err.message || 'Error al cargar las rutas');
       setLocationPoints([]);
       setKioskVisits([]);
+      setLongStops([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Detectar paradas largas (misma lógica que la app Android)
+  const detectLongStops = (points: LocationPoint[]): LongStop[] => {
+    const stops: LongStop[] = [];
+
+    // Agrupar por usuario
+    const pointsByUser = points.reduce((acc, point) => {
+      if (!acc[point.userId]) acc[point.userId] = [];
+      acc[point.userId].push(point);
+      return acc;
+    }, {} as Record<string, LocationPoint[]>);
+
+    // Para cada usuario, detectar paradas largas
+    Object.entries(pointsByUser).forEach(([userId, userPoints]) => {
+      for (let i = 0; i < userPoints.length - 1; i++) {
+        const current = userPoints[i];
+        const next = userPoints[i + 1];
+
+        // Calcular distancia entre puntos (Haversine)
+        const distance = calculateDistance(
+          current.location.latitude,
+          current.location.longitude,
+          next.location.latitude,
+          next.location.longitude
+        );
+
+        // Calcular diferencia de tiempo en minutos
+        const timeDiff = (next.timestamp.toMillis() - current.timestamp.toMillis()) / 1000 / 60;
+
+        // Si estuvo más de 15 minutos en un radio de 100 metros
+        if (distance < 100 && timeDiff > 15) {
+          stops.push({
+            id: `${userId}_${current.timestamp.toMillis()}`,
+            userId: userId,
+            location: current.location,
+            startTime: current.timestamp,
+            durationMinutes: Math.round(timeDiff)
+          });
+        }
+      }
+    });
+
+    return stops;
+  };
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371000; // Radio de la Tierra en metros
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
 
   const getUserColor = (userId: string): string => {
@@ -321,7 +394,7 @@ const RutasPromotores: React.FC = () => {
     return acc;
   }, {} as Record<string, LocationPoint[]>);
 
-  const hasData = locationPoints.length > 0 || kioskVisits.length > 0;
+  const hasData = locationPoints.length > 0 || kioskVisits.length > 0 || longStops.length > 0;
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -430,7 +503,8 @@ const RutasPromotores: React.FC = () => {
           <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
             <Chip icon={<PersonIcon />} label={`${selectedUserIds.length} promotores`} size="small" color="primary" variant="outlined" />
             <Chip icon={<PlaceIcon />} label={`${locationPoints.length} puntos`} size="small" color="primary" variant="outlined" />
-            <Chip icon={<StorefrontIcon />} label={`${kioskVisits.length} paradas`} size="small" color="secondary" variant="outlined" />
+            <Chip icon={<StorefrontIcon />} label={`${kioskVisits.length} kioscos`} size="small" color="success" variant="outlined" />
+            <Chip label={`${longStops.length} paradas largas`} size="small" color="warning" variant="outlined" />
           </Stack>
         )}
       </Paper>
@@ -486,11 +560,12 @@ const RutasPromotores: React.FC = () => {
               onClick={() => {
                 setSelectedPoint(point);
                 setSelectedVisit(null);
+                setSelectedLongStop(null);
               }}
             />
           ))}
 
-          {/* Paradas largas (kioscos) */}
+          {/* Visitas a kioscos (verde) */}
           {kioskVisits.map((visit) => (
             <Marker
               key={visit.id}
@@ -498,7 +573,7 @@ const RutasPromotores: React.FC = () => {
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 15,
-                fillColor: visit.status === 'COMPLETED' ? '#4CAF50' : '#2196F3',
+                fillColor: '#4CAF50',
                 fillOpacity: 0.9,
                 strokeColor: 'white',
                 strokeWeight: 3
@@ -510,6 +585,32 @@ const RutasPromotores: React.FC = () => {
               onClick={() => {
                 setSelectedVisit(visit);
                 setSelectedPoint(null);
+                setSelectedLongStop(null);
+              }}
+            />
+          ))}
+
+          {/* Paradas largas (naranja) - detectadas automáticamente */}
+          {longStops.map((stop) => (
+            <Marker
+              key={stop.id}
+              position={{ lat: stop.location.latitude, lng: stop.location.longitude }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 12,
+                fillColor: '#FF9800',
+                fillOpacity: 0.9,
+                strokeColor: 'white',
+                strokeWeight: 3
+              }}
+              label={{
+                text: '🛑',
+                fontSize: '18px'
+              }}
+              onClick={() => {
+                setSelectedLongStop(stop);
+                setSelectedPoint(null);
+                setSelectedVisit(null);
               }}
             />
           ))}
@@ -532,14 +633,14 @@ const RutasPromotores: React.FC = () => {
             </InfoWindow>
           )}
 
-          {/* Info paradas */}
+          {/* Info visitas kiosco */}
           {selectedVisit && (
             <InfoWindow
               position={{ lat: selectedVisit.checkInLocation.latitude, lng: selectedVisit.checkInLocation.longitude }}
               onCloseClick={() => setSelectedVisit(null)}
             >
               <Box sx={{ p: 1, minWidth: 200 }}>
-                <Typography variant="subtitle2" fontWeight={700} gutterBottom>🏪 Parada Larga</Typography>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>🏪 Visita a Kiosco</Typography>
                 <Divider sx={{ my: 1 }} />
                 <Typography variant="body2"><strong>Kiosco:</strong> {selectedVisit.kioskName}</Typography>
                 <Typography variant="body2"><strong>Promotor:</strong> {selectedVisit.userName}</Typography>
@@ -553,7 +654,32 @@ const RutasPromotores: React.FC = () => {
                 <Chip
                   label={selectedVisit.status === 'COMPLETED' ? 'Completada' : 'Activa'}
                   size="small"
-                  color={selectedVisit.status === 'COMPLETED' ? 'success' : 'primary'}
+                  color="success"
+                  sx={{ mt: 1 }}
+                />
+              </Box>
+            </InfoWindow>
+          )}
+
+          {/* Info paradas largas */}
+          {selectedLongStop && (
+            <InfoWindow
+              position={{ lat: selectedLongStop.location.latitude, lng: selectedLongStop.location.longitude }}
+              onCloseClick={() => setSelectedLongStop(null)}
+            >
+              <Box sx={{ p: 1, minWidth: 200 }}>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>🛑 Parada Larga</Typography>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="body2"><strong>Promotor:</strong> {getUserName(selectedLongStop.userId)}</Typography>
+                <Typography variant="body2"><strong>Hora:</strong> {formatTime(selectedLongStop.startTime)}</Typography>
+                <Typography variant="body2"><strong>Duración:</strong> ~{selectedLongStop.durationMinutes} min</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                  Estuvo más de 15 minutos en un radio de 100 metros
+                </Typography>
+                <Chip
+                  label="Detectada automáticamente"
+                  size="small"
+                  color="warning"
                   sx={{ mt: 1 }}
                 />
               </Box>
@@ -598,7 +724,7 @@ const RutasPromotores: React.FC = () => {
           {kioskVisits.length > 0 && (
             <>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                Paradas Largas ({kioskVisits.length})
+                🏪 Kioscos ({kioskVisits.length})
               </Typography>
               <List dense>
                 {kioskVisits.map((visit) => (
@@ -615,7 +741,7 @@ const RutasPromotores: React.FC = () => {
                     }}
                   >
                     <ListItemIcon>
-                      <StorefrontIcon color="secondary" />
+                      <StorefrontIcon color="success" />
                     </ListItemIcon>
                     <ListItemText
                       primary={visit.kioskName}
@@ -626,6 +752,48 @@ const RutasPromotores: React.FC = () => {
                           </Typography>
                           <Typography variant="caption" display="block">
                             {formatTime(visit.checkInTime)} {visit.durationMinutes && `• ${formatDuration(visit.durationMinutes)}`}
+                          </Typography>
+                        </>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+              <Divider sx={{ my: 2 }} />
+            </>
+          )}
+
+          {longStops.length > 0 && (
+            <>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                🛑 Paradas Largas ({longStops.length})
+              </Typography>
+              <List dense>
+                {longStops.map((stop) => (
+                  <ListItem
+                    key={stop.id}
+                    button
+                    onClick={() => {
+                      setSelectedLongStop(stop);
+                      setDrawerOpen(false);
+                      if (mapRef) {
+                        mapRef.panTo({ lat: stop.location.latitude, lng: stop.location.longitude });
+                        mapRef.setZoom(16);
+                      }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <PlaceIcon color="warning" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={getUserName(stop.userId)}
+                      secondary={
+                        <>
+                          <Typography variant="caption" display="block">
+                            {formatTime(stop.startTime)}
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            ~{stop.durationMinutes} minutos
                           </Typography>
                         </>
                       }
