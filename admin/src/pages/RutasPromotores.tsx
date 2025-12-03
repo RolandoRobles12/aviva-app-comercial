@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -14,19 +14,30 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   IconButton,
-  Drawer,
   List,
   ListItem,
   ListItemText,
-  ListItemIcon
+  ListItemIcon,
+  Tooltip,
+  Collapse,
+  alpha,
+  useTheme,
+  ListItemButton
 } from '@mui/material';
-import RouteIcon from '@mui/icons-material/Route';
-import PersonIcon from '@mui/icons-material/Person';
-import TodayIcon from '@mui/icons-material/Today';
-import PlaceIcon from '@mui/icons-material/Place';
-import StorefrontIcon from '@mui/icons-material/Storefront';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
+import {
+  Route as RouteIcon,
+  Person as PersonIcon,
+  Today as TodayIcon,
+  Place as PlaceIcon,
+  Storefront as StorefrontIcon,
+  Refresh as RefreshIcon,
+  MyLocation as MyLocationIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  CheckCircle,
+  Warning,
+  Info as InfoIcon
+} from '@mui/icons-material';
 import { GoogleMap, useLoadScript, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import {
   collection,
@@ -42,6 +53,13 @@ import { db } from '../config/firebase';
 const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 };
+
+const COLORS = {
+  routes: ['#2196F3', '#F44336', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#FF5722'],
+  kiosk: '#4CAF50',
+  longStop: '#FF9800',
+  point: '#2196F3'
+};
 
 interface User {
   id: string;
@@ -80,6 +98,7 @@ interface LongStop {
 type QuickFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
 const RutasPromotores: React.FC = () => {
+  const theme = useTheme();
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES
@@ -99,7 +118,7 @@ const RutasPromotores: React.FC = () => {
   const [selectedPoint, setSelectedPoint] = useState<LocationPoint | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<KioskVisit | null>(null);
   const [selectedLongStop, setSelectedLongStop] = useState<LongStop | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const getDateRangeForFilter = (filter: QuickFilter): { start: string; end: string } => {
     const now = new Date();
@@ -274,21 +293,17 @@ const RutasPromotores: React.FC = () => {
 
         // Ajustar el mapa con padding para mejor visualización
         mapRef.fitBounds(bounds, {
-          top: 50,
+          top: 120,
           right: 50,
           bottom: 50,
-          left: 50
+          left: sidebarOpen ? 410 : 50
         });
       }
 
       if (allPoints.length === 0 && allVisits.length === 0) {
-        setError(`No se encontraron datos de ubicación para ${selectedUserIds.length > 1 ? 'los promotores seleccionados' : 'el promotor seleccionado'} en el periodo del ${startDate} al ${endDate}. Verifica que el promotor haya registrado ubicaciones en este periodo.`);
+        setError(`No se encontraron datos de ubicación para ${selectedUserIds.length > 1 ? 'los promotores seleccionados' : 'el promotor seleccionado'} en el periodo del ${startDate} al ${endDate}.`);
       } else {
-        // Mensaje de éxito
-        const pointsMsg = allPoints.length > 0 ? `${allPoints.length} puntos de ubicación` : '';
-        const visitsMsg = allVisits.length > 0 ? `${allVisits.length} visitas a kioscos` : '';
-        const separator = pointsMsg && visitsMsg ? ' y ' : '';
-        console.log(`✅ Rutas cargadas: ${pointsMsg}${separator}${visitsMsg}`);
+        console.log(`✅ Rutas cargadas: ${allPoints.length} puntos, ${allVisits.length} visitas, ${detectedLongStops.length} paradas largas`);
       }
     } catch (err: any) {
       console.error('Error loading route:', err);
@@ -357,9 +372,8 @@ const RutasPromotores: React.FC = () => {
   };
 
   const getUserColor = (userId: string): string => {
-    const colors = ['#2196F3', '#F44336', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#FF5722'];
     const index = selectedUserIds.indexOf(userId);
-    return colors[index % colors.length];
+    return COLORS.routes[index % COLORS.routes.length];
   };
 
   const getUserName = (userId: string): string => {
@@ -378,6 +392,29 @@ const RutasPromotores: React.FC = () => {
     return `${mins}m`;
   };
 
+  const centerMap = () => {
+    if (!mapRef || (locationPoints.length === 0 && kioskVisits.length === 0 && longStops.length === 0)) return;
+    const bounds = new google.maps.LatLngBounds();
+    locationPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
+    kioskVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
+    longStops.forEach(s => bounds.extend({ lat: s.location.latitude, lng: s.location.longitude }));
+    mapRef.fitBounds(bounds, {
+      top: 120,
+      right: 50,
+      bottom: 50,
+      left: sidebarOpen ? 410 : 50
+    });
+  };
+
+  const stats = useMemo(() => {
+    return {
+      promoters: selectedUserIds.length,
+      points: locationPoints.length,
+      visits: kioskVisits.length,
+      stops: longStops.length
+    };
+  }, [selectedUserIds, locationPoints, kioskVisits, longStops]);
+
   if (loadError) {
     return (
       <Box sx={{ p: 4 }}>
@@ -389,7 +426,10 @@ const RutasPromotores: React.FC = () => {
   if (!isLoaded) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress size={60} />
+          <Typography>Cargando Google Maps...</Typography>
+        </Stack>
       </Box>
     );
   }
@@ -410,127 +450,344 @@ const RutasPromotores: React.FC = () => {
   const hasData = locationPoints.length > 0 || kioskVisits.length > 0 || longStops.length > 0;
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header compacto */}
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 0, zIndex: 1200 }}>
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-          <RouteIcon color="primary" fontSize="large" />
-          <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>
-            Rutas de Promotores
-          </Typography>
-          {hasData && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<MenuIcon />}
-              onClick={() => setDrawerOpen(true)}
-            >
-              Ver Detalles
-            </Button>
-          )}
-        </Stack>
-
-        {/* Filtros rápidos */}
-        <ToggleButtonGroup
-          value={quickFilter}
-          exclusive
-          onChange={(_, newFilter) => newFilter && setQuickFilter(newFilter)}
-          size="small"
-          sx={{ mb: 2, flexWrap: 'wrap' }}
-        >
-          <ToggleButton value="today">
-            <TodayIcon sx={{ mr: 0.5, fontSize: 18 }} />
-            Hoy
-          </ToggleButton>
-          <ToggleButton value="yesterday">Ayer</ToggleButton>
-          <ToggleButton value="thisWeek">Esta Semana</ToggleButton>
-          <ToggleButton value="lastWeek">Semana Pasada</ToggleButton>
-          <ToggleButton value="thisMonth">Este Mes</ToggleButton>
-          <ToggleButton value="lastMonth">Mes Pasado</ToggleButton>
-          <ToggleButton value="custom">Personalizado</ToggleButton>
-        </ToggleButtonGroup>
-
-        {/* Controles */}
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-          <Autocomplete
-            multiple
-            sx={{ flex: 1, minWidth: 300 }}
-            options={users}
-            value={users.filter(u => selectedUserIds.includes(u.id))}
-            onChange={(_, newValue) => setSelectedUserIds(newValue.map(u => u.id))}
-            getOptionLabel={(option) => option.displayName}
-            renderInput={(params) => <TextField {...params} label="Promotores" size="small" />}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  label={option.displayName}
-                  {...getTagProps({ index })}
-                  size="small"
-                  sx={{ bgcolor: getUserColor(option.id), color: 'white' }}
-                />
-              ))
-            }
-          />
-
-          <TextField
-            label="Fecha Inicio"
-            type="date"
-            size="small"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setQuickFilter('custom');
-            }}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 160 }}
-            disabled={quickFilter !== 'custom'}
-          />
-
-          <TextField
-            label="Fecha Fin"
-            type="date"
-            size="small"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setQuickFilter('custom');
-            }}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 160 }}
-            disabled={quickFilter !== 'custom'}
-          />
-
-          <Button
-            variant="contained"
-            onClick={handleLoadRoute}
-            disabled={loading || selectedUserIds.length === 0}
-            sx={{ minWidth: 140 }}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Cargar Rutas'}
-          </Button>
-        </Stack>
-
-        {error && (
-          <Alert severity="error" onClose={() => setError(null)} sx={{ mt: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {/* Stats */}
-        {hasData && (
-          <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
-            <Chip icon={<PersonIcon />} label={`${selectedUserIds.length} promotor${selectedUserIds.length !== 1 ? 'es' : ''}`} size="small" color="primary" variant="outlined" />
-            <Chip icon={<PlaceIcon />} label={`${locationPoints.length} punto${locationPoints.length !== 1 ? 's' : ''} de ruta`} size="small" color="primary" variant="outlined" />
-            <Chip icon={<StorefrontIcon />} label={`${kioskVisits.length} visita${kioskVisits.length !== 1 ? 's' : ''} a kioscos`} size="small" color="success" variant="outlined" />
-            {longStops.length > 0 && (
-              <Chip label={`${longStops.length} parada${longStops.length !== 1 ? 's' : ''} larga${longStops.length !== 1 ? 's' : ''}`} size="small" color="warning" variant="outlined" />
+    <Box sx={{
+      position: 'fixed',
+      top: 64,
+      left: 270,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      bgcolor: 'background.default',
+      zIndex: 1
+    }}>
+      {/* Barra superior de estadísticas */}
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'absolute',
+          top: 16,
+          left: sidebarOpen ? 376 : 16,
+          right: 16,
+          zIndex: 1000,
+          px: 3,
+          py: 2,
+          transition: 'left 0.3s'
+        }}
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" spacing={4}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Promotores</Typography>
+              <Typography variant="h5" fontWeight={700}>{stats.promoters}</Typography>
+            </Box>
+            <Divider orientation="vertical" flexItem />
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <PlaceIcon sx={{ color: COLORS.point, fontSize: 20 }} />
+                <Box>
+                  <Typography variant="caption">Puntos</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.point}>{stats.points}</Typography>
+                </Box>
+              </Stack>
+            </Box>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <StorefrontIcon sx={{ color: COLORS.kiosk, fontSize: 20 }} />
+                <Box>
+                  <Typography variant="caption">Kioscos</Typography>
+                  <Typography variant="h6" fontWeight={600} color={COLORS.kiosk}>{stats.visits}</Typography>
+                </Box>
+              </Stack>
+            </Box>
+            {stats.stops > 0 && (
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Warning sx={{ color: COLORS.longStop, fontSize: 20 }} />
+                  <Box>
+                    <Typography variant="caption">Paradas</Typography>
+                    <Typography variant="h6" fontWeight={600} color={COLORS.longStop}>{stats.stops}</Typography>
+                  </Box>
+                </Stack>
+              </Box>
             )}
           </Stack>
-        )}
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Refrescar">
+              <IconButton onClick={handleLoadRoute} size="small" disabled={selectedUserIds.length === 0 || loading}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Centrar mapa">
+              <IconButton onClick={centerMap} size="small" disabled={!hasData}>
+                <MyLocationIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
+              <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
+                {sidebarOpen ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
       </Paper>
 
-      {/* Mapa */}
-      <Box sx={{ flex: 1, position: 'relative' }}>
+      {/* Panel lateral */}
+      <Collapse orientation="horizontal" in={sidebarOpen}>
+        <Paper
+          elevation={2}
+          sx={{
+            width: 360,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            borderRight: 1,
+            borderColor: 'divider',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Header sticky del panel */}
+          <Box sx={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            bgcolor: 'background.paper',
+            flexShrink: 0
+          }}>
+            <Box sx={{ p: 2 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                <RouteIcon color="primary" fontSize="large" />
+                <Typography variant="h6" fontWeight={700}>
+                  Rutas de Promotores
+                </Typography>
+              </Stack>
+
+              {/* Filtros rápidos */}
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                Periodo
+              </Typography>
+              <ToggleButtonGroup
+                value={quickFilter}
+                exclusive
+                onChange={(_, newFilter) => newFilter && setQuickFilter(newFilter)}
+                size="small"
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                <ToggleButton value="today">Hoy</ToggleButton>
+                <ToggleButton value="yesterday">Ayer</ToggleButton>
+                <ToggleButton value="thisWeek">Semana</ToggleButton>
+              </ToggleButtonGroup>
+
+              <Stack spacing={2} sx={{ mb: 2 }}>
+                <TextField
+                  label="Fecha Inicio"
+                  type="date"
+                  size="small"
+                  fullWidth
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setQuickFilter('custom');
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={quickFilter !== 'custom'}
+                />
+
+                <TextField
+                  label="Fecha Fin"
+                  type="date"
+                  size="small"
+                  fullWidth
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setQuickFilter('custom');
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={quickFilter !== 'custom'}
+                />
+
+                <Autocomplete
+                  multiple
+                  fullWidth
+                  options={users}
+                  value={users.filter(u => selectedUserIds.includes(u.id))}
+                  onChange={(_, newValue) => setSelectedUserIds(newValue.map(u => u.id))}
+                  getOptionLabel={(option) => option.displayName}
+                  renderInput={(params) => <TextField {...params} label="Promotores" size="small" />}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        label={option.displayName}
+                        {...getTagProps({ index })}
+                        size="small"
+                        sx={{ bgcolor: getUserColor(option.id), color: 'white' }}
+                      />
+                    ))
+                  }
+                />
+
+                <Button
+                  variant="contained"
+                  onClick={handleLoadRoute}
+                  disabled={loading || selectedUserIds.length === 0}
+                  fullWidth
+                  startIcon={loading ? <CircularProgress size={20} /> : <RouteIcon />}
+                >
+                  {loading ? 'Cargando...' : 'Cargar Rutas'}
+                </Button>
+              </Stack>
+
+              {error && (
+                <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+                  {error}
+                </Alert>
+              )}
+            </Box>
+
+            <Divider />
+          </Box>
+
+          {/* Lista scrollable de detalles */}
+          <Box sx={{ flex: 1, overflow: 'auto' }}>
+            {hasData && (
+              <>
+                {kioskVisits.length > 0 && (
+                  <>
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" fontWeight={600} color="text.secondary" sx={{ mb: 1 }}>
+                        🏪 Visitas a Kioscos ({kioskVisits.length})
+                      </Typography>
+                    </Box>
+                    <List dense>
+                      {kioskVisits.map((visit) => (
+                        <ListItem key={visit.id} disablePadding>
+                          <ListItemButton
+                            onClick={() => {
+                              setSelectedVisit(visit);
+                              setSelectedPoint(null);
+                              setSelectedLongStop(null);
+                              if (mapRef) {
+                                mapRef.panTo({ lat: visit.checkInLocation.latitude, lng: visit.checkInLocation.longitude });
+                                mapRef.setZoom(16);
+                              }
+                            }}
+                          >
+                            <ListItemIcon>
+                              <StorefrontIcon sx={{ color: COLORS.kiosk }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={visit.kioskName}
+                              secondary={
+                                <>
+                                  <Typography variant="caption" display="block">
+                                    {getUserName(visit.userId)}
+                                  </Typography>
+                                  <Typography variant="caption" display="block">
+                                    {formatTime(visit.checkInTime)} {visit.durationMinutes && `• ${formatDuration(visit.durationMinutes)}`}
+                                  </Typography>
+                                </>
+                              }
+                              primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 600 }}
+                              secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                    </List>
+                    <Divider />
+                  </>
+                )}
+
+                {longStops.length > 0 && (
+                  <>
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" fontWeight={600} color="text.secondary" sx={{ mb: 1 }}>
+                        🛑 Paradas Largas ({longStops.length})
+                      </Typography>
+                    </Box>
+                    <List dense>
+                      {longStops.map((stop) => (
+                        <ListItem key={stop.id} disablePadding>
+                          <ListItemButton
+                            onClick={() => {
+                              setSelectedLongStop(stop);
+                              setSelectedPoint(null);
+                              setSelectedVisit(null);
+                              if (mapRef) {
+                                mapRef.panTo({ lat: stop.location.latitude, lng: stop.location.longitude });
+                                mapRef.setZoom(16);
+                              }
+                            }}
+                          >
+                            <ListItemIcon>
+                              <Warning sx={{ color: COLORS.longStop }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={getUserName(stop.userId)}
+                              secondary={
+                                <>
+                                  <Typography variant="caption" display="block">
+                                    {formatTime(stop.startTime)}
+                                  </Typography>
+                                  <Typography variant="caption" display="block">
+                                    ~{stop.durationMinutes} minutos
+                                  </Typography>
+                                </>
+                              }
+                              primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 600 }}
+                              secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </>
+                )}
+              </>
+            )}
+
+            {!hasData && !loading && (
+              <Box sx={{ p: 3, textAlign: 'center' }}>
+                <RouteIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="body2" color="text.secondary">
+                  Selecciona promotores y periodo, luego haz clic en "Cargar Rutas"
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      </Collapse>
+
+      {/* Contenedor del Mapa */}
+      <Box sx={{
+        flex: 1,
+        minWidth: 0,
+        position: 'relative',
+        height: '100%'
+      }}>
+        {loading && (
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1100,
+            bgcolor: 'rgba(255,255,255,0.95)',
+            p: 3,
+            borderRadius: 2,
+            boxShadow: 3
+          }}>
+            <Stack alignItems="center" spacing={2}>
+              <CircularProgress size={60} />
+              <Typography variant="h6" fontWeight={600}>Cargando rutas...</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Obteniendo datos de ubicación
+              </Typography>
+            </Stack>
+          </Box>
+        )}
+
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={MAP_CENTER}
@@ -602,7 +859,7 @@ const RutasPromotores: React.FC = () => {
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 15,
-                fillColor: '#4CAF50',
+                fillColor: COLORS.kiosk,
                 fillOpacity: 0.9,
                 strokeColor: 'white',
                 strokeWeight: 3
@@ -627,7 +884,7 @@ const RutasPromotores: React.FC = () => {
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 12,
-                fillColor: '#FF9800',
+                fillColor: COLORS.longStop,
                 fillOpacity: 0.9,
                 strokeColor: 'white',
                 strokeWeight: 3
@@ -715,161 +972,7 @@ const RutasPromotores: React.FC = () => {
             </InfoWindow>
           )}
         </GoogleMap>
-
-        {/* Indicador de carga */}
-        {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              bgcolor: 'rgba(255, 255, 255, 0.95)',
-              p: 4,
-              borderRadius: 2,
-              boxShadow: 3,
-              zIndex: 1100
-            }}
-          >
-            <CircularProgress size={60} sx={{ mb: 2 }} />
-            <Typography variant="h6" color="text.primary" fontWeight={600}>
-              Cargando rutas...
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Obteniendo datos de ubicación
-            </Typography>
-          </Box>
-        )}
-
-        {/* Mensaje inicial */}
-        {!hasData && !loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              bgcolor: 'rgba(255, 255, 255, 0.95)',
-              p: 4,
-              borderRadius: 2,
-              boxShadow: 3,
-              zIndex: 1
-            }}
-          >
-            <RouteIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h6" color="text.primary" gutterBottom fontWeight={600}>
-              Visualización de Rutas
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              1. Selecciona uno o más promotores
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              2. Elige el periodo de tiempo
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              3. Haz clic en "Cargar Rutas"
-            </Typography>
-          </Box>
-        )}
       </Box>
-
-      {/* Drawer lateral */}
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 350, p: 2 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="h6">Detalles</Typography>
-            <IconButton onClick={() => setDrawerOpen(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-          <Divider sx={{ mb: 2 }} />
-
-          {kioskVisits.length > 0 && (
-            <>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                🏪 Kioscos ({kioskVisits.length})
-              </Typography>
-              <List dense>
-                {kioskVisits.map((visit) => (
-                  <ListItem
-                    key={visit.id}
-                    button
-                    onClick={() => {
-                      setSelectedVisit(visit);
-                      setDrawerOpen(false);
-                      if (mapRef) {
-                        mapRef.panTo({ lat: visit.checkInLocation.latitude, lng: visit.checkInLocation.longitude });
-                        mapRef.setZoom(16);
-                      }
-                    }}
-                  >
-                    <ListItemIcon>
-                      <StorefrontIcon color="success" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={visit.kioskName}
-                      secondary={
-                        <>
-                          <Typography variant="caption" display="block">
-                            {getUserName(visit.userId)}
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            {formatTime(visit.checkInTime)} {visit.durationMinutes && `• ${formatDuration(visit.durationMinutes)}`}
-                          </Typography>
-                        </>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-              <Divider sx={{ my: 2 }} />
-            </>
-          )}
-
-          {longStops.length > 0 && (
-            <>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                🛑 Paradas Largas ({longStops.length})
-              </Typography>
-              <List dense>
-                {longStops.map((stop) => (
-                  <ListItem
-                    key={stop.id}
-                    button
-                    onClick={() => {
-                      setSelectedLongStop(stop);
-                      setDrawerOpen(false);
-                      if (mapRef) {
-                        mapRef.panTo({ lat: stop.location.latitude, lng: stop.location.longitude });
-                        mapRef.setZoom(16);
-                      }
-                    }}
-                  >
-                    <ListItemIcon>
-                      <PlaceIcon color="warning" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={getUserName(stop.userId)}
-                      secondary={
-                        <>
-                          <Typography variant="caption" display="block">
-                            {formatTime(stop.startTime)}
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            ~{stop.durationMinutes} minutos
-                          </Typography>
-                        </>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </>
-          )}
-        </Box>
-      </Drawer>
     </Box>
   );
 };
