@@ -265,17 +265,30 @@ const RutasPromotores: React.FC = () => {
       setKioskVisits(allVisits);
       setLongStops(detectedLongStops);
 
-      // Ajustar mapa
+      // Ajustar vista del mapa a las rutas cargadas
       if (mapRef && (allPoints.length > 0 || allVisits.length > 0 || detectedLongStops.length > 0)) {
         const bounds = new google.maps.LatLngBounds();
         allPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
         allVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
         detectedLongStops.forEach(s => bounds.extend({ lat: s.location.latitude, lng: s.location.longitude }));
-        mapRef.fitBounds(bounds);
+
+        // Ajustar el mapa con padding para mejor visualización
+        mapRef.fitBounds(bounds, {
+          top: 50,
+          right: 50,
+          bottom: 50,
+          left: 50
+        });
       }
 
       if (allPoints.length === 0 && allVisits.length === 0) {
-        setError('No se encontraron datos para los promotores en este periodo');
+        setError(`No se encontraron datos de ubicación para ${selectedUserIds.length > 1 ? 'los promotores seleccionados' : 'el promotor seleccionado'} en el periodo del ${startDate} al ${endDate}. Verifica que el promotor haya registrado ubicaciones en este periodo.`);
+      } else {
+        // Mensaje de éxito
+        const pointsMsg = allPoints.length > 0 ? `${allPoints.length} puntos de ubicación` : '';
+        const visitsMsg = allVisits.length > 0 ? `${allVisits.length} visitas a kioscos` : '';
+        const separator = pointsMsg && visitsMsg ? ' y ' : '';
+        console.log(`✅ Rutas cargadas: ${pointsMsg}${separator}${visitsMsg}`);
       }
     } catch (err: any) {
       console.error('Error loading route:', err);
@@ -401,14 +414,19 @@ const RutasPromotores: React.FC = () => {
       {/* Header compacto */}
       <Paper elevation={2} sx={{ p: 2, borderRadius: 0, zIndex: 1200 }}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-          <RouteIcon color="primary" />
-          <Typography variant="h5" fontWeight={600}>
+          <RouteIcon color="primary" fontSize="large" />
+          <Typography variant="h5" fontWeight={600} sx={{ flex: 1 }}>
             Rutas de Promotores
           </Typography>
           {hasData && (
-            <IconButton size="small" onClick={() => setDrawerOpen(true)}>
-              <MenuIcon />
-            </IconButton>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<MenuIcon />}
+              onClick={() => setDrawerOpen(true)}
+            >
+              Ver Detalles
+            </Button>
           )}
         </Stack>
 
@@ -500,11 +518,13 @@ const RutasPromotores: React.FC = () => {
 
         {/* Stats */}
         {hasData && (
-          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-            <Chip icon={<PersonIcon />} label={`${selectedUserIds.length} promotores`} size="small" color="primary" variant="outlined" />
-            <Chip icon={<PlaceIcon />} label={`${locationPoints.length} puntos`} size="small" color="primary" variant="outlined" />
-            <Chip icon={<StorefrontIcon />} label={`${kioskVisits.length} kioscos`} size="small" color="success" variant="outlined" />
-            <Chip label={`${longStops.length} paradas largas`} size="small" color="warning" variant="outlined" />
+          <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
+            <Chip icon={<PersonIcon />} label={`${selectedUserIds.length} promotor${selectedUserIds.length !== 1 ? 'es' : ''}`} size="small" color="primary" variant="outlined" />
+            <Chip icon={<PlaceIcon />} label={`${locationPoints.length} punto${locationPoints.length !== 1 ? 's' : ''} de ruta`} size="small" color="primary" variant="outlined" />
+            <Chip icon={<StorefrontIcon />} label={`${kioskVisits.length} visita${kioskVisits.length !== 1 ? 's' : ''} a kioscos`} size="small" color="success" variant="outlined" />
+            {longStops.length > 0 && (
+              <Chip label={`${longStops.length} parada${longStops.length !== 1 ? 's' : ''} larga${longStops.length !== 1 ? 's' : ''}`} size="small" color="warning" variant="outlined" />
+            )}
           </Stack>
         )}
       </Paper>
@@ -523,39 +543,48 @@ const RutasPromotores: React.FC = () => {
           }}
           onLoad={setMapRef}
         >
-          {/* Rutas por usuario */}
+          {/* Rutas por usuario - Líneas de trayectoria */}
           {Object.entries(pointsByUser).map(([userId, points]) => {
             if (points.length < 2) return null;
+            const userColor = getUserColor(userId);
             return (
               <Polyline
                 key={userId}
                 path={points.map(p => ({ lat: p.location.latitude, lng: p.location.longitude }))}
                 options={{
-                  strokeColor: getUserColor(userId),
-                  strokeOpacity: 0.7,
-                  strokeWeight: 4,
+                  strokeColor: userColor,
+                  strokeOpacity: 0.8,
+                  strokeWeight: 5,
+                  geodesic: true,
                   icons: [{
-                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3 },
+                    icon: {
+                      path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                      scale: 2.5,
+                      fillColor: userColor,
+                      fillOpacity: 1,
+                      strokeColor: 'white',
+                      strokeWeight: 1
+                    },
                     offset: '100%',
-                    repeat: '100px'
+                    repeat: '80px'
                   }]
                 }}
               />
             );
           })}
 
-          {/* Puntos de ruta */}
+          {/* Puntos de ruta - Marcadores pequeños en la trayectoria */}
           {locationPoints.map((point) => (
             <Marker
               key={point.id}
               position={{ lat: point.location.latitude, lng: point.location.longitude }}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 5,
+                scale: 4,
                 fillColor: getUserColor(point.userId),
-                fillOpacity: 0.7,
+                fillOpacity: 0.6,
                 strokeColor: 'white',
-                strokeWeight: 1.5
+                strokeWeight: 2
               }}
               onClick={() => {
                 setSelectedPoint(point);
@@ -687,7 +716,33 @@ const RutasPromotores: React.FC = () => {
           )}
         </GoogleMap>
 
-        {/* Placeholder */}
+        {/* Indicador de carga */}
+        {loading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              p: 4,
+              borderRadius: 2,
+              boxShadow: 3,
+              zIndex: 1100
+            }}
+          >
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+            <Typography variant="h6" color="text.primary" fontWeight={600}>
+              Cargando rutas...
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Obteniendo datos de ubicación
+            </Typography>
+          </Box>
+        )}
+
+        {/* Mensaje inicial */}
         {!hasData && !loading && (
           <Box
             sx={{
@@ -696,15 +751,25 @@ const RutasPromotores: React.FC = () => {
               left: '50%',
               transform: 'translate(-50%, -50%)',
               textAlign: 'center',
-              pointerEvents: 'none'
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              p: 4,
+              borderRadius: 2,
+              boxShadow: 3,
+              zIndex: 1
             }}
           >
-            <RouteIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary">
-              Selecciona promotores y periodo
+            <RouteIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+            <Typography variant="h6" color="text.primary" gutterBottom fontWeight={600}>
+              Visualización de Rutas
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              1. Selecciona uno o más promotores
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              2. Elige el periodo de tiempo
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Haz clic en "Cargar Rutas"
+              3. Haz clic en "Cargar Rutas"
             </Typography>
           </Box>
         )}
