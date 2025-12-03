@@ -861,4 +861,316 @@ export class HubSpotService {
       return dateStr;
     }
   }
+
+  /**
+   * Calcula el progreso de una meta comercial para un usuario específico
+   *
+   * @param userId - ID del usuario (hubspot_owner_id)
+   * @param startDate - Fecha de inicio de la meta
+   * @param endDate - Fecha de fin de la meta
+   * @returns Objeto con llamadas y colocación actuales
+   */
+  async calculateGoalProgress(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ llamadas: number; colocacion: number }> {
+    try {
+      // Ajustar endDate al final del día
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999);
+
+      // Filtros para deals del usuario
+      const filters = [
+        {
+          propertyName: "hubspot_owner_id",
+          operator: "EQ",
+          value: userId,
+        },
+        {
+          propertyName: "createdate",
+          operator: "GTE",
+          value: startDate.getTime().toString(),
+        },
+        {
+          propertyName: "createdate",
+          operator: "LTE",
+          value: endDateTime.getTime().toString(),
+        },
+      ];
+
+      // Obtener todos los deals del usuario en el rango de fechas
+      const deals = await this.getAllDeals([{ filters }]);
+
+      // Calcular llamadas: simplemente el conteo de deals creados
+      const llamadas = deals.length;
+
+      // Calcular colocación: sumar amounts de deals cuya fecha de disbursement
+      // (hs_v2_date_entered_33823866 OR hs_v2_date_entered_146336009)
+      // cae dentro del rango de fechas de la meta
+      const startTime = startDate.getTime();
+      const endTime = endDateTime.getTime();
+
+      let colocacion = 0;
+
+      deals.forEach((deal) => {
+        const props = deal.properties;
+
+        // Obtener fecha de disbursement según el producto
+        let disbursementDate = null;
+
+        // Aviva Tu Compra usa hs_v2_date_entered_146336009
+        if (props.hs_v2_date_entered_146336009) {
+          disbursementDate = parseInt(props.hs_v2_date_entered_146336009);
+        }
+        // Otros productos usan hs_v2_date_entered_33823866
+        else if (props.hs_v2_date_entered_33823866) {
+          disbursementDate = parseInt(props.hs_v2_date_entered_33823866);
+        }
+
+        // Si la fecha de disbursement cae dentro del rango, sumar el amount
+        if (disbursementDate && disbursementDate >= startTime && disbursementDate <= endTime) {
+          const amount = parseFloat(props.amount || "0");
+          if (!isNaN(amount)) {
+            colocacion += amount;
+          }
+        }
+      });
+
+      return {
+        llamadas,
+        colocacion: Math.round(colocacion), // Redondear a enteros
+      };
+    } catch (error: any) {
+      console.error("Error calculating goal progress:", error);
+      throw new Error(`Failed to calculate goal progress: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtiene todos los deals con paginación completa
+   * (versión privada para uso interno)
+   */
+  private async getAllDeals(filterGroups: any[]): Promise<any[]> {
+    const allDeals: any[] = [];
+    let after: string | undefined;
+    let page = 1;
+
+    while (true) {
+      const payload: any = {
+        filterGroups,
+        properties: [
+          "dealname",
+          "amount",
+          "createdate",
+          "hubspot_owner_id",
+          "hs_v2_date_entered_33823866",
+          "hs_v2_date_entered_146336009",
+          "producto_aviva",
+        ],
+        limit: 100,
+        sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
+      };
+
+      if (after) {
+        payload.after = after;
+      }
+
+      const response = await this.axiosInstance.post(
+        "/crm/v3/objects/deals/search",
+        payload
+      );
+
+      const deals = response.data.results || [];
+      allDeals.push(...deals);
+
+      const paging = response.data.paging || {};
+      after = paging.next?.after;
+
+      if (!after || deals.length === 0) {
+        break;
+      }
+
+      page++;
+
+      // Límite de seguridad
+      if (page > 200) {
+        console.warn(`⚠️ Alcanzado límite de seguridad en getAllDeals (página ${page})`);
+        break;
+      }
+    }
+
+    return allDeals;
+  }
+
+  /**
+   * Calcula benchmarks de una liga
+   *
+   * @param userIds - Array de IDs de usuarios en la liga
+   * @param startDate - Fecha de inicio del período
+   * @param endDate - Fecha de fin del período
+   * @returns Array de resultados con métricas por usuario
+   */
+  async calculateLeagueBenchmarks(
+    userIds: string[],
+    startDate: Date,
+    endDate: Date
+  ): Promise<Array<{
+    userId: string;
+    metrics: {
+      llamadas: number;
+      colocacion: number;
+      tasaCierre: number;
+    };
+  }>> {
+    try {
+      const results = await Promise.all(
+        userIds.map(async (userId) => {
+          // Calcular métricas básicas
+          const progress = await this.calculateGoalProgress(userId, startDate, endDate);
+
+          // Calcular tasa de cierre
+          // Para esto necesitamos deals en estado "closedwon"
+          const closedDeals = await this.getClosedDeals(userId, startDate, endDate);
+
+          const tasaCierre = progress.llamadas > 0
+            ? (closedDeals / progress.llamadas) * 100
+            : 0;
+
+          return {
+            userId,
+            metrics: {
+              llamadas: progress.llamadas,
+              colocacion: progress.colocacion,
+              tasaCierre: Math.round(tasaCierre * 100) / 100, // 2 decimales
+            },
+          };
+        })
+      );
+
+      return results;
+    } catch (error: any) {
+      console.error("Error calculating league benchmarks:", error);
+      throw new Error(`Failed to calculate league benchmarks: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtiene el número de deals cerrados (closedwon) de un usuario
+   */
+  private async getClosedDeals(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<number> {
+    try {
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999);
+
+      const filters = [
+        {
+          propertyName: "hubspot_owner_id",
+          operator: "EQ",
+          value: userId,
+        },
+        {
+          propertyName: "createdate",
+          operator: "GTE",
+          value: startDate.getTime().toString(),
+        },
+        {
+          propertyName: "createdate",
+          operator: "LTE",
+          value: endDateTime.getTime().toString(),
+        },
+        {
+          propertyName: "dealstage",
+          operator: "EQ",
+          value: "closedwon",
+        },
+      ];
+
+      const count = await this.getDealsCount([{ filters }]);
+      return count;
+    } catch (error) {
+      console.error("Error getting closed deals:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Calcula el progreso de una meta para un kiosco específico
+   * (asume que los deals tienen una propiedad personalizada que identifica el kiosco)
+   *
+   * @param kioskId - ID del kiosco
+   * @param startDate - Fecha de inicio de la meta
+   * @param endDate - Fecha de fin de la meta
+   * @returns Objeto con llamadas y colocación actuales
+   */
+  async calculateKioskGoalProgress(
+    kioskId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ llamadas: number; colocacion: number }> {
+    try {
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999);
+
+      // Nota: Este método asume que existe una propiedad personalizada en HubSpot
+      // para identificar el kiosco. Ajustar según la implementación real.
+      const filters = [
+        {
+          propertyName: "kiosk_id", // Ajustar según el nombre real de la propiedad
+          operator: "EQ",
+          value: kioskId,
+        },
+        {
+          propertyName: "createdate",
+          operator: "GTE",
+          value: startDate.getTime().toString(),
+        },
+        {
+          propertyName: "createdate",
+          operator: "LTE",
+          value: endDateTime.getTime().toString(),
+        },
+      ];
+
+      const deals = await this.getAllDeals([{ filters }]);
+
+      const llamadas = deals.length;
+
+      const startTime = startDate.getTime();
+      const endTime = endDateTime.getTime();
+
+      let colocacion = 0;
+
+      deals.forEach((deal) => {
+        const props = deal.properties;
+
+        let disbursementDate = null;
+
+        if (props.hs_v2_date_entered_146336009) {
+          disbursementDate = parseInt(props.hs_v2_date_entered_146336009);
+        } else if (props.hs_v2_date_entered_33823866) {
+          disbursementDate = parseInt(props.hs_v2_date_entered_33823866);
+        }
+
+        if (disbursementDate && disbursementDate >= startTime && disbursementDate <= endTime) {
+          const amount = parseFloat(props.amount || "0");
+          if (!isNaN(amount)) {
+            colocacion += amount;
+          }
+        }
+      });
+
+      return {
+        llamadas,
+        colocacion: Math.round(colocacion),
+      };
+    } catch (error: any) {
+      console.error("Error calculating kiosk goal progress:", error);
+      throw new Error(`Failed to calculate kiosk goal progress: ${error.message}`);
+    }
+  }
 }
