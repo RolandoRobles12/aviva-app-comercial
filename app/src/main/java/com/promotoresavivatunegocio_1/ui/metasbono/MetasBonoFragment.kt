@@ -1,25 +1,34 @@
 package com.promotoresavivatunegocio_1.ui.metasbono
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
 import com.promotoresavivatunegocio_1.R
+import com.promotoresavivatunegocio_1.services.HubSpotRepository
+import kotlinx.coroutines.launch
 
 /**
  * Fragment para "Metas & Bono - Front"
- * Muestra 3 módulos principales:
+ * Muestra 3 módulos principales con DATOS REALES de HubSpot:
  * 1. Alcance de metas semanales (con proyección de bono)
- * 2. Benchmarking (comparación con grupo)
+ * 2. Benchmarking (comparación con liga)
  * 3. Ligas y Premios
  */
 class MetasBonoFragment : Fragment() {
 
+    companion object {
+        private const val TAG = "MetasBonoFragment"
+    }
+
     private lateinit var auth: FirebaseAuth
+    private lateinit var hubSpotRepository: HubSpotRepository
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -33,72 +42,118 @@ class MetasBonoFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
+        hubSpotRepository = HubSpotRepository()
 
-        // Cargar datos de ejemplo (en producción vendrían de un ViewModel o API)
-        loadModulo1Data(view)
-        loadModulo2Data(view)
-        loadModulo3Data(view)
+        // Cargar datos REALES de HubSpot
+        loadRealData(view)
     }
 
     /**
-     * Módulo 1: Alcance de metas semanales
+     * Carga todos los datos REALES desde HubSpot
      */
-    private fun loadModulo1Data(view: View) {
-        // Datos de ejemplo - en producción vendrían del backend
-        val llamadasRealizadas = 45
-        val llamadasMeta = 60
-        val llamadasPorcentaje = ((llamadasRealizadas.toFloat() / llamadasMeta) * 100).toInt()
+    private fun loadRealData(view: View) {
+        lifecycleScope.launch {
+            try {
+                // Cargar metas reales
+                val goalsResult = hubSpotRepository.getMyGoals()
+                goalsResult.onSuccess { goalsData ->
+                    Log.d(TAG, "✅ Metas recibidas: ${goalsData.goals.size} metas")
+                    if (goalsData.goals.isNotEmpty()) {
+                        // Mostrar la primera meta activa
+                        loadModulo1WithRealData(view, goalsData.goals.first())
+                    } else {
+                        Log.w(TAG, "⚠️ No hay metas asignadas: ${goalsData.message}")
+                        showNoGoalsMessage(view)
+                    }
+                }.onFailure { error ->
+                    Log.e(TAG, "❌ Error cargando metas", error)
+                    showErrorMessage(view, "Error al cargar metas: ${error.message}")
+                }
 
-        val colocacionRealizada = 125000
-        val colocacionMeta = 150000
-        val colocacionPorcentaje = ((colocacionRealizada.toFloat() / colocacionMeta) * 100).toInt()
+                // Cargar estadísticas de liga reales
+                val leagueResult = hubSpotRepository.getMyLeagueStats()
+                leagueResult.onSuccess { leagueData ->
+                    Log.d(TAG, "✅ Estadísticas de liga recibidas: ${leagueData.leagues.size} ligas")
+                    if (leagueData.leagues.isNotEmpty()) {
+                        // Mostrar la primera liga
+                        loadModulo2WithRealData(view, leagueData.leagues.first())
+                    } else {
+                        Log.w(TAG, "⚠️ No está en ninguna liga: ${leagueData.message}")
+                    }
+                }.onFailure { error ->
+                    Log.e(TAG, "❌ Error cargando liga", error)
+                }
 
-        // Actualizar UI
-        view.findViewById<TextView>(R.id.tvLlamadasValor).text = "$llamadasRealizadas / $llamadasMeta"
-        view.findViewById<TextView>(R.id.tvLlamadasPorcentaje).text = "$llamadasPorcentaje%"
-        view.findViewById<ProgressBar>(R.id.progressLlamadas).progress = llamadasPorcentaje
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error general cargando datos", e)
+                showErrorMessage(view, "Error: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Módulo 1: Muestra DATOS REALES de HubSpot
+     */
+    private fun loadModulo1WithRealData(view: View, goal: com.promotoresavivatunegocio_1.models.hubspot.UserGoal) {
+        val llamadasCurrent = goal.metrics.llamadas.current
+        val llamadasTarget = goal.metrics.llamadas.target
+        val llamadasPercentage = goal.metrics.llamadas.percentage
+
+        val colocacionCurrent = goal.metrics.colocacion.current
+        val colocacionTarget = goal.metrics.colocacion.target
+        val colocacionPercentage = goal.metrics.colocacion.percentage
+
+        // Actualizar UI con datos REALES
+        view.findViewById<TextView>(R.id.tvLlamadasValor).text = "$llamadasCurrent / $llamadasTarget"
+        view.findViewById<TextView>(R.id.tvLlamadasPorcentaje).text = "$llamadasPercentage%"
+        view.findViewById<ProgressBar>(R.id.progressLlamadas).progress = llamadasPercentage
 
         view.findViewById<TextView>(R.id.tvColocacionValor).text =
-            "$${formatMoney(colocacionRealizada)} / $${formatMoney(colocacionMeta)}"
-        view.findViewById<TextView>(R.id.tvColocacionPorcentaje).text = "$colocacionPorcentaje%"
-        view.findViewById<ProgressBar>(R.id.progressColocacion).progress = colocacionPorcentaje
+            "$${formatMoney(colocacionCurrent)} / $${formatMoney(colocacionTarget)}"
+        view.findViewById<TextView>(R.id.tvColocacionPorcentaje).text = "$colocacionPercentage%"
+        view.findViewById<ProgressBar>(R.id.progressColocacion).progress = colocacionPercentage
 
-        // Proyecciones de bono
-        val bonoActual = 2500
-        val colocacionB = 150000
-        val bonoB = 3500
-        val colocacionA = 175000
-        val bonoA = 5000
-
-        val faltanteB = colocacionB - colocacionRealizada
-        val faltanteA = colocacionA - colocacionRealizada
+        // Proyecciones de bono basadas en progreso real
+        val faltanteB = colocacionTarget - colocacionCurrent
+        val faltanteA = (colocacionTarget * 1.17).toInt() - colocacionCurrent
 
         view.findViewById<TextView>(R.id.tvProyeccionActual).text =
-            "• A esta velocidad llegas a $${formatMoney(colocacionRealizada)} de colocación y estás en bono CAC = C ($${formatMoney(bonoActual)})"
+            "• Llevas $${formatMoney(colocacionCurrent)} de $${formatMoney(colocacionTarget)} (${colocacionPercentage}%)"
 
         view.findViewById<TextView>(R.id.tvProyeccionB).text =
-            "• Si colocas $${formatMoney(faltanteB)} más, te llevas $${formatMoney(bonoB)} en bono (CAC = B)"
+            if (faltanteB > 0)
+                "• Faltan $${formatMoney(faltanteB)} para cumplir la meta base"
+            else
+                "• ✅ ¡Ya cumpliste la meta base!"
 
         view.findViewById<TextView>(R.id.tvProyeccionA).text =
-            "• Si colocas $${formatMoney(faltanteA)} más, te llevas $${formatMoney(bonoA)} en bono (CAC = A)"
+            if (faltanteA > 0)
+                "• Faltan $${formatMoney(faltanteA)} para superar la meta en 17%"
+            else
+                "• 🏆 ¡Superaste la meta extendida!"
     }
 
     /**
-     * Módulo 2: Benchmarking
+     * Módulo 2: Muestra BENCHMARKING REAL de la liga
      */
-    private fun loadModulo2Data(view: View) {
-        // Datos de ejemplo - comparación con grupo
-        val tuLlamadas = 180
-        val grupoLlamadas = 165
-        val diffLlamadas = ((tuLlamadas - grupoLlamadas).toFloat() / grupoLlamadas * 100).toInt()
+    private fun loadModulo2WithRealData(view: View, league: com.promotoresavivatunegocio_1.models.hubspot.LeagueStats) {
+        val tuLlamadas = league.userMetrics.llamadas
+        val grupoLlamadas = league.leagueAverage.llamadas
+        val diffLlamadas = if (grupoLlamadas > 0)
+            ((tuLlamadas - grupoLlamadas).toFloat() / grupoLlamadas * 100).toInt()
+        else 0
 
-        val tuColocacion = 450000
-        val grupoColocacion = 420000
-        val diffColocacion = ((tuColocacion - grupoColocacion).toFloat() / grupoColocacion * 100).toInt()
+        val tuColocacion = league.userMetrics.colocacion
+        val grupoColocacion = league.leagueAverage.colocacion
+        val diffColocacion = if (grupoColocacion > 0)
+            ((tuColocacion - grupoColocacion).toFloat() / grupoColocacion * 100).toInt()
+        else 0
 
-        val tuCierre = 28
-        val grupoCierre = 25
-        val diffCierre = ((tuCierre - grupoCierre).toFloat() / grupoCierre * 100).toInt()
+        val tuCierre = league.userMetrics.tasaCierre.toInt()
+        val grupoCierre = league.leagueAverage.tasaCierre.toInt()
+        val diffCierre = if (grupoCierre > 0)
+            ((tuCierre - grupoCierre).toFloat() / grupoCierre * 100).toInt()
+        else 0
 
         // Llamadas
         view.findViewById<TextView>(R.id.tvBenchLlamadasTu).text = tuLlamadas.toString()
@@ -129,21 +184,22 @@ class MetasBonoFragment : Fragment() {
                 resources.getColor(R.color.success_color, null)
                 else resources.getColor(R.color.error_color, null))
         }
-    }
 
-    /**
-     * Módulo 3: Ligas y Premios
-     */
-    private fun loadModulo3Data(view: View) {
-        // Datos de ejemplo para el ranking
+        // Mostrar ranking
         val currentUser = auth.currentUser
         val displayName = currentUser?.displayName ?: "TÚ"
+        view.findViewById<TextView>(R.id.tvNombreUsuario).text = "$displayName - Rank #${league.userRank}/${league.totalMembers}"
+        view.findViewById<TextView>(R.id.tvPuntosUsuario).text = "$${formatMoneyShort(tuColocacion)}"
+    }
 
-        view.findViewById<TextView>(R.id.tvNombreUsuario).text = displayName
-        view.findViewById<TextView>(R.id.tvPuntosUsuario).text = "1,120 pts"
+    private fun showNoGoalsMessage(view: View) {
+        view.findViewById<TextView>(R.id.tvLlamadasValor).text = "Sin metas asignadas"
+        view.findViewById<TextView>(R.id.tvColocacionValor).text = "Contacta al administrador"
+    }
 
-        // Los datos del ranking (Juan Pérez, María García) están hardcoded en el XML
-        // En producción, estos vendrían de una RecyclerView con datos del backend
+    private fun showErrorMessage(view: View, message: String) {
+        view.findViewById<TextView>(R.id.tvLlamadasValor).text = "Error"
+        view.findViewById<TextView>(R.id.tvColocacionValor).text = message
     }
 
     /**

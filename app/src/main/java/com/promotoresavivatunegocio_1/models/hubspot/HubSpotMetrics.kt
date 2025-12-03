@@ -239,3 +239,121 @@ data class MetricsRequest(
     @SerializedName("endDate")
     val endDate: String? = null
 )
+
+/**
+ * Response para /getMyGoals
+ */
+data class MyGoalsResponse(
+    @SerializedName("goals")
+    val goals: List<UserGoal> = emptyList(),
+
+    @SerializedName("hubspotOwnerId")
+    val hubspotOwnerId: String?,
+
+    @SerializedName("message")
+    val message: String? = null
+)
+
+data class UserGoal(
+    @SerializedName("id")
+    val id: String,
+
+    @SerializedName("name")
+    val name: String,
+
+    @SerializedName("period")
+    val period: String,
+
+    @SerializedName("startDate")
+    val startDate: String,
+
+    @SerializedName("endDate")
+    val endDate: String,
+
+    @SerializedName("metrics")
+    val metrics: GoalMetricsData,
+
+    @SerializedName("onTrack")
+    val onTrack: Boolean
+)
+
+data class GoalMetricsData(
+    @SerializedName("llamadas")
+    val llamadas: MetricProgress,
+
+    @SerializedName("colocacion")
+    val colocacion: MetricProgress
+)
+
+data class MetricProgress(
+    @SerializedName("current")
+    val current: Int,
+
+    @SerializedName("target")
+    val target: Int,
+
+    @SerializedName("percentage")
+    val percentage: Int
+)
+
+/**
+ * Response para /getMyLeagueStats
+ */
+data class MyLeagueStatsResponse(
+    @SerializedName("leagues")
+    val leagues: List<LeagueStats> = emptyList(),
+
+    @SerializedName("hubspotOwnerId")
+    val hubspotOwnerId: String?,
+
+    @SerializedName("message")
+    val message: String? = null
+)
+
+data class LeagueStats(
+    @SerializedName("leagueId")
+    val leagueId: String,
+
+    @SerializedName("leagueName")
+    val leagueName: String,
+
+    @SerializedName("icon")
+    val icon: String?,
+
+    @SerializedName("color")
+    val color: String?,
+
+    @SerializedName("totalMembers")
+    val totalMembers: Int,
+
+    @SerializedName("userRank")
+    val userRank: Int,
+
+    @SerializedName("userMetrics")
+    val userMetrics: LeagueMetrics,
+
+    @SerializedName("leagueAverage")
+    val leagueAverage: LeagueMetrics,
+
+    @SerializedName("period")
+    val period: PeriodData
+)
+
+data class LeagueMetrics(
+    @SerializedName("llamadas")
+    val llamadas: Int,
+
+    @SerializedName("colocacion")
+    val colocacion: Int,
+
+    @SerializedName("tasaCierre")
+    val tasaCierre: Double
+)
+
+data class PeriodData(
+    @SerializedName("startDate")
+    val startDate: String,
+
+    @SerializedName("endDate")
+    val endDate: String
+)

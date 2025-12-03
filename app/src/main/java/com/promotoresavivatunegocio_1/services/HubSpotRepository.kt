@@ -242,4 +242,66 @@ class HubSpotRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Obtiene las metas asignadas al usuario con progreso real de HubSpot
+     */
+    suspend fun getMyGoals(): Result<MyGoalsResponse> {
+        return try {
+            Log.d(TAG, "Obteniendo metas del usuario...")
+
+            val authToken = getAuthToken()
+            val response = apiService.getMyGoals(authToken)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.success == true && body.data != null) {
+                    Log.d(TAG, "✅ Metas obtenidas - ${body.data.goals.size} metas activas")
+                    Result.success(body.data)
+                } else {
+                    val errorMsg = body?.error ?: "Error desconocido"
+                    Log.e(TAG, "❌ Error en respuesta: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                val errorMsg = "Error HTTP ${response.code()}: ${response.message()}"
+                Log.e(TAG, "❌ $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error obteniendo metas", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtiene estadísticas de liga con benchmarking de HubSpot
+     */
+    suspend fun getMyLeagueStats(): Result<MyLeagueStatsResponse> {
+        return try {
+            Log.d(TAG, "Obteniendo estadísticas de liga...")
+
+            val authToken = getAuthToken()
+            val response = apiService.getMyLeagueStats(authToken)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.success == true && body.data != null) {
+                    Log.d(TAG, "✅ Estadísticas obtenidas - ${body.data.leagues.size} ligas")
+                    Result.success(body.data)
+                } else {
+                    val errorMsg = body?.error ?: "Error desconocido"
+                    Log.e(TAG, "❌ Error en respuesta: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                val errorMsg = "Error HTTP ${response.code()}: ${response.message()}"
+                Log.e(TAG, "❌ $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error obteniendo estadísticas de liga", e)
+            Result.failure(e)
+        }
+    }
 }
