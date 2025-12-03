@@ -574,3 +574,316 @@ export const getPipelineMetrics = functions.https.onRequest(async (req, res) => 
     }
   });
 });
+
+/**
+ * Function para obtener las metas asignadas a un usuario con progreso real de HubSpot
+ * Endpoint: /getMyGoals
+ * Método: GET
+ * Headers: Authorization: Bearer <firebase-token>
+ */
+export const getMyGoals = functions.https.onRequest(async (req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      // Validar autenticación
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized: Missing or invalid token",
+          message: null
+        });
+        return;
+      }
+
+      const idToken = authHeader.split("Bearer ")[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const userId = decodedToken.uid;
+
+      // Obtener datos del usuario
+      const userDoc = await admin.firestore().collection("users").doc(userId).get();
+      const userData = userDoc.data();
+
+      if (!userData) {
+        res.status(404).json({
+          success: false,
+          data: null,
+          error: "User not found",
+          message: null
+        });
+        return;
+      }
+
+      // Verificar que el usuario tenga hubspotOwnerId
+      const hubspotOwnerId = userData.hubspotOwnerId;
+      if (!hubspotOwnerId) {
+        res.status(200).json({
+          success: true,
+          data: {
+            goals: [],
+            message: "No HubSpot Owner ID configured for this user"
+          },
+          error: null,
+          message: null
+        });
+        return;
+      }
+
+      // Buscar metas activas asignadas al usuario
+      const now = admin.firestore.Timestamp.now();
+      const goalsSnapshot = await admin.firestore()
+        .collection("goals")
+        .where("active", "==", true)
+        .get();
+
+      const userGoals: any[] = [];
+
+      for (const goalDoc of goalsSnapshot.docs) {
+        const goalData = goalDoc.data();
+
+        // Verificar si la meta está asignada a este usuario
+        let isAssigned = false;
+
+        if (goalData.targetType === "all") {
+          isAssigned = true;
+        } else if (goalData.targetType === "seller" && goalData.targetId === userId) {
+          isAssigned = true;
+        } else if (goalData.targetType === "kiosk" && goalData.targetId === userData.assignedKioskId) {
+          isAssigned = true;
+        }
+
+        // Verificar que la meta esté vigente
+        const startDate = goalData.startDate.toDate();
+        const endDate = goalData.endDate.toDate();
+        const isActive = now.toDate() >= startDate && now.toDate() <= endDate;
+
+        if (isAssigned && isActive) {
+          // Obtener API key de HubSpot
+          const hubspotApiKey = functions.config().hubspot?.apikey;
+          if (!hubspotApiKey) {
+            console.error("HubSpot API key not configured");
+            continue;
+          }
+
+          // Calcular progreso real desde HubSpot
+          const hubspotService = new HubSpotService(hubspotApiKey);
+          const progress = await hubspotService.calculateGoalProgress(
+            hubspotOwnerId,
+            startDate,
+            endDate
+          );
+
+          // Calcular porcentajes
+          const llamadasPercentage = goalData.metrics.llamadas > 0
+            ? Math.round((progress.llamadas / goalData.metrics.llamadas) * 100)
+            : 0;
+
+          const colocacionPercentage = goalData.metrics.colocacion > 0
+            ? Math.round((progress.colocacion / goalData.metrics.colocacion) * 100)
+            : 0;
+
+          userGoals.push({
+            id: goalDoc.id,
+            name: goalData.name,
+            period: goalData.period,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            metrics: {
+              llamadas: {
+                current: progress.llamadas,
+                target: goalData.metrics.llamadas,
+                percentage: llamadasPercentage
+              },
+              colocacion: {
+                current: progress.colocacion,
+                target: goalData.metrics.colocacion,
+                percentage: colocacionPercentage
+              }
+            },
+            onTrack: llamadasPercentage >= 80 && colocacionPercentage >= 80
+          });
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          goals: userGoals,
+          hubspotOwnerId: hubspotOwnerId
+        },
+        error: null,
+        message: null
+      });
+    } catch (error: any) {
+      console.error("Error getting user goals:", error);
+      res.status(500).json({
+        success: false,
+        data: null,
+        error: "Failed to fetch user goals",
+        message: error.message
+      });
+    }
+  });
+});
+
+/**
+ * Function para obtener estadísticas de liga con benchmarking
+ * Endpoint: /getMyLeagueStats
+ * Método: GET
+ * Headers: Authorization: Bearer <firebase-token>
+ */
+export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      // Validar autenticación
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({
+          success: false,
+          data: null,
+          error: "Unauthorized: Missing or invalid token",
+          message: null
+        });
+        return;
+      }
+
+      const idToken = authHeader.split("Bearer ")[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const userId = decodedToken.uid;
+
+      // Obtener datos del usuario
+      const userDoc = await admin.firestore().collection("users").doc(userId).get();
+      const userData = userDoc.data();
+
+      if (!userData) {
+        res.status(404).json({
+          success: false,
+          data: null,
+          error: "User not found",
+          message: null
+        });
+        return;
+      }
+
+      const hubspotOwnerId = userData.hubspotOwnerId;
+      if (!hubspotOwnerId) {
+        res.status(200).json({
+          success: true,
+          data: {
+            leagues: [],
+            message: "No HubSpot Owner ID configured for this user"
+          },
+          error: null,
+          message: null
+        });
+        return;
+      }
+
+      // Buscar ligas activas donde el usuario es miembro
+      const leaguesSnapshot = await admin.firestore()
+        .collection("leagues")
+        .where("active", "==", true)
+        .where("members", "array-contains", userId)
+        .get();
+
+      const hubspotApiKey = functions.config().hubspot?.apikey;
+      if (!hubspotApiKey) {
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: "HubSpot API key not configured",
+          message: null
+        });
+        return;
+      }
+
+      const hubspotService = new HubSpotService(hubspotApiKey);
+      const leagueStats: any[] = [];
+
+      // Calcular período: últimos 30 días
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      for (const leagueDoc of leaguesSnapshot.docs) {
+        const leagueData = leagueDoc.data();
+
+        // Obtener hubspotOwnerIds de todos los miembros
+        const memberUserIds = leagueData.members as string[];
+        const memberHubspotIds: string[] = [];
+
+        for (const memberId of memberUserIds) {
+          const memberDoc = await admin.firestore().collection("users").doc(memberId).get();
+          const memberData = memberDoc.data();
+          if (memberData?.hubspotOwnerId) {
+            memberHubspotIds.push(memberData.hubspotOwnerId);
+          }
+        }
+
+        if (memberHubspotIds.length === 0) {
+          continue;
+        }
+
+        // Calcular benchmarks para toda la liga
+        const benchmarks = await hubspotService.calculateLeagueBenchmarks(
+          memberHubspotIds,
+          startDate,
+          endDate
+        );
+
+        // Encontrar las estadísticas del usuario actual
+        const userStats = benchmarks.find(b => b.userId === hubspotOwnerId);
+
+        // Calcular promedio de la liga
+        const avgLlamadas = benchmarks.reduce((sum, b) => sum + b.metrics.llamadas, 0) / benchmarks.length;
+        const avgColocacion = benchmarks.reduce((sum, b) => sum + b.metrics.colocacion, 0) / benchmarks.length;
+        const avgTasaCierre = benchmarks.reduce((sum, b) => sum + b.metrics.tasaCierre, 0) / benchmarks.length;
+
+        // Ordenar por colocación para calcular ranking
+        const sortedByColocacion = [...benchmarks].sort((a, b) => b.metrics.colocacion - a.metrics.colocacion);
+        const userRank = sortedByColocacion.findIndex(b => b.userId === hubspotOwnerId) + 1;
+
+        leagueStats.push({
+          leagueId: leagueDoc.id,
+          leagueName: leagueData.name,
+          icon: leagueData.icon,
+          color: leagueData.color,
+          totalMembers: memberHubspotIds.length,
+          userRank: userRank,
+          userMetrics: userStats ? userStats.metrics : {
+            llamadas: 0,
+            colocacion: 0,
+            tasaCierre: 0
+          },
+          leagueAverage: {
+            llamadas: Math.round(avgLlamadas),
+            colocacion: Math.round(avgColocacion),
+            tasaCierre: Math.round(avgTasaCierre * 100) / 100
+          },
+          period: {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          }
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          leagues: leagueStats,
+          hubspotOwnerId: hubspotOwnerId
+        },
+        error: null,
+        message: null
+      });
+    } catch (error: any) {
+      console.error("Error getting league stats:", error);
+      res.status(500).json({
+        success: false,
+        data: null,
+        error: "Failed to fetch league stats",
+        message: error.message
+      });
+    }
+  });
+});

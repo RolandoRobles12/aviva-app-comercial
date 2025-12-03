@@ -64,4 +64,20 @@ interface HubSpotApiService {
         @Header("Authorization") authToken: String,
         @Body request: BatchSyncRequest
     ): Response<HubSpotApiResponse<BatchSyncResponse>>
+
+    /**
+     * Obtiene las metas asignadas al usuario con progreso real de HubSpot
+     */
+    @POST("getMyGoals")
+    suspend fun getMyGoals(
+        @Header("Authorization") authToken: String
+    ): Response<HubSpotApiResponse<MyGoalsResponse>>
+
+    /**
+     * Obtiene estadísticas de liga con benchmarking de HubSpot
+     */
+    @POST("getMyLeagueStats")
+    suspend fun getMyLeagueStats(
+        @Header("Authorization") authToken: String
+    ): Response<HubSpotApiResponse<MyLeagueStatsResponse>>
 }
