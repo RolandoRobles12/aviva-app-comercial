@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
  * Tipos de metas
  */
 export type GoalPeriod = 'weekly' | 'monthly';
-export type GoalTargetType = 'kiosk' | 'seller' | 'all';
+export type GoalTargetType = 'users' | 'kiosks' | 'league' | 'all';
 
 /**
  * Métricas de una meta
@@ -21,9 +21,9 @@ export interface Goal {
   id: string;
   name: string;                    // Nombre descriptivo (ej: "Meta Semanal - Enero 2025")
   period: GoalPeriod;              // 'weekly' o 'monthly'
-  targetType: GoalTargetType;      // 'kiosk', 'seller', o 'all'
-  targetId?: string;               // ID del kiosco o vendedor (null si targetType='all')
-  targetName?: string;             // Nombre del kiosco o vendedor (para UI)
+  targetType: GoalTargetType;      // 'users', 'kiosks', 'league', o 'all'
+  targetIds: string[];             // Array de IDs de usuarios, kioscos, o liga
+  targetNames: string[];           // Array de nombres (para UI)
   metrics: GoalMetrics;            // Metas numéricas
   startDate: Timestamp;            // Fecha de inicio
   endDate: Timestamp;              // Fecha de fin
@@ -40,8 +40,8 @@ export interface GoalFormData {
   name: string;
   period: GoalPeriod;
   targetType: GoalTargetType;
-  targetId?: string;
-  targetName?: string;
+  targetIds: string[];           // Múltiples IDs
+  targetNames: string[];         // Múltiples nombres
   metrics: {
     llamadas: string;    // String para input form
     colocacion: string;  // String para input form
