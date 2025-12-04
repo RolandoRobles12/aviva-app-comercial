@@ -929,12 +929,28 @@ export class HubSpotService {
 
         // Aviva Tu Compra usa hs_v2_date_entered_146336009
         if (props.hs_v2_date_entered_146336009) {
-          disbursementDate = parseInt(props.hs_v2_date_entered_146336009);
+          const rawValue = props.hs_v2_date_entered_146336009;
+          // HubSpot puede retornar timestamp numérico o ISO string
+          if (typeof rawValue === 'string' && rawValue.includes('T')) {
+            // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
+            disbursementDate = new Date(rawValue).getTime();
+          } else {
+            // Es timestamp numérico (milisegundos desde epoch)
+            disbursementDate = parseInt(rawValue);
+          }
           console.log(`   ✅ Usando disbursement (Pipeline 2): ${new Date(disbursementDate).toISOString()}`);
         }
         // Otros productos usan hs_v2_date_entered_33823866
         else if (props.hs_v2_date_entered_33823866) {
-          disbursementDate = parseInt(props.hs_v2_date_entered_33823866);
+          const rawValue = props.hs_v2_date_entered_33823866;
+          // HubSpot puede retornar timestamp numérico o ISO string
+          if (typeof rawValue === 'string' && rawValue.includes('T')) {
+            // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
+            disbursementDate = new Date(rawValue).getTime();
+          } else {
+            // Es timestamp numérico (milisegundos desde epoch)
+            disbursementDate = parseInt(rawValue);
+          }
           console.log(`   ✅ Usando disbursement (Pipeline 1): ${new Date(disbursementDate).toISOString()}`);
         } else {
           console.log(`   ❌ Sin fecha de disbursement`);
