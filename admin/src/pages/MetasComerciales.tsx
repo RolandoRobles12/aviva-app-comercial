@@ -42,9 +42,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  Timestamp,
-  query,
-  where
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Goal, GoalFormData, GoalPeriod, GoalTargetType } from '../types/goal';
@@ -111,8 +109,16 @@ const MetasComerciales: React.FC = () => {
         const goal: Goal = {
           id: doc.id,
           name: data.nombre || data.name || '',
-          period: data.periodo || data.period || 'weekly',
-          targetType: data.tipo === 'GLOBAL' ? 'all' : (data.tipo?.toLowerCase() || data.targetType || 'all'),
+          // Convertir SEMANAL/MENSUAL a weekly/monthly para la UI
+          period: data.periodo === 'SEMANAL' ? 'weekly' :
+                  data.periodo === 'MENSUAL' ? 'monthly' :
+                  (data.period || 'weekly'),
+          // Convertir GLOBAL/USUARIO/KIOSCO/LIGA a all/users/kiosks/league
+          targetType: data.tipo === 'GLOBAL' ? 'all' :
+                      data.tipo === 'USUARIO' ? 'users' :
+                      data.tipo === 'KIOSCO' ? 'kiosks' :
+                      data.tipo === 'LIGA' ? 'league' :
+                      (data.targetType || 'all'),
           targetIds: data.targetIds || [],
           targetNames: data.targetNames || [],
           metrics: {
@@ -148,28 +154,33 @@ const MetasComerciales: React.FC = () => {
         });
       });
       setKiosks(kiosksData.sort((a, b) => a.name.localeCompare(b.name)));
+      console.log(`✅ Kioscos cargados: ${kiosksData.length}`, kiosksData.map(k => k.name));
     } catch (err) {
-      console.error('Error al cargar kioscos:', err);
+      console.error('❌ Error al cargar kioscos:', err);
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'seller'));
-      const querySnapshot = await getDocs(q);
+      // Buscar todos los usuarios que no sean admin
+      const querySnapshot = await getDocs(collection(db, 'users'));
       const usersData: User[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        usersData.push({
-          id: doc.id,
-          displayName: data.displayName || data.email || '',
-          email: data.email || '',
-          role: data.role || ''
-        });
+        // Filtrar solo usuarios que no sean admin
+        if (data.role !== 'admin') {
+          usersData.push({
+            id: doc.id,
+            displayName: data.displayName || data.email || '',
+            email: data.email || '',
+            role: data.role || ''
+          });
+        }
       });
       setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      console.log(`✅ Usuarios cargados: ${usersData.length}`, usersData.map(u => `${u.displayName} (${u.role})`));
     } catch (err) {
-      console.error('Error al cargar promotores:', err);
+      console.error('❌ Error al cargar promotores:', err);
     }
   };
 
@@ -187,8 +198,9 @@ const MetasComerciales: React.FC = () => {
         });
       });
       setLeagues(leaguesData.sort((a, b) => a.name.localeCompare(b.name)));
+      console.log(`✅ Ligas cargadas: ${leaguesData.length}`, leaguesData.map(l => l.name));
     } catch (err) {
-      console.error('Error al cargar ligas:', err);
+      console.error('❌ Error al cargar ligas:', err);
     }
   };
 
@@ -295,7 +307,10 @@ const MetasComerciales: React.FC = () => {
       // Guardar en formato legacy (colección 'metas' con campos en español)
       const dataToSave = {
         nombre: formData.name.trim(),
-        periodo: formData.period.toUpperCase(), // SEMANAL o MENSUAL
+        // Convertir weekly/monthly a SEMANAL/MENSUAL
+        periodo: formData.period === 'weekly' ? 'SEMANAL' :
+                 formData.period === 'monthly' ? 'MENSUAL' : 'SEMANAL',
+        // Convertir all/users/kiosks/league a GLOBAL/USUARIO/KIOSCO/LIGA
         tipo: formData.targetType === 'all' ? 'GLOBAL' :
               formData.targetType === 'users' ? 'USUARIO' :
               formData.targetType === 'kiosks' ? 'KIOSCO' :
@@ -313,17 +328,22 @@ const MetasComerciales: React.FC = () => {
         ...(editingGoal ? {} : { createdAt: Timestamp.now() })
       };
 
+      console.log('💾 Guardando meta:', dataToSave);
+
       if (editingGoal) {
+        console.log(`✏️ Actualizando meta existente: ${editingGoal.id}`);
         await updateDoc(doc(db, 'metas', editingGoal.id), dataToSave);
       } else {
+        console.log('➕ Creando nueva meta');
         await addDoc(collection(db, 'metas'), dataToSave);
       }
 
+      console.log('✅ Meta guardada exitosamente');
       await fetchGoals();
       handleCloseDialog();
     } catch (err) {
       setError('Error al guardar la meta comercial');
-      console.error(err);
+      console.error('❌ Error al guardar:', err);
     }
   };
 
