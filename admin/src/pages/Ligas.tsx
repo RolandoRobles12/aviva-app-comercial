@@ -40,9 +40,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  Timestamp,
-  query,
-  where
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { League, LeagueFormData } from '../types/league';
@@ -71,6 +69,7 @@ const Ligas: React.FC = () => {
   });
 
   useEffect(() => {
+    console.log('🚀 Ligas v2.0 - Carga todos los usuarios (no solo sellers)');
     fetchLeagues();
     fetchUsers();
   }, []);
@@ -91,21 +90,25 @@ const Ligas: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'seller'));
-      const querySnapshot = await getDocs(q);
+      // Buscar todos los usuarios que no sean admin
+      const querySnapshot = await getDocs(collection(db, 'users'));
       const usersData: User[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        usersData.push({
-          id: doc.id,
-          displayName: data.displayName || data.email || '',
-          email: data.email || '',
-          role: data.role || ''
-        });
+        // Filtrar solo usuarios que no sean admin
+        if (data.role !== 'admin') {
+          usersData.push({
+            id: doc.id,
+            displayName: data.displayName || data.email || '',
+            email: data.email || '',
+            role: data.role || ''
+          });
+        }
       });
       setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      console.log(`✅ Usuarios cargados en Ligas: ${usersData.length}`, usersData.map(u => `${u.displayName} (${u.role})`));
     } catch (err) {
-      console.error('Error al cargar promotores:', err);
+      console.error('❌ Error al cargar promotores:', err);
     }
   };
 
