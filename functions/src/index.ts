@@ -636,16 +636,25 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
         .where("active", "==", true)
         .get();
 
+      console.log(`📊 Total metas activas en DB: ${goalsSnapshot.size}`);
+
       const userGoals: any[] = [];
 
       for (const goalDoc of goalsSnapshot.docs) {
         const goalData = goalDoc.data();
+
+        console.log(`🔍 Evaluando meta: ${goalData.name}`);
+        console.log(`   - targetType: ${goalData.targetType}`);
+        console.log(`   - startDate: ${goalData.startDate?.toDate()}`);
+        console.log(`   - endDate: ${goalData.endDate?.toDate()}`);
+        console.log(`   - now: ${now.toDate()}`);
 
         // Verificar si la meta está asignada a este usuario
         let isAssigned = false;
 
         if (goalData.targetType === "all") {
           isAssigned = true;
+          console.log(`   ✅ Meta asignada (tipo: all)`);
         } else if (goalData.targetType === "users" && goalData.targetIds && goalData.targetIds.includes(userId)) {
           isAssigned = true;
         } else if (goalData.targetType === "kiosks" && goalData.targetIds && userData.assignedKioskId && goalData.targetIds.includes(userData.assignedKioskId)) {
@@ -667,7 +676,11 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
         const endDate = goalData.endDate.toDate();
         const isActive = now.toDate() >= startDate && now.toDate() <= endDate;
 
+        console.log(`   - isAssigned: ${isAssigned}`);
+        console.log(`   - isActive: ${isActive} (start <= now: ${now.toDate() >= startDate}, now <= end: ${now.toDate() <= endDate})`);
+
         if (isAssigned && isActive) {
+          console.log(`   ✅ Meta incluida en resultados`);
           // Obtener API key de HubSpot
           const hubspotApiKey = functions.config().hubspot?.apikey;
           if (!hubspotApiKey) {

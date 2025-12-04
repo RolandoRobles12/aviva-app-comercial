@@ -200,5 +200,59 @@ service cloud.firestore {
     match /dashboardStats/{statId} {
       allow read, write: if isAdmin();
     }
+
+    // Vendors (proveedores)
+    match /vendors/{vendorId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Products (productos)
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Productos (Spanish name)
+    match /productos/{productoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Promotores (sellers)
+    match /promotores/{promotorId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Routes (rutas de vendedores de campo)
+    match /routes/{routeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Route Tracking
+    match /route_tracking/{trackId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Seller Routes
+    match /seller_routes/{routeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Location History
+    match /location_history/{locationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Catch-all rule for admin access to any other collection
+    // This ensures admins can access any collection even if not explicitly listed
+    match /{collection}/{document=**} {
+      allow read: if isAdmin();
+    }
   }
 }
