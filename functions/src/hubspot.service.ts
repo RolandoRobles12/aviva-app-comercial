@@ -911,10 +911,18 @@ export class HubSpotService {
       const startTime = startDate.getTime();
       const endTime = endDateTime.getTime();
 
+      console.log(`💰 Calculando colocación para ${deals.length} deals`);
+      console.log(`   Rango: ${new Date(startTime).toISOString()} - ${new Date(endTime).toISOString()}`);
+
       let colocacion = 0;
 
-      deals.forEach((deal) => {
+      deals.forEach((deal, index) => {
         const props = deal.properties;
+
+        console.log(`\n📋 Deal ${index + 1}/${deals.length}: ${props.dealname || 'Sin nombre'}`);
+        console.log(`   - amount: ${props.amount || 'null'}`);
+        console.log(`   - hs_v2_date_entered_146336009: ${props.hs_v2_date_entered_146336009 || 'null'}`);
+        console.log(`   - hs_v2_date_entered_33823866: ${props.hs_v2_date_entered_33823866 || 'null'}`);
 
         // Obtener fecha de disbursement según el producto
         let disbursementDate = null;
@@ -922,20 +930,32 @@ export class HubSpotService {
         // Aviva Tu Compra usa hs_v2_date_entered_146336009
         if (props.hs_v2_date_entered_146336009) {
           disbursementDate = parseInt(props.hs_v2_date_entered_146336009);
+          console.log(`   ✅ Usando disbursement (Pipeline 2): ${new Date(disbursementDate).toISOString()}`);
         }
         // Otros productos usan hs_v2_date_entered_33823866
         else if (props.hs_v2_date_entered_33823866) {
           disbursementDate = parseInt(props.hs_v2_date_entered_33823866);
+          console.log(`   ✅ Usando disbursement (Pipeline 1): ${new Date(disbursementDate).toISOString()}`);
+        } else {
+          console.log(`   ❌ Sin fecha de disbursement`);
         }
 
         // Si la fecha de disbursement cae dentro del rango, sumar el amount
         if (disbursementDate && disbursementDate >= startTime && disbursementDate <= endTime) {
           const amount = parseFloat(props.amount || "0");
-          if (!isNaN(amount)) {
+          if (!isNaN(amount) && amount > 0) {
             colocacion += amount;
+            console.log(`   ✅ CUENTA para colocación: $${amount.toLocaleString()}`);
+          } else {
+            console.log(`   ❌ Amount inválido o cero: ${props.amount}`);
           }
+        } else if (disbursementDate) {
+          const isBeforeStart = disbursementDate < startTime;
+          console.log(`   ❌ Disbursement FUERA del rango: ${isBeforeStart ? 'antes del inicio' : 'después del fin'}`);
         }
       });
+
+      console.log(`\n💰 Colocación total: $${colocacion.toLocaleString()}`);
 
       return {
         llamadas,
