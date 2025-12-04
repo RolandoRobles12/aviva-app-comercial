@@ -630,29 +630,57 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
       }
 
       // Buscar metas activas asignadas al usuario
+      // Soportar ambas colecciones: 'goals' (nuevo modelo) y 'metas' (legacy)
       const now = admin.firestore.Timestamp.now();
-      const goalsSnapshot = await admin.firestore()
-        .collection("goals")
-        .where("active", "==", true)
+
+      // Intentar primero con colección 'metas' (legacy - modelo actual en uso)
+      let goalsSnapshot = await admin.firestore()
+        .collection("metas")
+        .where("activo", "==", true)
         .get();
 
-      console.log(`📊 Total metas activas en DB: ${goalsSnapshot.size}`);
+      console.log(`📊 Metas en colección 'metas' (legacy): ${goalsSnapshot.size}`);
+
+      // Si no hay en 'metas', buscar en 'goals' (nuevo modelo)
+      if (goalsSnapshot.size === 0) {
+        goalsSnapshot = await admin.firestore()
+          .collection("goals")
+          .where("active", "==", true)
+          .get();
+        console.log(`📊 Metas en colección 'goals' (nuevo): ${goalsSnapshot.size}`);
+      }
 
       const userGoals: any[] = [];
 
       for (const goalDoc of goalsSnapshot.docs) {
         const goalData = goalDoc.data();
 
-        console.log(`🔍 Evaluando meta: ${goalData.name}`);
-        console.log(`   - targetType: ${goalData.targetType}`);
-        console.log(`   - startDate: ${goalData.startDate?.toDate()}`);
-        console.log(`   - endDate: ${goalData.endDate?.toDate()}`);
+        // Detectar si es modelo nuevo o legacy
+        const isLegacyModel = goalData.tipo !== undefined;
+
+        console.log(`🔍 Evaluando meta: ${goalData.nombre || goalData.name}`);
+        console.log(`   - Modelo: ${isLegacyModel ? 'Legacy (metas)' : 'Nuevo (goals)'}`);
+
+        // Normalizar campos según el modelo
+        const name = isLegacyModel ? goalData.nombre : goalData.name;
+        const period = isLegacyModel ? goalData.periodo : goalData.period;
+        const targetType = isLegacyModel
+          ? (goalData.tipo === "GLOBAL" ? "all" : goalData.tipo.toLowerCase())
+          : goalData.targetType;
+        const startDate = (isLegacyModel ? goalData.fechaInicio : goalData.startDate);
+        const endDate = (isLegacyModel ? goalData.fechaFin : goalData.endDate);
+        const metricLlamadas = isLegacyModel ? goalData.llamadasObjetivo : goalData.metrics?.llamadas;
+        const metricColocacion = isLegacyModel ? goalData.colocacionObjetivo : goalData.metrics?.colocacion;
+
+        console.log(`   - targetType: ${targetType}`);
+        console.log(`   - startDate: ${startDate?.toDate()}`);
+        console.log(`   - endDate: ${endDate?.toDate()}`);
         console.log(`   - now: ${now.toDate()}`);
 
         // Verificar si la meta está asignada a este usuario
         let isAssigned = false;
 
-        if (goalData.targetType === "all") {
+        if (targetType === "all") {
           isAssigned = true;
           console.log(`   ✅ Meta asignada (tipo: all)`);
         } else if (goalData.targetType === "users" && goalData.targetIds && goalData.targetIds.includes(userId)) {
@@ -672,12 +700,12 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
         }
 
         // Verificar que la meta esté vigente
-        const startDate = goalData.startDate.toDate();
-        const endDate = goalData.endDate.toDate();
-        const isActive = now.toDate() >= startDate && now.toDate() <= endDate;
+        const startDateObj = startDate.toDate();
+        const endDateObj = endDate.toDate();
+        const isActive = now.toDate() >= startDateObj && now.toDate() <= endDateObj;
 
         console.log(`   - isAssigned: ${isAssigned}`);
-        console.log(`   - isActive: ${isActive} (start <= now: ${now.toDate() >= startDate}, now <= end: ${now.toDate() <= endDate})`);
+        console.log(`   - isActive: ${isActive} (start <= now: ${now.toDate() >= startDateObj}, now <= end: ${now.toDate() <= endDateObj})`);
 
         if (isAssigned && isActive) {
           console.log(`   ✅ Meta incluida en resultados`);
@@ -692,39 +720,41 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
           const hubspotService = new HubSpotService(hubspotApiKey);
           const progress = await hubspotService.calculateGoalProgress(
             hubspotOwnerId,
-            startDate,
-            endDate
+            startDateObj,
+            endDateObj
           );
 
-          // Calcular porcentajes
-          const llamadasPercentage = goalData.metrics.llamadas > 0
-            ? Math.round((progress.llamadas / goalData.metrics.llamadas) * 100)
+          // Calcular porcentajes usando los campos normalizados
+          const llamadasPercentage = metricLlamadas > 0
+            ? Math.round((progress.llamadas / metricLlamadas) * 100)
             : 0;
 
-          const colocacionPercentage = goalData.metrics.colocacion > 0
-            ? Math.round((progress.colocacion / goalData.metrics.colocacion) * 100)
+          const colocacionPercentage = metricColocacion > 0
+            ? Math.round((progress.colocacion / metricColocacion) * 100)
             : 0;
 
           userGoals.push({
             id: goalDoc.id,
-            name: goalData.name,
-            period: goalData.period,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
+            name: name,
+            period: period,
+            startDate: startDateObj.toISOString(),
+            endDate: endDateObj.toISOString(),
             metrics: {
               llamadas: {
                 current: progress.llamadas,
-                target: goalData.metrics.llamadas,
+                target: metricLlamadas,
                 percentage: llamadasPercentage
               },
               colocacion: {
                 current: progress.colocacion,
-                target: goalData.metrics.colocacion,
+                target: metricColocacion,
                 percentage: colocacionPercentage
               }
             },
             onTrack: llamadasPercentage >= 80 && colocacionPercentage >= 80
           });
+        } else {
+          console.log(`   ❌ Meta NO incluida - isAssigned: ${isAssigned}, isActive: ${isActive}`);
         }
       }
 
