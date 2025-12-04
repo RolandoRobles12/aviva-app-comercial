@@ -102,10 +102,31 @@ const MetasComerciales: React.FC = () => {
 
   const fetchGoals = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'goals'));
+      // Leer de la colección 'metas' (legacy) en lugar de 'goals'
+      const querySnapshot = await getDocs(collection(db, 'metas'));
       const goalsData: Goal[] = [];
       querySnapshot.forEach((doc) => {
-        goalsData.push({ id: doc.id, ...doc.data() } as Goal);
+        const data = doc.data();
+        // Convertir del formato legacy al formato nuevo para mostrar en UI
+        const goal: Goal = {
+          id: doc.id,
+          name: data.nombre || data.name || '',
+          period: data.periodo || data.period || 'weekly',
+          targetType: data.tipo === 'GLOBAL' ? 'all' : (data.tipo?.toLowerCase() || data.targetType || 'all'),
+          targetIds: data.targetIds || [],
+          targetNames: data.targetNames || [],
+          metrics: {
+            llamadas: data.llamadasObjetivo || data.metrics?.llamadas || 0,
+            colocacion: data.colocacionObjetivo || data.metrics?.colocacion || 0
+          },
+          startDate: data.fechaInicio || data.startDate,
+          endDate: data.fechaFin || data.endDate,
+          active: data.activo !== undefined ? data.activo : (data.active !== undefined ? data.active : true),
+          createdAt: data.createdAt || Timestamp.now(),
+          updatedAt: data.updatedAt || Timestamp.now(),
+          createdBy: data.createdBy || 'admin'
+        };
+        goalsData.push(goal);
       });
       setGoals(goalsData.sort((a, b) => b.startDate.seconds - a.startDate.seconds));
     } catch (err) {
@@ -271,28 +292,31 @@ const MetasComerciales: React.FC = () => {
         return;
       }
 
+      // Guardar en formato legacy (colección 'metas' con campos en español)
       const dataToSave = {
-        name: formData.name.trim(),
-        period: formData.period,
-        targetType: formData.targetType,
+        nombre: formData.name.trim(),
+        periodo: formData.period.toUpperCase(), // SEMANAL o MENSUAL
+        tipo: formData.targetType === 'all' ? 'GLOBAL' :
+              formData.targetType === 'users' ? 'USUARIO' :
+              formData.targetType === 'kiosks' ? 'KIOSCO' :
+              formData.targetType === 'league' ? 'LIGA' : 'GLOBAL',
         targetIds: formData.targetIds,
         targetNames: formData.targetNames,
-        metrics: {
-          llamadas: Number(formData.metrics.llamadas),
-          colocacion: Number(formData.metrics.colocacion)
-        },
-        startDate,
-        endDate,
-        active: formData.active,
+        llamadasObjetivo: Number(formData.metrics.llamadas),
+        colocacionObjetivo: Number(formData.metrics.colocacion),
+        tasaCierreObjetivo: 25, // Valor por defecto
+        fechaInicio: startDate,
+        fechaFin: endDate,
+        activo: formData.active,
         updatedAt: Timestamp.now(),
-        createdBy: 'admin', // TODO: Get from auth context
+        descripcion: '',
         ...(editingGoal ? {} : { createdAt: Timestamp.now() })
       };
 
       if (editingGoal) {
-        await updateDoc(doc(db, 'goals', editingGoal.id), dataToSave);
+        await updateDoc(doc(db, 'metas', editingGoal.id), dataToSave);
       } else {
-        await addDoc(collection(db, 'goals'), dataToSave);
+        await addDoc(collection(db, 'metas'), dataToSave);
       }
 
       await fetchGoals();
@@ -306,7 +330,7 @@ const MetasComerciales: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar esta meta comercial?')) {
       try {
-        await deleteDoc(doc(db, 'goals', id));
+        await deleteDoc(doc(db, 'metas', id));
         await fetchGoals();
       } catch (err) {
         setError('Error al eliminar la meta comercial');
