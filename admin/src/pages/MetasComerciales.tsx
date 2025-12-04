@@ -62,10 +62,18 @@ interface User {
   role: string;
 }
 
+interface League {
+  id: string;
+  name: string;
+  description?: string;
+  members: string[];
+}
+
 const MetasComerciales: React.FC = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [kiosks, setKiosks] = useState<Kiosk[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [leagues, setLeagues] = useState<League[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [error, setError] = useState<string>('');
@@ -74,11 +82,11 @@ const MetasComerciales: React.FC = () => {
     name: '',
     period: 'weekly',
     targetType: 'all',
-    targetId: undefined,
-    targetName: undefined,
+    targetIds: [],
+    targetNames: [],
     metrics: {
-      llamadas: '',
-      colocacion: ''
+      llamadas: '60',
+      colocacion: '150000'
     },
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -89,6 +97,7 @@ const MetasComerciales: React.FC = () => {
     fetchGoals();
     fetchKiosks();
     fetchUsers();
+    fetchLeagues();
   }, []);
 
   const fetchGoals = async () => {
@@ -143,6 +152,25 @@ const MetasComerciales: React.FC = () => {
     }
   };
 
+  const fetchLeagues = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'leagues'));
+      const leaguesData: League[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        leaguesData.push({
+          id: doc.id,
+          name: data.name || '',
+          description: data.description,
+          members: data.members || []
+        });
+      });
+      setLeagues(leaguesData.sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (err) {
+      console.error('Error al cargar ligas:', err);
+    }
+  };
+
   const handleOpenDialog = (goal?: Goal) => {
     if (goal) {
       setEditingGoal(goal);
@@ -150,8 +178,8 @@ const MetasComerciales: React.FC = () => {
         name: goal.name,
         period: goal.period,
         targetType: goal.targetType,
-        targetId: goal.targetId,
-        targetName: goal.targetName,
+        targetIds: goal.targetIds || [],
+        targetNames: goal.targetNames || [],
         metrics: {
           llamadas: goal.metrics.llamadas.toString(),
           colocacion: goal.metrics.colocacion.toString()
@@ -166,8 +194,8 @@ const MetasComerciales: React.FC = () => {
         name: '',
         period: 'weekly',
         targetType: 'all',
-        targetId: undefined,
-        targetName: undefined,
+        targetIds: [],
+        targetNames: [],
         metrics: {
           llamadas: '60',
           colocacion: '150000'
@@ -188,12 +216,12 @@ const MetasComerciales: React.FC = () => {
 
   const handleInputChange = (field: keyof GoalFormData, value: any) => {
     if (field === 'targetType') {
-      // Clear targetId and targetName when changing target type
+      // Clear targetIds and targetNames when changing target type
       setFormData({
         ...formData,
         [field]: value,
-        targetId: undefined,
-        targetName: undefined
+        targetIds: [],
+        targetNames: []
       });
     } else {
       setFormData({ ...formData, [field]: value });
@@ -230,8 +258,8 @@ const MetasComerciales: React.FC = () => {
         return;
       }
 
-      if (formData.targetType !== 'all' && !formData.targetId) {
-        setError('Debes seleccionar un objetivo cuando el tipo no es "Todos"');
+      if (formData.targetType !== 'all' && formData.targetIds.length === 0) {
+        setError('Debes seleccionar al menos un objetivo cuando el tipo no es "Todos"');
         return;
       }
 
@@ -247,8 +275,8 @@ const MetasComerciales: React.FC = () => {
         name: formData.name.trim(),
         period: formData.period,
         targetType: formData.targetType,
-        targetId: formData.targetId || null,
-        targetName: formData.targetName || null,
+        targetIds: formData.targetIds,
+        targetNames: formData.targetNames,
         metrics: {
           llamadas: Number(formData.metrics.llamadas),
           colocacion: Number(formData.metrics.colocacion)
@@ -310,8 +338,9 @@ const MetasComerciales: React.FC = () => {
 
   const getTargetTypeLabel = (type: GoalTargetType) => {
     switch (type) {
-      case 'kiosk': return 'Por Kiosco';
-      case 'seller': return 'Por Promotor';
+      case 'kiosks': return 'Por Kioscos';
+      case 'users': return 'Por Usuarios';
+      case 'league': return 'Por Liga';
       case 'all': return 'Todos';
       default: return type;
     }
@@ -441,9 +470,9 @@ const MetasComerciales: React.FC = () => {
                       size="small"
                       variant="outlined"
                     />
-                    {goal.targetName && (
+                    {goal.targetNames && goal.targetNames.length > 0 && (
                       <Typography variant="caption" display="block" color="text.secondary">
-                        {goal.targetName}
+                        {goal.targetNames.join(', ')}
                       </Typography>
                     )}
                   </TableCell>
@@ -526,48 +555,72 @@ const MetasComerciales: React.FC = () => {
                     label="Tipo de Objetivo"
                   >
                     <MenuItem value="all">Todos los Promotores</MenuItem>
-                    <MenuItem value="seller">Por Promotor Específico</MenuItem>
-                    <MenuItem value="kiosk">Por Kiosco Específico</MenuItem>
+                    <MenuItem value="league">Por Liga</MenuItem>
+                    <MenuItem value="users">Por Promotor Específico</MenuItem>
+                    <MenuItem value="kiosks">Por Kiosco Específico</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
             </Grid>
 
-            {formData.targetType === 'kiosk' && (
+            {formData.targetType === 'kiosks' && (
               <Autocomplete
+                multiple
                 options={kiosks}
                 getOptionLabel={(option) => `${option.name} - ${option.address}`}
-                value={kiosks.find(k => k.id === formData.targetId) || null}
+                value={kiosks.filter(k => formData.targetIds.includes(k.id))}
                 onChange={(_, newValue) => {
-                  handleInputChange('targetId', newValue?.id);
-                  handleInputChange('targetName', newValue?.name);
+                  handleInputChange('targetIds', newValue.map(v => v.id));
+                  handleInputChange('targetNames', newValue.map(v => v.name));
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Seleccionar Kiosco"
+                    label="Seleccionar Kioscos"
                     required
-                    placeholder="Buscar kiosco..."
+                    placeholder="Buscar kioscos..."
                   />
                 )}
               />
             )}
 
-            {formData.targetType === 'seller' && (
+            {formData.targetType === 'users' && (
               <Autocomplete
+                multiple
                 options={users}
                 getOptionLabel={(option) => `${option.displayName} (${option.email})`}
-                value={users.find(u => u.id === formData.targetId) || null}
+                value={users.filter(u => formData.targetIds.includes(u.id))}
                 onChange={(_, newValue) => {
-                  handleInputChange('targetId', newValue?.id);
-                  handleInputChange('targetName', newValue?.displayName);
+                  handleInputChange('targetIds', newValue.map(v => v.id));
+                  handleInputChange('targetNames', newValue.map(v => v.displayName));
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Seleccionar Promotor"
+                    label="Seleccionar Promotores"
                     required
-                    placeholder="Buscar promotor..."
+                    placeholder="Buscar promotores..."
+                  />
+                )}
+              />
+            )}
+
+            {formData.targetType === 'league' && (
+              <Autocomplete
+                multiple
+                options={leagues}
+                getOptionLabel={(option) => option.name}
+                value={leagues.filter(l => formData.targetIds.includes(l.id))}
+                onChange={(_, newValue) => {
+                  handleInputChange('targetIds', newValue.map(v => v.id));
+                  handleInputChange('targetNames', newValue.map(v => v.name));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Seleccionar Ligas"
+                    required
+                    placeholder="Buscar ligas..."
                   />
                 )}
               />

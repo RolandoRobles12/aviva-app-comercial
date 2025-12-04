@@ -646,10 +646,20 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
 
         if (goalData.targetType === "all") {
           isAssigned = true;
-        } else if (goalData.targetType === "seller" && goalData.targetId === userId) {
+        } else if (goalData.targetType === "users" && goalData.targetIds && goalData.targetIds.includes(userId)) {
           isAssigned = true;
-        } else if (goalData.targetType === "kiosk" && goalData.targetId === userData.assignedKioskId) {
+        } else if (goalData.targetType === "kiosks" && goalData.targetIds && userData.assignedKioskId && goalData.targetIds.includes(userData.assignedKioskId)) {
           isAssigned = true;
+        } else if (goalData.targetType === "league" && goalData.targetIds) {
+          // Verificar si el usuario pertenece a alguna de las ligas asignadas
+          for (const leagueId of goalData.targetIds) {
+            const leagueDoc = await admin.firestore().collection("leagues").doc(leagueId).get();
+            const leagueData = leagueDoc.data();
+            if (leagueData && leagueData.members && leagueData.members.includes(userId)) {
+              isAssigned = true;
+              break;
+            }
+          }
         }
 
         // Verificar que la meta esté vigente
