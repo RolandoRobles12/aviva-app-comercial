@@ -203,6 +203,7 @@ const Metas: React.FC = () => {
   });
 
   useEffect(() => {
+    console.log('🚀 Metas v2.0 - Fix para userId/teamId undefined');
     fetchMetas();
     fetchMetricas();
     fetchMultiplicadores();
@@ -308,11 +309,32 @@ const Metas: React.FC = () => {
         return;
       }
 
-      const dataToSave = {
-        ...metaFormData,
-        updatedAt: Timestamp.now(),
-        ...(editingMeta ? {} : { createdAt: Timestamp.now() })
+      // Preparar datos sin campos undefined
+      const dataToSave: any = {
+        nombre: metaFormData.nombre,
+        descripcion: metaFormData.descripcion,
+        tipo: metaFormData.tipo,
+        periodo: metaFormData.periodo,
+        llamadasObjetivo: metaFormData.llamadasObjetivo,
+        colocacionObjetivo: metaFormData.colocacionObjetivo,
+        tasaCierreObjetivo: metaFormData.tasaCierreObjetivo,
+        fechaInicio: metaFormData.fechaInicio,
+        fechaFin: metaFormData.fechaFin,
+        activo: metaFormData.activo,
+        updatedAt: Timestamp.now()
       };
+
+      // Solo agregar userId y teamId si tienen valores
+      if (metaFormData.userId) {
+        dataToSave.userId = metaFormData.userId;
+      }
+      if (metaFormData.teamId) {
+        dataToSave.teamId = metaFormData.teamId;
+      }
+
+      if (!editingMeta) {
+        dataToSave.createdAt = Timestamp.now();
+      }
 
       if (editingMeta) {
         await updateDoc(doc(db, 'metas', editingMeta.id), dataToSave);
