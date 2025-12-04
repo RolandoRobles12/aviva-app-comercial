@@ -23,7 +23,8 @@ service cloud.firestore {
 
     // Users collection - users can read their own data, admins can read/write all
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated() && isAvivaEmail();
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
@@ -49,20 +50,23 @@ service cloud.firestore {
 
     // Checkins - users can create their own, read their own, admins can read/write all
     match /checkins/{checkinId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
     // Schedules - users can read their own, admins can read/write all
     match /schedules/{scheduleId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
     // Time Off Requests - users can create/read their own, admins can read/write all
     match /time_off_requests/{requestId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
@@ -75,14 +79,16 @@ service cloud.firestore {
 
     // Locations - users can create/read their own, admins can read all
     match /locations/{locationId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
     // User Metrics - users can read their own, admins can read/write all
     match /userMetrics/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
@@ -99,7 +105,8 @@ service cloud.firestore {
 
     // User Badges - users can read their own, admins can read/write all
     match /userBadges/{userBadgeId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
@@ -111,7 +118,8 @@ service cloud.firestore {
 
     // User Career Progress - users can read their own, admins can read/write all
     match /userCareerProgress/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
@@ -129,19 +137,23 @@ service cloud.firestore {
 
     // Notifications - users can read their own, admins can read/write all
     match /notifications/{notificationId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
     // FCM Tokens - users can create/read/update their own
     match /fcm_tokens/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     // Prospectos Detectados - users can create/read their own, admins can read/write all
     match /prospectos_detectados/{prospectoId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
@@ -154,9 +166,39 @@ service cloud.firestore {
 
     // Visits - users can create/read their own, admins can read/write all
     match /visits/{visitId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
+    }
+
+    // Goals (Metas Comerciales) - anyone authenticated can read, admins can write
+    match /goals/{goalId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Metas (legacy name for Goals) - anyone authenticated can read, admins can write
+    match /metas/{metaId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Giros Relevantes - anyone authenticated can read, admins can write
+    match /giros_relevantes/{giroId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Configuración de Bonos - anyone authenticated can read, admins can write
+    match /configuracion_bonos/{bonoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Dashboard Stats - admins only (aggregate stats)
+    match /dashboardStats/{statId} {
+      allow read, write: if isAdmin();
     }
   }
 }
