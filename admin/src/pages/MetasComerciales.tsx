@@ -92,6 +92,7 @@ const MetasComerciales: React.FC = () => {
   });
 
   useEffect(() => {
+    console.log('🚀 MetasComerciales v2.0 - Con soporte para usuarios/kioscos/ligas');
     fetchGoals();
     fetchKiosks();
     fetchUsers();
