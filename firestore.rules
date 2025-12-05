@@ -253,12 +253,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Admins collection - admins can read/write, authenticated users can create their own UID document
+    // Admins collection - Aviva users can read to verify admin status
     match /admins/{adminId} {
-      allow read: if isAdmin();
+      // Allow Aviva email users to read admins collection (needed for login verification)
+      allow read: if isAvivaEmail();
+      // Admins can write/delete any document
       allow write: if isAdmin();
-      // Allow authenticated users to create/update their own UID document (for auto-login)
-      allow create, update: if isAuthenticated() && adminId == request.auth.uid;
+      // Allow Aviva users to create/update their own UID document (for auto-provisioning)
+      allow create, update: if isAvivaEmail() && adminId == request.auth.uid;
     }
 
     // Catch-all rule for admin access to any other collection
