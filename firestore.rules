@@ -8,8 +8,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Check if user has admin role in users collection OR if they're in admins collection by UID
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function isOwner(userId) {
@@ -247,6 +251,14 @@ service cloud.firestore {
     match /location_history/{locationId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // Admins collection - admins can read/write, authenticated users can create their own UID document
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+      // Allow authenticated users to create/update their own UID document (for auto-login)
+      allow create, update: if isAuthenticated() && adminId == request.auth.uid;
     }
 
     // Catch-all rule for admin access to any other collection

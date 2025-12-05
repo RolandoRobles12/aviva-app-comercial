@@ -5,7 +5,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, setDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config/firebase';
 
 interface UserData {
@@ -47,17 +47,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (firebaseUser) {
         // Obtener datos adicionales del usuario desde Firestore
         try {
+          // Verificar si está en la colección admins por email
+          const adminsSnapshot = await getDocs(
+            query(collection(db, 'admins'), where('email', '==', firebaseUser.email?.toLowerCase()))
+          );
+
+          let isAdmin = !adminsSnapshot.empty;
+
+          // Si está en admins, crear documento con UID para que funcionen las reglas de Firestore
+          if (isAdmin) {
+            try {
+              await setDoc(doc(db, 'admins', firebaseUser.uid), {
+                email: firebaseUser.email?.toLowerCase(),
+                nombre: firebaseUser.displayName || '',
+                fechaAgregado: new Date(),
+                agregadoPor: 'auto-login'
+              }, { merge: true });
+            } catch (err) {
+              console.error('Error creating admin UID document:', err);
+            }
+          }
+
+          // Intentar obtener datos desde la colección users
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          let userRole = 'user';
+
           if (userDoc.exists()) {
             const data = userDoc.data();
-            setUserData({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || '',
-              photoURL: firebaseUser.photoURL,
-              role: data.role || 'user'
-            });
+            userRole = data.role || 'user';
           }
+
+          // Si está en admins, siempre es admin, sin importar lo que diga en users
+          if (isAdmin) {
+            userRole = 'admin';
+          }
+
+          setUserData({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || '',
+            photoURL: firebaseUser.photoURL,
+            role: userRole
+          });
         } catch (error) {
           console.error('Error fetching user data:', error);
         }
