@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   AppBar,
   Box,
+  Button,
   Drawer,
   IconButton,
   ListItem,
@@ -198,9 +199,29 @@ const Layout: React.FC = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Panel Administrativo
           </Typography>
-          <IconButton onClick={handleMenuOpen}>
-            <Avatar src={user?.photoURL || undefined} alt={user?.displayName || 'User'} sx={{ width: 38, height: 38, border: '2px solid white' }} />
-          </IconButton>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Typography variant="body2" sx={{ display: { xs: 'none', md: 'block' }, mr: 1, opacity: 0.9 }}>
+              {user?.displayName || user?.email}
+            </Typography>
+            <IconButton onClick={handleMenuOpen}>
+              <Avatar src={user?.photoURL || undefined} alt={user?.displayName || 'User'} sx={{ width: 38, height: 38, border: '2px solid white' }} />
+            </IconButton>
+            <Button
+              variant="outlined"
+              startIcon={<LogoutIcon />}
+              onClick={handleSignOut}
+              sx={{
+                color: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.5)',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
+              Cerrar Sesión
+            </Button>
+          </Box>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
             <MenuItem disabled>
               <Typography variant="body2">{user?.email}</Typography>
