@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 /**
  * Niveles de tier para sistema competitivo
  */
-export enum LeagueTier {
+export const enum LeagueTier {
   BRONCE = 'BRONCE',
   PLATA = 'PLATA',
   ORO = 'ORO',
@@ -26,7 +26,7 @@ export interface TierConfig {
 /**
  * Estados de una liga
  */
-export enum LeagueStatus {
+export const enum LeagueStatus {
   PENDING = 'PENDING',    // Aún no inicia
   ACTIVE = 'ACTIVE',      // En curso
   FINISHED = 'FINISHED'   // Terminada
@@ -35,7 +35,7 @@ export enum LeagueStatus {
 /**
  * Tipos de premios
  */
-export enum PrizeType {
+export const enum PrizeType {
   PUNTOS = 'PUNTOS',
   DINERO = 'DINERO',
   BONO = 'BONO',

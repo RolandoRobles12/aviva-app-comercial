@@ -32,8 +32,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Divider,
-  Collapse
+  Divider
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -42,8 +41,6 @@ import GroupIcon from '@mui/icons-material/Group';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import PeopleIcon from '@mui/icons-material/People';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import {
   collection,
   getDocs,
@@ -54,13 +51,15 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import {
+import type {
   League,
   LeagueFormData,
+  LeaguePrize
+} from '../types/league';
+import {
   LeagueTier,
   LeagueStatus,
-  PrizeType,
-  LeaguePrize
+  PrizeType
 } from '../types/league';
 
 interface User {
@@ -88,7 +87,6 @@ const Ligas: React.FC = () => {
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const [error, setError] = useState<string>('');
   const [tabValue, setTabValue] = useState(0);
-  const [expandedPrizes, setExpandedPrizes] = useState(false);
 
   const [formData, setFormData] = useState<LeagueFormData>({
     name: '',
@@ -193,7 +191,6 @@ const Ligas: React.FC = () => {
     }
     setDialogOpen(true);
     setTabValue(0);
-    setExpandedPrizes(false);
   };
 
   const handleCloseDialog = () => {
@@ -393,7 +390,7 @@ const Ligas: React.FC = () => {
         <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignments="center" gap={1} mb={1}>
+              <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <PeopleIcon color="success" />
                 <Typography color="textSecondary">
                   Total Miembros
