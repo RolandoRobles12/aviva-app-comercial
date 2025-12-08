@@ -127,6 +127,34 @@
 
     </FrameLayout>
 
+    <!-- Toolbar - Se muestra cuando el usuario está autenticado -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/primary"
+        android:visibility="gone"
+        android:elevation="4dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:titleTextColor="@color/white">
+
+        <!-- Logout Button in Toolbar -->
+        <ImageButton
+            android:id="@+id/btnToolbarLogout"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="8dp"
+            android:src="@android:drawable/ic_lock_power_off"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Cerrar Sesión"
+            android:tint="@color/white"
+            android:padding="12dp" />
+
+    </com.google.android.material.appbar.MaterialToolbar>
+
     <!-- Fragment Container - Se muestra cuando el usuario está autenticado -->
     <fragment
         android:id="@+id/navHostFragment"
@@ -137,7 +165,7 @@
         app:defaultNavHost="true"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintBottom_toBottomOf="parent"
         app:navGraph="@navigation/mobile_navigation" />
 
