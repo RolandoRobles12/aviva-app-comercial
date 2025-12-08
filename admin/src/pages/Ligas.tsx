@@ -280,14 +280,6 @@ const Ligas: React.FC = () => {
     }
   };
 
-  const formatDate = (timestamp: Timestamp) => {
-    return timestamp.toDate().toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   const activeLeagues = leagues.filter(l => l.active);
   const totalMembers = leagues.reduce((sum, league) => sum + league.members.length, 0);
 

@@ -39,8 +39,7 @@ import {
   where,
   getDocs,
   Timestamp,
-  GeoPoint,
-  orderBy
+  GeoPoint
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
