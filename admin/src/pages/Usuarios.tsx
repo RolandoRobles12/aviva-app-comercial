@@ -256,17 +256,41 @@ const Usuarios: React.FC = () => {
         return;
       }
 
-      // Preparar datos para guardar - remover productLine si es admin
+      // Preparar datos para guardar - SOLO campos definidos
       const dataToSave: any = {
-        ...formData,
-        updatedAt: Timestamp.now(),
-        ...(editingUser ? {} : { createdAt: Timestamp.now() })
+        email: formData.email,
+        displayName: formData.displayName,
+        role: formData.role,
+        status: formData.status,
+        updatedAt: Timestamp.now()
       };
 
-      // Si es admin, asegurarse de que productLine no se guarde
-      if (isAdminRole) {
-        delete dataToSave.productLine;
+      // Agregar campos opcionales solo si tienen valores
+      if (formData.photoUrl) dataToSave.photoUrl = formData.photoUrl;
+      if (formData.phoneNumber) dataToSave.phoneNumber = formData.phoneNumber;
+      if (formData.employeeId) dataToSave.employeeId = formData.employeeId;
+      if (formData.department) dataToSave.department = formData.department;
+      if (formData.position) dataToSave.position = formData.position;
+      if (formData.managerId) dataToSave.managerId = formData.managerId;
+      if (formData.assignedPromoters && formData.assignedPromoters.length > 0) {
+        dataToSave.assignedPromoters = formData.assignedPromoters;
       }
+      if (formData.assignedKioskId) dataToSave.assignedKioskId = formData.assignedKioskId;
+      if (formData.hubspotOwnerId) dataToSave.hubspotOwnerId = formData.hubspotOwnerId;
+      if (formData.uid) dataToSave.uid = formData.uid;
+
+      // Agregar productLine solo si NO es admin
+      const isAdminRole = formData.role === 'ADMIN' || formData.role === 'SUPER_ADMIN';
+      if (!isAdminRole && formData.productLine) {
+        dataToSave.productLine = formData.productLine;
+      }
+
+      // Agregar createdAt solo si es nuevo
+      if (!editingUser) {
+        dataToSave.createdAt = Timestamp.now();
+      }
+
+      console.log('💾 Guardando usuario:', dataToSave);
 
       if (editingUser) {
         await updateDoc(doc(db, 'users', editingUser.id), dataToSave);
