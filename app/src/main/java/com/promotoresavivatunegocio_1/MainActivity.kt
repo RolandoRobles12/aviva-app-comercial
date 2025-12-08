@@ -454,9 +454,13 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "🏠 Mostrando contenido principal...")
 
             binding.loginContainer.visibility = View.GONE
+            binding.toolbar.visibility = View.VISIBLE
 
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.VISIBLE
+
+            // Configurar toolbar y botón de logout
+            setupToolbar()
 
             // Bottom navigation eliminada - navegación a través de Home screen
             Log.d(TAG, "📱 Navegación configurada a través de Home screen")
@@ -474,6 +478,64 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "✅ Contenido principal configurado")
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error en showMainContent: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Configurar toolbar y botón de logout
+     */
+    private fun setupToolbar() {
+        try {
+            // Configurar título del toolbar
+            binding.toolbar.title = getString(R.string.app_name)
+
+            // Configurar botón de logout
+            binding.btnToolbarLogout.setOnClickListener {
+                showLogoutConfirmationDialog()
+            }
+
+            Log.d(TAG, "✅ Toolbar configurado con botón de logout")
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error configurando toolbar: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Muestra diálogo de confirmación para cerrar sesión
+     */
+    private fun showLogoutConfirmationDialog() {
+        try {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Cerrar Sesión")
+                .setMessage("¿Estás seguro de que deseas cerrar sesión?")
+                .setPositiveButton("Sí, salir") { _, _ ->
+                    performLogout()
+                }
+                .setNegativeButton("Cancelar", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error mostrando diálogo de logout: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Ejecuta el cierre de sesión
+     */
+    private fun performLogout() {
+        try {
+            Log.d(TAG, "🚪 Cerrando sesión...")
+            Toast.makeText(this, "Cerrando sesión...", Toast.LENGTH_SHORT).show()
+
+            // Ocultar toolbar
+            binding.toolbar.visibility = View.GONE
+
+            // Llamar al método signOut existente
+            signOut()
+
+            Log.d(TAG, "✅ Logout completado exitosamente")
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error en performLogout: ${e.message}", e)
+            Toast.makeText(this, "Error al cerrar sesión", Toast.LENGTH_SHORT).show()
         }
     }
 
