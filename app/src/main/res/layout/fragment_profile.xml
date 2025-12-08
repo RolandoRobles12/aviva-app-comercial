@@ -36,7 +36,7 @@
                 android:id="@+id/userPhotoImageView"
                 android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:src="@drawable/ic_person_24"
+                android:src="@drawable/ic_profile_24"
                 android:contentDescription="User Photo"
                 android:layout_marginEnd="16dp"
                 android:background="@color/primary_container"
@@ -92,7 +92,7 @@
         android:layout_marginBottom="16dp"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp"
-        app:cardBackgroundColor="@color/error_container">
+        app:cardBackgroundColor="@color/error_background">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -107,7 +107,7 @@
                 android:src="@android:drawable/ic_lock_power_off"
                 android:contentDescription="Logout Icon"
                 android:layout_marginEnd="16dp"
-                android:tint="@color/error" />
+                android:tint="@color/error_color" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -121,7 +121,7 @@
                     android:text="Cerrar Sesión"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/error" />
+                    android:textColor="@color/error_color" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -139,8 +139,8 @@
                 android:layout_height="wrap_content"
                 android:text="Salir"
                 style="@style/Widget.Material3.Button.TextButton"
-                app:iconTint="@color/error"
-                android:textColor="@color/error" />
+                app:iconTint="@color/error_color"
+                android:textColor="@color/error_color" />
 
         </LinearLayout>
 
