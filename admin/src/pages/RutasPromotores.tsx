@@ -221,12 +221,12 @@ const RutasPromotores: React.FC = () => {
 
       for (const userId of selectedUserIds) {
         // Cargar ubicaciones de la colección 'locations' que YA EXISTE
+        // SIN orderBy para evitar requerir índice compuesto
         const locQuery = query(
           collection(db, 'locations'),
           where('userId', '==', userId),
           where('timestamp', '>=', startTimestamp),
-          where('timestamp', '<=', endTimestamp),
-          orderBy('timestamp', 'asc')
+          where('timestamp', '<=', endTimestamp)
         );
 
         const locSnapshot = await getDocs(locQuery);
