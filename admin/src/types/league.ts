@@ -3,15 +3,20 @@ import { Timestamp } from 'firebase/firestore';
 /**
  * Niveles de tier para sistema competitivo
  */
-export const enum LeagueTier {
-  BRONCE = 'BRONCE',
-  PLATA = 'PLATA',
-  ORO = 'ORO',
-  PLATINO = 'PLATINO',
-  DIAMANTE = 'DIAMANTE',
-  MASTER = 'MASTER',
-  LEYENDA = 'LEYENDA'
-}
+export type LeagueTier = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE' | 'MASTER' | 'LEYENDA';
+
+/**
+ * Valores de LeagueTier para uso en código
+ */
+export const LeagueTier = {
+  BRONCE: 'BRONCE' as LeagueTier,
+  PLATA: 'PLATA' as LeagueTier,
+  ORO: 'ORO' as LeagueTier,
+  PLATINO: 'PLATINO' as LeagueTier,
+  DIAMANTE: 'DIAMANTE' as LeagueTier,
+  MASTER: 'MASTER' as LeagueTier,
+  LEYENDA: 'LEYENDA' as LeagueTier
+};
 
 /**
  * Configuración de un tier
@@ -26,22 +31,32 @@ export interface TierConfig {
 /**
  * Estados de una liga
  */
-export const enum LeagueStatus {
-  PENDING = 'PENDING',    // Aún no inicia
-  ACTIVE = 'ACTIVE',      // En curso
-  FINISHED = 'FINISHED'   // Terminada
-}
+export type LeagueStatus = 'PENDING' | 'ACTIVE' | 'FINISHED';
+
+/**
+ * Valores de LeagueStatus para uso en código
+ */
+export const LeagueStatus = {
+  PENDING: 'PENDING' as LeagueStatus,
+  ACTIVE: 'ACTIVE' as LeagueStatus,
+  FINISHED: 'FINISHED' as LeagueStatus
+};
 
 /**
  * Tipos de premios
  */
-export const enum PrizeType {
-  PUNTOS = 'PUNTOS',
-  DINERO = 'DINERO',
-  BONO = 'BONO',
-  PRODUCTO = 'PRODUCTO',
-  RECONOCIMIENTO = 'RECONOCIMIENTO'
-}
+export type PrizeType = 'PUNTOS' | 'DINERO' | 'BONO' | 'PRODUCTO' | 'RECONOCIMIENTO';
+
+/**
+ * Valores de PrizeType para uso en código
+ */
+export const PrizeType = {
+  PUNTOS: 'PUNTOS' as PrizeType,
+  DINERO: 'DINERO' as PrizeType,
+  BONO: 'BONO' as PrizeType,
+  PRODUCTO: 'PRODUCTO' as PrizeType,
+  RECONOCIMIENTO: 'RECONOCIMIENTO' as PrizeType
+};
 
 /**
  * Premio de liga
