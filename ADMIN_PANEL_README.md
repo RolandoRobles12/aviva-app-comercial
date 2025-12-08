@@ -129,12 +129,6 @@ firebase deploy --only firestore:rules
 
 **Admins actuales hardcodeados:**
 1. rolando.robles@avivacredito.com
-2. jesica.silva@avivacredito.com
-3. christian.garcia@avivacredito.com
-4. fernando.cordova@avivacredito.com
-5. jose.romero@avivacredito.com
-6. ana.carmona@avivacredito.com
-7. angelica.garcia@avivacredito.com
 
 ### 4. Configuración del Sistema
 **Estado:** Ya existe en Firestore como `system_config/system_config`
@@ -412,7 +406,3 @@ Para problemas o preguntas:
 - Verificar reglas de Firestore
 - Consultar documentación de Firebase
 - Contactar al equipo de desarrollo
-
----
-
-**Verificado con código fuente real. No suposiciones.**
