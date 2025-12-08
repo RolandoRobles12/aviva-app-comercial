@@ -220,50 +220,62 @@ const RutasPromotores: React.FC = () => {
 
       for (const userId of selectedUserIds) {
         // Cargar ubicaciones de la colección 'locations' que YA EXISTE
-        // SIN orderBy para evitar requerir índice compuesto
+        // Query simple sin rangos para evitar requerir índice compuesto
+        // El filtrado de fechas se hace en memoria
         const locQuery = query(
           collection(db, 'locations'),
-          where('userId', '==', userId),
-          where('timestamp', '>=', startTimestamp),
-          where('timestamp', '<=', endTimestamp)
+          where('userId', '==', userId)
         );
 
         const locSnapshot = await getDocs(locQuery);
-        const userPoints: LocationPoint[] = locSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            timestamp: data.timestamp,
-            location: data.location,
-            accuracy: data.accuracy,
-            userId: userId
-          };
-        });
+        const userPoints: LocationPoint[] = locSnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              timestamp: data.timestamp,
+              location: data.location,
+              accuracy: data.accuracy,
+              userId: userId
+            };
+          })
+          // Filtrar por fecha en memoria (sin índice de Firebase)
+          .filter(point => {
+            const pointTime = point.timestamp.toMillis();
+            return pointTime >= startTimestamp.toMillis() && pointTime <= endTimestamp.toMillis();
+          });
+
         allPoints.push(...userPoints);
 
         // Cargar visitas a kioscos de la colección 'kioskVisits' que YA EXISTE
+        // Query simple sin rangos
         const visitsQuery = query(
           collection(db, 'kioskVisits'),
-          where('userId', '==', userId),
-          where('checkInTime', '>=', startTimestamp),
-          where('checkInTime', '<=', endTimestamp)
+          where('userId', '==', userId)
         );
 
         const visitsSnapshot = await getDocs(visitsQuery);
-        const userVisits: KioskVisit[] = visitsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            userId: data.userId,
-            userName: data.userName,
-            kioskName: data.kioskName,
-            checkInTime: data.checkInTime,
-            checkOutTime: data.checkOutTime,
-            durationMinutes: data.durationMinutes,
-            checkInLocation: data.checkInLocation,
-            status: data.status
-          };
-        });
+        const userVisits: KioskVisit[] = visitsSnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              userId: data.userId,
+              userName: data.userName,
+              kioskName: data.kioskName,
+              checkInTime: data.checkInTime,
+              checkOutTime: data.checkOutTime,
+              durationMinutes: data.durationMinutes,
+              checkInLocation: data.checkInLocation,
+              status: data.status
+            };
+          })
+          // Filtrar por fecha en memoria
+          .filter(visit => {
+            const visitTime = visit.checkInTime.toMillis();
+            return visitTime >= startTimestamp.toMillis() && visitTime <= endTimestamp.toMillis();
+          });
+
         allVisits.push(...userVisits);
       }
 
