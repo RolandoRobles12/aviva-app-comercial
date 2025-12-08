@@ -916,7 +916,18 @@ export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
           period: {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString()
-          }
+          },
+          // Competitive mode fields
+          competitiveMode: leagueData.competitiveMode || false,
+          tier: leagueData.tier || null,
+          season: leagueData.season || null,
+          startDate: leagueData.startDate || null,
+          endDate: leagueData.endDate || null,
+          maxParticipants: leagueData.maxParticipants || null,
+          promotionSpots: leagueData.promotionSpots || null,
+          relegationSpots: leagueData.relegationSpots || null,
+          prizes: leagueData.prizes || [],
+          status: leagueData.status || null
         });
       }
 
