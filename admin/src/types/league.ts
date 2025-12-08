@@ -1,34 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 
 /**
- * Niveles de tier para sistema competitivo
- */
-export type LeagueTier = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE' | 'MASTER' | 'LEYENDA';
-
-/**
- * Valores de LeagueTier para uso en código
- */
-export const LeagueTier = {
-  BRONCE: 'BRONCE' as LeagueTier,
-  PLATA: 'PLATA' as LeagueTier,
-  ORO: 'ORO' as LeagueTier,
-  PLATINO: 'PLATINO' as LeagueTier,
-  DIAMANTE: 'DIAMANTE' as LeagueTier,
-  MASTER: 'MASTER' as LeagueTier,
-  LEYENDA: 'LEYENDA' as LeagueTier
-};
-
-/**
- * Configuración de un tier
- */
-export interface TierConfig {
-  tier: LeagueTier;
-  displayName: string;
-  colorHex: string;
-  minPoints: number;
-}
-
-/**
  * Estados de una liga
  */
 export type LeagueStatus = 'PENDING' | 'ACTIVE' | 'FINISHED';
@@ -71,39 +43,35 @@ export interface LeaguePrize {
 }
 
 /**
- * Modelo de Liga Unificado
- * Soporta tanto benchmarking simple como sistema competitivo completo
+ * Modelo de Liga Simplificado
+ * Sistema simple y amigable de benchmarking y competencias
  */
 export interface League {
   id: string;
-  name: string;                    // Nombre de la liga
+  name: string;                    // Nombre personalizable de la liga
   description?: string;            // Descripción opcional
 
-  // UI Configuration (para benchmarking simple)
+  // UI Configuration
   color?: string;                  // Color para UI (hex)
   icon?: string;                   // Emoji o ícono
   members: string[];               // Array de user IDs
 
-  // Competitive System (opcional, para sistema de tiers)
-  competitiveMode?: boolean;       // Si usa el sistema competitivo completo
-  tier?: LeagueTier;               // Tier de la liga (BRONCE, PLATA, etc)
-  season?: number;                 // Temporada actual
+  // Configuración de temporada (opcional)
+  season?: number;                 // Número de temporada
+  startDate?: Timestamp;           // Fecha de inicio
+  endDate?: Timestamp;             // Fecha de fin
 
-  // Dates (para sistema competitivo)
-  startDate?: Timestamp;           // Fecha de inicio de temporada
-  endDate?: Timestamp;             // Fecha de fin de temporada
-
-  // Competition Settings
+  // Configuración de competencia (opcional)
   maxParticipants?: number;        // Máximo de participantes
   promotionSpots?: number;         // Top N usuarios ascienden
   relegationSpots?: number;        // Bottom N usuarios descienden
 
-  // Premios
+  // Premios (opcional)
   prizes?: LeaguePrize[];          // Premios configurables
 
   // Status
-  active: boolean;                 // Si está activa (para benchmarking)
-  status?: LeagueStatus;           // Estado detallado (para competitivo)
+  active: boolean;                 // Si está activa
+  status?: LeagueStatus;           // Estado detallado
 
   // Metadata
   createdAt: Timestamp;
@@ -122,9 +90,7 @@ export interface LeagueFormData {
   members: string[];
   active: boolean;
 
-  // Competitive mode fields
-  competitiveMode?: boolean;
-  tier?: LeagueTier;
+  // Campos opcionales de competencia
   season?: number;
   startDate?: Date | null;
   endDate?: Date | null;

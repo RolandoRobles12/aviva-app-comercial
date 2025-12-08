@@ -26,7 +26,8 @@ import {
   Card,
   CardContent,
   Tabs,
-  Tab
+  Tab,
+  Autocomplete
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -91,7 +92,7 @@ interface ConfiguracionMultiplicador {
 // ==================== INTERFACES DE METAS ====================
 
 type MetaPeriodo = 'SEMANAL' | 'MENSUAL' | 'TRIMESTRAL';
-type MetaTipo = 'GLOBAL' | 'INDIVIDUAL' | 'EQUIPO';
+type MetaTipo = 'GLOBAL' | 'LIGA' | 'USUARIO' | 'KIOSCO';
 
 interface Meta {
   id: string;
@@ -105,9 +106,9 @@ interface Meta {
   colocacionObjetivo: number; // en centavos
   tasaCierreObjetivo: number; // porcentaje
 
-  // Asignación
-  userId?: string;
-  teamId?: string;
+  // Asignación dinámica
+  targetIds?: string[];        // IDs de ligas, usuarios o kioscos
+  targetNames?: string[];      // Nombres para mostrar en UI
 
   // Fechas
   fechaInicio: Timestamp;
@@ -116,6 +117,27 @@ interface Meta {
   activo: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+// Interfaces auxiliares para datos de Firestore
+interface Kiosk {
+  id: string;
+  name: string;
+  address: string;
+}
+
+interface User {
+  id: string;
+  displayName: string;
+  email: string;
+  role: string;
+}
+
+interface League {
+  id: string;
+  name: string;
+  description?: string;
+  members: string[];
 }
 
 // ==================== LABELS Y CONSTANTES ====================
@@ -127,9 +149,10 @@ const periodoLabels: Record<MetaPeriodo, string> = {
 };
 
 const tipoLabels: Record<MetaTipo, string> = {
-  'GLOBAL': 'Global (Todos)',
-  'INDIVIDUAL': 'Individual',
-  'EQUIPO': 'Por Equipo'
+  'GLOBAL': 'Todos los Promotores',
+  'LIGA': 'Por Liga',
+  'USUARIO': 'Por Promotor Específico',
+  'KIOSCO': 'Por Kiosco Específico'
 };
 
 const metricaLabels: Record<MetricaScorecard, string> = {
@@ -154,6 +177,11 @@ const Metas: React.FC = () => {
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
 
+  // Estados para datos dinámicos
+  const [kiosks, setKiosks] = useState<Kiosk[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [leagues, setLeagues] = useState<League[]>([]);
+
   // Estados para Configuración de Métricas del Scorecard
   const [metricas, setMetricas] = useState<ConfiguracionMetrica[]>([]);
   const [metricaDialogOpen, setMetricaDialogOpen] = useState(false);
@@ -175,6 +203,8 @@ const Metas: React.FC = () => {
     llamadasObjetivo: 60,
     colocacionObjetivo: 15000000, // $150,000 MXN
     tasaCierreObjetivo: 25,
+    targetIds: [],
+    targetNames: [],
     fechaInicio: Timestamp.now(),
     fechaFin: Timestamp.now(),
     activo: true
@@ -203,8 +233,11 @@ const Metas: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log('🚀 Metas v2.0 - Fix para userId/teamId undefined');
+    console.log('🚀 Metas v3.0 - Con selección dinámica de ligas/usuarios/kioscos');
     fetchMetas();
+    fetchKiosks();
+    fetchUsers();
+    fetchLeagues();
     fetchMetricas();
     fetchMultiplicadores();
   }, []);
@@ -222,6 +255,68 @@ const Metas: React.FC = () => {
     } catch (err) {
       setError('Error al cargar metas');
       console.error(err);
+    }
+  };
+
+  const fetchKiosks = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'kiosks'));
+      const kiosksData: Kiosk[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        kiosksData.push({
+          id: doc.id,
+          name: data.name || '',
+          address: data.address || ''
+        });
+      });
+      setKiosks(kiosksData.sort((a, b) => a.name.localeCompare(b.name)));
+      console.log(`✅ Kioscos cargados: ${kiosksData.length}`, kiosksData.map(k => k.name));
+    } catch (err) {
+      console.error('❌ Error al cargar kioscos:', err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const usersData: User[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Filtrar solo usuarios que no sean admin
+        if (data.role !== 'admin') {
+          usersData.push({
+            id: doc.id,
+            displayName: data.displayName || data.email || '',
+            email: data.email || '',
+            role: data.role || ''
+          });
+        }
+      });
+      setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      console.log(`✅ Usuarios cargados: ${usersData.length}`, usersData.map(u => `${u.displayName} (${u.role})`));
+    } catch (err) {
+      console.error('❌ Error al cargar promotores:', err);
+    }
+  };
+
+  const fetchLeagues = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'leagues'));
+      const leaguesData: League[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        leaguesData.push({
+          id: doc.id,
+          name: data.name || '',
+          description: data.description,
+          members: data.members || []
+        });
+      });
+      setLeagues(leaguesData.sort((a, b) => a.name.localeCompare(b.name)));
+      console.log(`✅ Ligas cargadas: ${leaguesData.length}`, leaguesData.map(l => l.name));
+    } catch (err) {
+      console.error('❌ Error al cargar ligas:', err);
     }
   };
 
@@ -266,8 +361,8 @@ const Metas: React.FC = () => {
         llamadasObjetivo: meta.llamadasObjetivo,
         colocacionObjetivo: meta.colocacionObjetivo,
         tasaCierreObjetivo: meta.tasaCierreObjetivo,
-        userId: meta.userId,
-        teamId: meta.teamId,
+        targetIds: meta.targetIds || [],
+        targetNames: meta.targetNames || [],
         fechaInicio: meta.fechaInicio,
         fechaFin: meta.fechaFin,
         activo: meta.activo
@@ -282,6 +377,8 @@ const Metas: React.FC = () => {
         llamadasObjetivo: 60,
         colocacionObjetivo: 15000000,
         tasaCierreObjetivo: 25,
+        targetIds: [],
+        targetNames: [],
         fechaInicio: Timestamp.now(),
         fechaFin: Timestamp.now(),
         activo: true
@@ -297,7 +394,17 @@ const Metas: React.FC = () => {
   };
 
   const handleMetaInputChange = (field: keyof typeof metaFormData, value: any) => {
-    setMetaFormData({ ...metaFormData, [field]: value });
+    if (field === 'tipo') {
+      // Clear targetIds and targetNames when changing tipo
+      setMetaFormData({
+        ...metaFormData,
+        [field]: value,
+        targetIds: [],
+        targetNames: []
+      });
+    } else {
+      setMetaFormData({ ...metaFormData, [field]: value });
+    }
   };
 
   const handleSubmitMeta = async () => {
@@ -309,7 +416,13 @@ const Metas: React.FC = () => {
         return;
       }
 
-      // Preparar datos sin campos undefined
+      // Validar que si el tipo no es GLOBAL, se seleccionaron targets
+      if (metaFormData.tipo !== 'GLOBAL' && (!metaFormData.targetIds || metaFormData.targetIds.length === 0)) {
+        setError('Debes seleccionar al menos un objetivo cuando el tipo no es "Todos los Promotores"');
+        return;
+      }
+
+      // Preparar datos
       const dataToSave: any = {
         nombre: metaFormData.nombre,
         descripcion: metaFormData.descripcion,
@@ -324,17 +437,17 @@ const Metas: React.FC = () => {
         updatedAt: Timestamp.now()
       };
 
-      // Solo agregar userId y teamId si tienen valores
-      if (metaFormData.userId) {
-        dataToSave.userId = metaFormData.userId;
-      }
-      if (metaFormData.teamId) {
-        dataToSave.teamId = metaFormData.teamId;
+      // Agregar targetIds y targetNames si tienen valores
+      if (metaFormData.targetIds && metaFormData.targetIds.length > 0) {
+        dataToSave.targetIds = metaFormData.targetIds;
+        dataToSave.targetNames = metaFormData.targetNames;
       }
 
       if (!editingMeta) {
         dataToSave.createdAt = Timestamp.now();
       }
+
+      console.log('💾 Guardando meta:', dataToSave);
 
       if (editingMeta) {
         await updateDoc(doc(db, 'metas', editingMeta.id), dataToSave);
@@ -604,10 +717,10 @@ const Metas: React.FC = () => {
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
-                    Metas Individuales
+                    Metas por Liga
                   </Typography>
                   <Typography variant="h4">
-                    {metas.filter(m => m.tipo === 'INDIVIDUAL').length}
+                    {metas.filter(m => m.tipo === 'LIGA').length}
                   </Typography>
                 </CardContent>
               </Card>
@@ -642,6 +755,11 @@ const Metas: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip label={tipoLabels[meta.tipo]} size="small" variant="outlined" />
+                      {meta.targetNames && meta.targetNames.length > 0 && (
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          {meta.targetNames.join(', ')}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>{periodoLabels[meta.periodo]}</TableCell>
                     <TableCell>{meta.llamadasObjetivo}</TableCell>
@@ -906,6 +1024,79 @@ const Metas: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
+
+              {/* Autocomplete para Kioscos */}
+              {metaFormData.tipo === 'KIOSCO' && (
+                <Grid item xs={12}>
+                  <Autocomplete
+                    multiple
+                    options={kiosks}
+                    getOptionLabel={(option) => `${option.name} - ${option.address}`}
+                    value={kiosks.filter(k => metaFormData.targetIds?.includes(k.id))}
+                    onChange={(_, newValue) => {
+                      handleMetaInputChange('targetIds', newValue.map(v => v.id));
+                      handleMetaInputChange('targetNames', newValue.map(v => v.name));
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Seleccionar Kioscos"
+                        required
+                        placeholder="Buscar kioscos..."
+                      />
+                    )}
+                  />
+                </Grid>
+              )}
+
+              {/* Autocomplete para Usuarios */}
+              {metaFormData.tipo === 'USUARIO' && (
+                <Grid item xs={12}>
+                  <Autocomplete
+                    multiple
+                    options={users}
+                    getOptionLabel={(option) => `${option.displayName} (${option.email})`}
+                    value={users.filter(u => metaFormData.targetIds?.includes(u.id))}
+                    onChange={(_, newValue) => {
+                      handleMetaInputChange('targetIds', newValue.map(v => v.id));
+                      handleMetaInputChange('targetNames', newValue.map(v => v.displayName));
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Seleccionar Promotores"
+                        required
+                        placeholder="Buscar promotores..."
+                      />
+                    )}
+                  />
+                </Grid>
+              )}
+
+              {/* Autocomplete para Ligas */}
+              {metaFormData.tipo === 'LIGA' && (
+                <Grid item xs={12}>
+                  <Autocomplete
+                    multiple
+                    options={leagues}
+                    getOptionLabel={(option) => option.name}
+                    value={leagues.filter(l => metaFormData.targetIds?.includes(l.id))}
+                    onChange={(_, newValue) => {
+                      handleMetaInputChange('targetIds', newValue.map(v => v.id));
+                      handleMetaInputChange('targetNames', newValue.map(v => v.name));
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Seleccionar Ligas"
+                        required
+                        placeholder="Buscar ligas..."
+                      />
+                    )}
+                  />
+                </Grid>
+              )}
+
               <Grid item xs={12} md={4}>
                 <TextField
                   label="Llamadas Objetivo"
