@@ -531,7 +531,6 @@ if (!request.userId) {
 - [ ] **Modo offline**: Cache de respuestas comunes
 - [ ] **Notificaciones**: Respuestas push cuando usuario no está en chat
 - [ ] **Analytics avanzados**: Dashboard de uso del bot
-- [ ] **Multi-idioma**: Soporte para inglés
 
 ### Mejoras Técnicas
 
@@ -561,12 +560,6 @@ if (!request.userId) {
 
 ---
 
-## 📞 Soporte
-
-**Contacto Técnico:**
-- Email: [email del equipo técnico]
-- Slack: #aviva-dev-support
-
 **Documentación Adicional:**
 - [Firebase Functions Docs](https://firebase.google.com/docs/functions)
 - [OpenAI Assistant API](https://platform.openai.com/docs/assistants)
@@ -590,16 +583,3 @@ if (!request.userId) {
 - [ ] `firebase deploy --only functions:chat`
 - [ ] Verificar logs sin errores
 - [ ] Test manual desde la app
-
-### Post-Deploy
-
-- [ ] Monitorear logs por 1 hora
-- [ ] Verificar métricas de uso
-- [ ] Test en ambiente de producción
-- [ ] Confirmar con usuarios beta
-
----
-
-**Versión:** 1.0.0
-**Última actualización:** $(date +%Y-%m-%d)
-**Mantenido por:** Equipo de Desarrollo Aviva
