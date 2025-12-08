@@ -54,10 +54,7 @@ import { db } from '../config/firebase';
 import type {
   League,
   LeagueFormData,
-  LeaguePrize,
-  LeagueTier as LeagueTierType,
-  LeagueStatus as LeagueStatusType,
-  PrizeType as PrizeTypeType
+  LeaguePrize
 } from '../types/league';
 import {
   LeagueTier,
