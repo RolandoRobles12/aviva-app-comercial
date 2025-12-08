@@ -264,7 +264,9 @@ const Ligas: React.FC = () => {
         active: formData.active,
         updatedAt: Timestamp.now(),
         createdBy: 'admin',
-        ...(editingLeague ? {} : { createdAt: Timestamp.now() })
+        ...(editingLeague ? {} : { createdAt: Timestamp.now() }),
+        // SIEMPRE guardar status para que Android pueda encontrar la liga
+        status: formData.active ? 'ACTIVE' : 'PENDING'
       };
 
       // Agregar campos del modo competitivo si está habilitado
@@ -278,17 +280,28 @@ const Ligas: React.FC = () => {
         dataToSave.promotionSpots = formData.promotionSpots;
         dataToSave.relegationSpots = formData.relegationSpots;
         dataToSave.prizes = formData.prizes || [];
+        // Sobrescribir status si está en modo competitivo
         dataToSave.status = formData.status;
       } else {
-        // Limpiar campos competitivos si no está en modo competitivo
+        // Modo simple de benchmarking
         dataToSave.competitiveMode = false;
+        // Guardar tier por defecto BRONCE para ligas simples
+        dataToSave.tier = 'BRONCE';
+        dataToSave.season = 1;
       }
+
+      let leagueId: string;
 
       if (editingLeague) {
         await updateDoc(doc(db, 'leagues', editingLeague.id), dataToSave);
+        leagueId = editingLeague.id;
       } else {
-        await addDoc(collection(db, 'leagues'), dataToSave);
+        const docRef = await addDoc(collection(db, 'leagues'), dataToSave);
+        leagueId = docRef.id;
       }
+
+      // Sincronizar participantes en la colección leagueParticipants para Android
+      await syncLeagueParticipants(leagueId, formData.members);
 
       await fetchLeagues();
       handleCloseDialog();
@@ -307,6 +320,67 @@ const Ligas: React.FC = () => {
         setError('Error al eliminar la liga');
         console.error(err);
       }
+    }
+  };
+
+  /**
+   * Sincroniza los participantes de una liga con la colección leagueParticipants
+   * que usa la app Android
+   */
+  const syncLeagueParticipants = async (leagueId: string, memberIds: string[]) => {
+    try {
+      // Obtener participantes actuales
+      const participantsSnapshot = await getDocs(
+        collection(db, 'leagueParticipants')
+      );
+
+      const existingParticipants = new Map<string, any>();
+      participantsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.leagueId === leagueId) {
+          existingParticipants.set(data.userId, { id: doc.id, ...data });
+        }
+      });
+
+      // Agregar o actualizar participantes
+      for (const userId of memberIds) {
+        const existing = existingParticipants.get(userId);
+
+        if (!existing) {
+          // Crear nuevo participante
+          await addDoc(collection(db, 'leagueParticipants'), {
+            leagueId: leagueId,
+            userId: userId,
+            currentPoints: 0,
+            currentPosition: 0,
+            previousPosition: 0,
+            salesInSeason: 0,
+            positionHistory: [],
+            status: 'ACTIVE',
+            joinedAt: Timestamp.now(),
+            pointsEarned: 0
+          });
+        } else if (existing.status !== 'ACTIVE') {
+          // Reactivar participante si estaba inactivo
+          await updateDoc(doc(db, 'leagueParticipants', existing.id), {
+            status: 'ACTIVE'
+          });
+        }
+      }
+
+      // Marcar como inactivos a los que ya no están en la liga
+      for (const [userId, participant] of existingParticipants.entries()) {
+        if (!memberIds.includes(userId) && participant.status === 'ACTIVE') {
+          await updateDoc(doc(db, 'leagueParticipants', participant.id), {
+            status: 'INACTIVE'
+          });
+        }
+      }
+
+      console.log(`✅ Participantes sincronizados para liga ${leagueId}`);
+    } catch (err) {
+      console.error('Error sincronizando participantes:', err);
+      // No lanzar error para no bloquear la creación de la liga
     }
   };
 
