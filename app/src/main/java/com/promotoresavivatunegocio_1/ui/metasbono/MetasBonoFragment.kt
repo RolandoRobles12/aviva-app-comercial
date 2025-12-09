@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -201,12 +202,6 @@ class MetasBonoFragment : Fragment() {
                 resources.getColor(R.color.success_color, null)
                 else resources.getColor(R.color.error_color, null))
         }
-
-        // Mostrar ranking
-        val currentUser = auth.currentUser
-        val displayName = currentUser?.displayName ?: "TÚ"
-        view.findViewById<TextView>(R.id.tvNombreUsuario).text = "$displayName - Rank #${league.userRank}/${league.totalMembers}"
-        view.findViewById<TextView>(R.id.tvPuntosUsuario).text = "$${formatMoneyShort(tuColocacion)}"
     }
 
     /**
@@ -256,7 +251,11 @@ class MetasBonoFragment : Fragment() {
 
             // Formato: "#1 - Juan Pérez"
             val rankText = "#${index + 1}"
-            val nameText = if (isCurrentUser) "TÚ" else participant.userName
+            val nameText = if (isCurrentUser) {
+                "TÚ"
+            } else {
+                participant.user?.displayName ?: "Usuario ${participant.userId.take(8)}"
+            }
             text1.text = "$rankText - $nameText"
             text1.textSize = 14f
             text1.setTypeface(null, if (isCurrentUser) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
