@@ -12,7 +12,10 @@ import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
 import com.promotoresavivatunegocio_1.R
 import com.promotoresavivatunegocio_1.services.HubSpotRepository
+import com.promotoresavivatunegocio_1.services.LeagueService
 import kotlinx.coroutines.launch
+import models.League
+import models.LeagueParticipant
 
 /**
  * Fragment para "Metas & Bono - Front"
@@ -29,6 +32,7 @@ class MetasBonoFragment : Fragment() {
 
     private lateinit var auth: FirebaseAuth
     private lateinit var hubSpotRepository: HubSpotRepository
+    private lateinit var leagueService: LeagueService
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,8 +47,9 @@ class MetasBonoFragment : Fragment() {
 
         auth = FirebaseAuth.getInstance()
         hubSpotRepository = HubSpotRepository()
+        leagueService = LeagueService()
 
-        // Cargar datos REALES de HubSpot
+        // Cargar datos REALES de HubSpot y Ligas
         loadRealData(view)
     }
 
@@ -82,6 +87,18 @@ class MetasBonoFragment : Fragment() {
                     }
                 }.onFailure { error ->
                     Log.e(TAG, "❌ Error cargando liga", error)
+                }
+
+                // Cargar módulo 3: Ligas y Premios desde Firestore
+                val user = auth.currentUser
+                if (user != null) {
+                    val currentLeague = leagueService.getUserCurrentLeague(user.uid)
+                    if (currentLeague != null) {
+                        loadModulo3WithRealData(view, currentLeague, user.uid)
+                    } else {
+                        Log.w(TAG, "⚠️ Usuario no está en ninguna liga")
+                        showNoLeagueMessage(view)
+                    }
                 }
 
             } catch (e: Exception) {
@@ -192,9 +209,143 @@ class MetasBonoFragment : Fragment() {
         view.findViewById<TextView>(R.id.tvPuntosUsuario).text = "$${formatMoneyShort(tuColocacion)}"
     }
 
+    /**
+     * Módulo 3: Muestra DATOS REALES de Ligas y Premios desde Firestore
+     */
+    private fun loadModulo3WithRealData(view: View, league: League, userId: String) {
+        lifecycleScope.launch {
+            try {
+                // Obtener el ranking de la liga
+                val standings = leagueService.getLeagueStandings(league.id)
+                displayLeagueRanking(view, standings.participants, userId)
+
+                // Mostrar los premios de la liga
+                displayLeaguePrizes(view, league.prizes)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error cargando módulo 3", e)
+            }
+        }
+    }
+
+    /**
+     * Muestra el ranking de la liga dinámicamente
+     */
+    private fun displayLeagueRanking(view: View, participants: List<LeagueParticipant>, currentUserId: String) {
+        val layoutRanking = view.findViewById<ViewGroup>(R.id.layoutLeagueRanking)
+        layoutRanking.removeAllViews()
+
+        // Mostrar top 5 o todos si hay menos
+        val topParticipants = participants.sortedByDescending { it.currentPoints }.take(5)
+
+        topParticipants.forEachIndexed { index, participant ->
+            val isCurrentUser = participant.userId == currentUserId
+            val rankingItem = layoutInflater.inflate(
+                android.R.layout.simple_list_item_2,
+                layoutRanking,
+                false
+            ) as ViewGroup
+
+            // Agregar estilo especial para el usuario actual
+            if (isCurrentUser) {
+                rankingItem.setBackgroundColor(resources.getColor(R.color.primary_container, null))
+            }
+
+            val text1 = rankingItem.findViewById<TextView>(android.R.id.text1)
+            val text2 = rankingItem.findViewById<TextView>(android.R.id.text2)
+
+            // Formato: "#1 - Juan Pérez"
+            val rankText = "#${index + 1}"
+            val nameText = if (isCurrentUser) "TÚ" else participant.userName
+            text1.text = "$rankText - $nameText"
+            text1.textSize = 14f
+            text1.setTypeface(null, if (isCurrentUser) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+
+            // Puntos
+            text2.text = "${formatMoney(participant.currentPoints)} pts"
+            text2.textSize = 14f
+            text2.setTypeface(null, android.graphics.Typeface.BOLD)
+
+            layoutRanking.addView(rankingItem)
+
+            // Agregar divider excepto después del último
+            if (index < topParticipants.size - 1) {
+                val divider = View(requireContext())
+                divider.layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    2 // 1dp en píxeles
+                )
+                divider.setBackgroundColor(resources.getColor(R.color.divider, null))
+                layoutRanking.addView(divider)
+            }
+        }
+    }
+
+    /**
+     * Muestra los premios de la liga dinámicamente
+     */
+    private fun displayLeaguePrizes(view: View, prizes: List<models.LeaguePrize>) {
+        val layoutPrizes = view.findViewById<ViewGroup>(R.id.layoutLeaguePrizes)
+        layoutPrizes.removeAllViews()
+
+        if (prizes.isEmpty()) {
+            // Mostrar mensaje de "sin premios"
+            val noPrizesText = TextView(requireContext())
+            noPrizesText.text = "No hay premios configurados para esta liga"
+            noPrizesText.textSize = 14f
+            noPrizesText.setTextColor(resources.getColor(R.color.secondary_text, null))
+            layoutPrizes.addView(noPrizesText)
+            return
+        }
+
+        prizes.sortedBy { it.position }.forEach { prize ->
+            val prizeContainer = LinearLayout(requireContext())
+            prizeContainer.orientation = LinearLayout.VERTICAL
+            prizeContainer.layoutParams = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = 16 // 16dp en píxeles
+            }
+
+            // Título del premio
+            val prizeTitle = TextView(requireContext())
+            val emoji = when (prize.position) {
+                1 -> "🥇"
+                2 -> "🥈"
+                3 -> "🥉"
+                else -> "🏅"
+            }
+            var prizeText = "$emoji ${prize.position}° lugar - ${prize.description}"
+            if (prize.amount > 0) {
+                prizeText += " - $${formatMoney(prize.amount)}"
+            }
+            prizeTitle.text = prizeText
+            prizeTitle.textSize = 14f
+            prizeTitle.setTypeface(null, android.graphics.Typeface.BOLD)
+            prizeTitle.setTextColor(resources.getColor(R.color.primary_text, null))
+
+            prizeContainer.addView(prizeTitle)
+            layoutPrizes.addView(prizeContainer)
+        }
+    }
+
     private fun showNoGoalsMessage(view: View) {
         view.findViewById<TextView>(R.id.tvLlamadasValor).text = "Sin metas asignadas"
         view.findViewById<TextView>(R.id.tvColocacionValor).text = "Contacta al administrador"
+    }
+
+    private fun showNoLeagueMessage(view: View) {
+        val layoutRanking = view.findViewById<ViewGroup>(R.id.layoutLeagueRanking)
+        layoutRanking.removeAllViews()
+
+        val noLeagueText = TextView(requireContext())
+        noLeagueText.text = "No estás en una liga"
+        noLeagueText.textSize = 14f
+        noLeagueText.setTextColor(resources.getColor(R.color.secondary_text, null))
+        noLeagueText.gravity = android.view.Gravity.CENTER
+        noLeagueText.setPadding(16, 16, 16, 16)
+        layoutRanking.addView(noLeagueText)
     }
 
     private fun showErrorMessage(view: View, message: String) {
