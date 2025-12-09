@@ -1,10 +1,15 @@
 package com.promotoresavivatunegocio_1.ui.scorecard
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -28,7 +33,12 @@ class ScorecardFragment : Fragment() {
     private lateinit var tvNombreUsuario: TextView
     private lateinit var tvMultiplicador: TextView
     private lateinit var tvGananciaMensual: TextView
-    private lateinit var tvMes: TextView
+    private lateinit var spinnerMes: Spinner
+
+    // Datos de meses disponibles
+    private val availableMonths = mutableListOf<String>()
+    private val availableMonthsDisplay = mutableListOf<String>()
+    private var currentScorecardData: Map<String, Any>? = null
 
     // Views de la tabla
     private lateinit var tvPuntajeTotal: TextView
@@ -84,7 +94,7 @@ class ScorecardFragment : Fragment() {
         tvNombreUsuario = view.findViewById(R.id.tvNombreUsuario)
         tvMultiplicador = view.findViewById(R.id.tvMultiplicador)
         tvGananciaMensual = view.findViewById(R.id.tvGananciaMensual)
-        tvMes = view.findViewById(R.id.tvMes)
+        spinnerMes = view.findViewById(R.id.spinnerMes)
         tvPuntajeTotal = view.findViewById(R.id.tvPuntajeTotal)
 
         // CAC
@@ -119,64 +129,193 @@ class ScorecardFragment : Fragment() {
     private fun loadScorecardData() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            showDefaultData()
+            showNoDataMessage()
             return
         }
 
-        // En producción, estos datos vendrían de Firestore
-        // Por ahora mostramos los datos exactos de la especificación
-        // TODO: Implementar carga desde Firestore (colección 'scorecards')
-
         val userName = currentUser.displayName ?: "USUARIO"
-        val currentMonth = "Octubre 2025"
-
         tvNombreUsuario.text = userName.uppercase()
-        tvMes.text = "MES: $currentMonth"
 
-        // Datos exactos de la especificación
-        loadExampleData()
+        // Cargar meses disponibles para este usuario desde Firestore
+        loadAvailableMonths(currentUser.uid)
     }
 
-    private fun loadExampleData() {
-        // CAC - Datos exactos de la especificación
+    private fun loadAvailableMonths(userId: String) {
+        db.collection("scorecards")
+            .whereEqualTo("userId", userId)
+            .get()
+            .addOnSuccessListener { documents ->
+                availableMonths.clear()
+                availableMonthsDisplay.clear()
+
+                if (documents.isEmpty) {
+                    showNoDataMessage()
+                    return@addOnSuccessListener
+                }
+
+                // Obtener todos los meses disponibles
+                for (document in documents) {
+                    val mes = document.getString("mes") ?: continue
+                    val mesDisplay = document.getString("mesDisplay") ?: mes
+                    if (!availableMonths.contains(mes)) {
+                        availableMonths.add(mes)
+                        availableMonthsDisplay.add(mesDisplay)
+                    }
+                }
+
+                if (availableMonths.isEmpty()) {
+                    showNoDataMessage()
+                    return@addOnSuccessListener
+                }
+
+                // Configurar el Spinner con los meses disponibles
+                setupMonthSpinner()
+            }
+            .addOnFailureListener { exception ->
+                Log.e("ScorecardFragment", "Error loading available months", exception)
+                showNoDataMessage()
+            }
+    }
+
+    private fun setupMonthSpinner() {
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            availableMonthsDisplay
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerMes.adapter = adapter
+
+        // Listener para cuando se selecciona un mes
+        spinnerMes.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (position >= 0 && position < availableMonths.size) {
+                    val selectedMes = availableMonths[position]
+                    loadScorecardForMonth(selectedMes)
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                // No hacer nada
+            }
+        }
+
+        // Cargar el primer mes automáticamente
+        if (availableMonths.isNotEmpty()) {
+            loadScorecardForMonth(availableMonths[0])
+        }
+    }
+
+    private fun loadScorecardForMonth(mes: String) {
+        val currentUser = auth.currentUser ?: return
+
+        db.collection("scorecards")
+            .whereEqualTo("userId", currentUser.uid)
+            .whereEqualTo("mes", mes)
+            .limit(1)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty) {
+                    showNoDataMessage()
+                    return@addOnSuccessListener
+                }
+
+                val document = documents.first()
+                currentScorecardData = document.data
+                displayScorecardData(document.data)
+            }
+            .addOnFailureListener { exception ->
+                Log.e("ScorecardFragment", "Error loading scorecard for month: $mes", exception)
+                Toast.makeText(context, "Error al cargar datos del scorecard", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun displayScorecardData(data: Map<String, Any>) {
+        try {
+            // CAC
+            tvCacDescripcion.text = "Costo Operativo / Venta Mensual"
+            tvCacMetricas.text = data["cac_metricas"] as? String ?: "-"
+            tvCacResultado.text = data["cac_resultado"] as? String ?: "-"
+            tvCacCategoria.text = data["cac_categoria"] as? String ?: "-"
+            tvCacPuntaje.text = data["cac_puntaje"] as? String ?: "-"
+
+            // CALIDAD
+            tvCalidadDescripcion.text = "Calificación entre los clientes que hacen sus primeros pagos y los clientes que no pagan."
+            tvCalidadMetricas.text = data["calidad_metricas"] as? String ?: "-"
+            tvCalidadResultado.text = data["calidad_resultado"] as? String ?: "-"
+            tvCalidadCategoria.text = data["calidad_categoria"] as? String ?: "-"
+            tvCalidadPuntaje.text = data["calidad_puntaje"] as? String ?: "-"
+
+            // NIM
+            tvNimDescripcion.text = "Pagos hechos por los clientes menos el costo de fondeo y las pérdidas de crédito."
+            tvNimMetricas.text = data["nim_metricas"] as? String ?: "-"
+            tvNimResultado.text = data["nim_resultado"] as? String ?: "-"
+            tvNimCategoria.text = data["nim_categoria"] as? String ?: "-"
+            tvNimPuntaje.text = data["nim_puntaje"] as? String ?: "-"
+
+            // CRECIMIENTO
+            tvCrecimientoDescripcion.text = "Crecimiento del portafolio contra el mes anterior."
+            tvCrecimientoMetricas.text = data["crecimiento_metricas"] as? String ?: "-"
+            tvCrecimientoResultado.text = data["crecimiento_resultado"] as? String ?: "-"
+            tvCrecimientoCategoria.text = data["crecimiento_categoria"] as? String ?: "-"
+            tvCrecimientoPuntaje.text = data["crecimiento_puntaje"] as? String ?: "-"
+
+            // Totales
+            tvPuntajeTotal.text = data["puntajeTotal"] as? String ?: "-"
+            tvMultiplicador.text = data["multiplicador"] as? String ?: "-"
+            tvGananciaMensual.text = data["gananciaMensual"] as? String ?: "-"
+
+        } catch (e: Exception) {
+            Log.e("ScorecardFragment", "Error displaying scorecard data", e)
+            Toast.makeText(context, "Error al mostrar datos del scorecard", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showNoDataMessage() {
+        tvNombreUsuario.text = auth.currentUser?.displayName?.uppercase() ?: "USUARIO"
+
+        // Mostrar mensaje de "sin datos" en lugar de datos de ejemplo
         tvCacDescripcion.text = "Costo Operativo / Venta Mensual"
-        tvCacMetricas.text = "$68,520/\n$553,000"
-        tvCacResultado.text = "12.4%"
-        tvCacCategoria.text = "B"
-        tvCacPuntaje.text = "25"
+        tvCacMetricas.text = "Sin datos disponibles"
+        tvCacResultado.text = "-"
+        tvCacCategoria.text = "-"
+        tvCacPuntaje.text = "-"
 
-        // CALIDAD - Datos exactos de la especificación
         tvCalidadDescripcion.text = "Calificación entre los clientes que hacen sus primeros pagos y los clientes que no pagan."
-        tvCalidadMetricas.text = "Pagos completados: 73%\nPrimeros pagos no hechos: 7.6%"
-        tvCalidadResultado.text = "8.0"
-        tvCalidadCategoria.text = "B"
-        tvCalidadPuntaje.text = "15"
+        tvCalidadMetricas.text = "Sin datos disponibles"
+        tvCalidadResultado.text = "-"
+        tvCalidadCategoria.text = "-"
+        tvCalidadPuntaje.text = "-"
 
-        // NIM - Datos exactos de la especificación
         tvNimDescripcion.text = "Pagos hechos por los clientes menos el costo de fondeo y las pérdidas de crédito."
-        tvNimMetricas.text = "Ingresos: $382,111\nPérdidas: $143,041\nFondeo: $70,766"
-        tvNimResultado.text = "44%"
-        tvNimCategoria.text = "B"
-        tvNimPuntaje.text = "5"
+        tvNimMetricas.text = "Sin datos disponibles"
+        tvNimResultado.text = "-"
+        tvNimCategoria.text = "-"
+        tvNimPuntaje.text = "-"
 
-        // CRECIMIENTO - Datos exactos de la especificación
         tvCrecimientoDescripcion.text = "Crecimiento del portafolio contra el mes anterior."
-        tvCrecimientoMetricas.text = "Portafolio Sep: 4.5M\nPortafolio Oct: 4.9M"
-        tvCrecimientoResultado.text = "9.0%"
-        tvCrecimientoCategoria.text = "2"
-        tvCrecimientoPuntaje.text = "5"
+        tvCrecimientoMetricas.text = "Sin datos disponibles"
+        tvCrecimientoResultado.text = "-"
+        tvCrecimientoCategoria.text = "-"
+        tvCrecimientoPuntaje.text = "-"
 
-        // Totales - Datos exactos de la especificación
-        tvPuntajeTotal.text = "50"
-        tvMultiplicador.text = "0.5X"
-        tvGananciaMensual.text = "$6,768"
+        tvPuntajeTotal.text = "-"
+        tvMultiplicador.text = "-"
+        tvGananciaMensual.text = "-"
+
+        // Configurar spinner vacío
+        val emptyAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            listOf("No hay meses disponibles")
+        )
+        emptyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerMes.adapter = emptyAdapter
+        spinnerMes.isEnabled = false
+
+        Toast.makeText(context, "No hay datos de bonos disponibles. Contacta al administrador.", Toast.LENGTH_LONG).show()
     }
 
-    private fun showDefaultData() {
-        tvNombreUsuario.text = "[NOMBRE_DEL_USUARIO]"
-        tvMes.text = "MES: Octubre 2025"
-        loadExampleData()
-    }
 
     companion object {
         /**

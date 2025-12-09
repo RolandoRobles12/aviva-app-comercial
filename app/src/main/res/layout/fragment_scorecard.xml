@@ -126,15 +126,32 @@
 
                 </LinearLayout>
 
-                <!-- Texto del mes -->
-                <TextView
-                    android:id="@+id/tvMes"
+                <!-- Selector de mes -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="MES: Octubre 2025"
-                    android:textSize="16sp"
-                    android:textColor="#2C2C2C"
-                    android:textStyle="bold" />
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mes:"
+                        android:textSize="13sp"
+                        android:textColor="#666666"
+                        android:layout_marginBottom="4dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerMes"
+                        android:layout_width="wrap_content"
+                        android:minWidth="160dp"
+                        android:layout_height="wrap_content"
+                        android:background="@android:drawable/btn_dropdown"
+                        android:padding="8dp"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
 
             </LinearLayout>
 

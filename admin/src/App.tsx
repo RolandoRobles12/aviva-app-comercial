@@ -19,6 +19,7 @@ import RutasPromotores from './pages/RutasPromotores';
 import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
+import Bonos from './pages/Bonos';
 
 const theme = createTheme({
   palette: {
@@ -238,6 +239,7 @@ function AppRoutes() {
         <Route path="rutas" element={<RutasPromotores />} />
         <Route path="metas" element={<Metas />} />
         <Route path="ligas" element={<Ligas />} />
+        <Route path="bonos" element={<Bonos />} />
         <Route path="giros" element={<Giros />} />
         <Route path="administradores" element={<Administradores />} />
         <Route path="auditoria" element={<Auditoria />} />

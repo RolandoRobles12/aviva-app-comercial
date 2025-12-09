@@ -169,24 +169,6 @@ const Administradores: React.FC = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        <strong>Actualmente hardcodeado en MainActivity.kt (líneas 142-149):</strong>
-        <br />
-        • rolando.robles@avivacredito.com (super admin)
-        <br />
-        • jesica.silva@avivacredito.com
-        <br />
-        • christian.garcia@avivacredito.com
-        <br />
-        • fernando.cordova@avivacredito.com
-        <br />
-        • jose.romero@avivacredito.com
-        <br />
-        • ana.carmona@avivacredito.com
-        <br />
-        • angelica.garcia@avivacredito.com
-      </Alert>
-
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
