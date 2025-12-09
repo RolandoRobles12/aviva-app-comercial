@@ -7,18 +7,18 @@ import com.google.firebase.firestore.DocumentId
  * Sistema de Ligas/Competencias
  *
  * Los vendedores compiten en ligas según su desempeño
- * Para agregar nuevas ligas o modificar el sistema:
- * 1. Agregar nuevas ligas en LeagueTier
- * 2. Ajustar los criterios de promoción/descenso en los servicios
+ * Las ligas son completamente dinámicas y personalizables desde el admin web
  */
 data class League(
     @DocumentId
     val id: String = "",
 
-    // Información de la liga
-    val tier: LeagueTier = LeagueTier.BRONCE,
+    // Información de la liga (campos dinámicos)
+    val name: String = "",              // Nombre personalizado de la liga
+    val description: String = "",       // Descripción opcional
+    val color: String = "#CD7F32",      // Color personalizado en formato hex
+    val icon: String = "🏆",            // Icono/emoji personalizado
     val season: Int = 1,
-    val name: String = "",
 
     // Período de la temporada
     val startDate: Timestamp = Timestamp.now(),
@@ -34,23 +34,10 @@ data class League(
 
     // Estado
     val status: LeagueStatus = LeagueStatus.ACTIVE,
+    val active: Boolean = true,
 
     val createdAt: Timestamp = Timestamp.now()
 ) {
-    enum class LeagueTier(
-        val displayName: String,
-        val colorHex: String,
-        val minPoints: Int
-    ) {
-        BRONCE("Bronce", "#CD7F32", 0),
-        PLATA("Plata", "#C0C0C0", 1000),
-        ORO("Oro", "#FFD700", 2500),
-        PLATINO("Platino", "#E5E4E2", 5000),
-        DIAMANTE("Diamante", "#B9F2FF", 10000),
-        MASTER("Master", "#FF1744", 20000),
-        LEYENDA("Leyenda", "#9C27B0", 50000)
-    }
-
     enum class LeagueStatus {
         PENDING,    // Aún no inicia
         ACTIVE,     // En curso
@@ -59,23 +46,13 @@ data class League(
 }
 
 /**
- * Premio de liga
+ * Premio de liga (simplificado para compatibilidad con admin web)
  */
 data class LeaguePrize(
-    val position: Int = 0,              // Posición requerida (1 = 1er lugar)
-    val positionRange: IntRange? = null, // Rango de posiciones (ej: 2-5)
-    val prizeType: PrizeType = PrizeType.PUNTOS,
-    val prizeValue: String = "",
-    val description: String = ""
-) {
-    enum class PrizeType {
-        PUNTOS,
-        DINERO,
-        BONO,
-        PRODUCTO,
-        RECONOCIMIENTO
-    }
-}
+    val position: Int = 0,              // Posición (1 = 1er lugar, 2 = 2do lugar, etc.)
+    val description: String = "",       // Descripción del premio
+    val amount: Int = 0                 // Monto opcional del premio
+)
 
 /**
  * Participante en una liga

@@ -60,4 +60,34 @@
     <string name="help_assistant">Asistente de Ayuda</string>
     <string name="send_message">Enviar mensaje</string>
     <string name="chat_icon">Icono de chat</string>
+
+    <!-- Leagues / Ligas -->
+    <string name="leagues_title">Ligas</string>
+    <string name="league_default_name">Liga</string>
+    <string name="league_season">Temporada %1$d</string>
+    <string name="league_participants">%1$d participantes</string>
+    <string name="league_promotion">Top %1$d ascienden</string>
+    <string name="league_relegation">Bottom %1$d descienden</string>
+    <string name="league_your_position">Tu Posición</string>
+    <string name="league_position_label">Posición</string>
+    <string name="league_points_label">Puntos</string>
+    <string name="league_sales_label">Ventas</string>
+    <string name="league_standings_title">Tabla de Posiciones</string>
+    <string name="league_position_format">#%1$d</string>
+    <string name="league_points_format">%1$d pts</string>
+    <string name="league_position_change_up">↑ +%1$d</string>
+    <string name="league_position_change_down">↓ %1$d</string>
+    <string name="league_position_change_same">→ 0</string>
+    <string name="league_empty_title">No estás en una liga</string>
+    <string name="league_empty_message">Completa más ventas para unirte a una liga</string>
+    <string name="league_empty_icon">🏆</string>
+    <string name="league_description_label">Descripción</string>
+    <string name="league_prizes_title">Premios</string>
+    <string name="league_prize_position">%1$d° lugar</string>
+    <string name="league_dates_label">Temporada</string>
+    <string name="league_date_range">%1$s - %2$s</string>
+
+    <!-- League Errors -->
+    <string name="league_error_not_authenticated">Usuario no autenticado</string>
+    <string name="league_error_loading">Error al cargar liga: %1$s</string>
 </resources>

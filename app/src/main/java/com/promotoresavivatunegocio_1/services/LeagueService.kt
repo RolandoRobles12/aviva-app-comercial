@@ -30,7 +30,7 @@ class LeagueService {
         return try {
             leaguesCollection
                 .whereEqualTo("status", League.LeagueStatus.ACTIVE.name)
-                .orderBy("tier", Query.Direction.ASCENDING)
+                .orderBy("name", Query.Direction.ASCENDING)
                 .get()
                 .await()
                 .toObjects(League::class.java)
@@ -246,26 +246,21 @@ class LeagueService {
         val currentParticipant = currentLeague?.let { getUserParticipant(userId, it.id) }
 
         return LeagueStats(
-            currentTier = currentLeague?.tier,
+            currentLeagueName = currentLeague?.name ?: "",
             currentPosition = currentParticipant?.currentPosition ?: 0,
             currentPoints = currentParticipant?.currentPoints ?: 0,
             totalLeaguesParticipated = history.size,
             totalPromotions = history.count { it.status == LeagueParticipant.ParticipantStatus.PROMOTED },
-            totalRelegations = history.count { it.status == LeagueParticipant.ParticipantStatus.RELEGATED },
-            highestTierReached = history.maxOfOrNull {
-                // Aquí deberías obtener el tier de cada liga, pero por simplicidad...
-                0
-            } ?: 0
+            totalRelegations = history.count { it.status == LeagueParticipant.ParticipantStatus.RELEGATED }
         )
     }
 
     data class LeagueStats(
-        val currentTier: League.LeagueTier?,
+        val currentLeagueName: String,
         val currentPosition: Int,
         val currentPoints: Int,
         val totalLeaguesParticipated: Int,
         val totalPromotions: Int,
-        val totalRelegations: Int,
-        val highestTierReached: Int
+        val totalRelegations: Int
     )
 }

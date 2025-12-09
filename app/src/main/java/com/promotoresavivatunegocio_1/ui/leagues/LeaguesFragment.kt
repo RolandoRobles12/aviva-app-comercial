@@ -73,7 +73,11 @@ class LeaguesFragment : Fragment() {
     private fun loadLeagueData() {
         val user = auth.currentUser
         if (user == null) {
-            Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                getString(R.string.league_error_not_authenticated),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -105,7 +109,7 @@ class LeaguesFragment : Fragment() {
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
-                    "Error al cargar liga: ${e.message}",
+                    getString(R.string.league_error_loading, e.message ?: ""),
                     Toast.LENGTH_LONG
                 ).show()
                 showEmptyState()
@@ -116,46 +120,120 @@ class LeaguesFragment : Fragment() {
     }
 
     private fun displayLeagueInfo(league: League) {
-        binding.tvLeagueName.text = league.tier.displayName
-        binding.tvSeason.text = "Temporada ${league.season}"
+        // Usar nombre dinámico de la liga (con fallback)
+        val leagueName = if (league.name.isNotEmpty()) {
+            league.name
+        } else {
+            getString(R.string.league_default_name)
+        }
 
-        // Color según el tier
-        val colorHex = league.tier.colorHex
+        // Mostrar icono + nombre
+        val displayName = if (league.icon.isNotEmpty()) {
+            "${league.icon} $leagueName"
+        } else {
+            leagueName
+        }
+        binding.tvLeagueName.text = displayName
+        binding.tvSeason.text = getString(R.string.league_season, league.season)
+
+        // Color personalizado de la liga
+        val colorHex = if (league.color.isNotEmpty()) league.color else "#CD7F32"
         try {
             val color = android.graphics.Color.parseColor(colorHex)
             binding.cardLeagueHeader.setCardBackgroundColor(color)
         } catch (e: Exception) {
-            // Color por defecto
+            // Color por defecto si el hex es inválido
         }
 
         // Mostrar información de la liga
-        binding.tvMaxParticipants.text = "${league.maxParticipants} participantes"
-        binding.tvPromotionSpots.text = "Top ${league.promotionSpots} ascienden"
-        binding.tvRelegationSpots.text = "Bottom ${league.relegationSpots} descienden"
+        binding.tvMaxParticipants.text = getString(R.string.league_participants, league.maxParticipants)
+        binding.tvPromotionSpots.text = getString(R.string.league_promotion, league.promotionSpots)
+        binding.tvRelegationSpots.text = getString(R.string.league_relegation, league.relegationSpots)
+
+        // Mostrar descripción si existe
+        if (league.description.isNotEmpty()) {
+            binding.cardLeagueDescription.visibility = View.VISIBLE
+            binding.tvLeagueDescription.text = league.description
+        } else {
+            binding.cardLeagueDescription.visibility = View.GONE
+        }
+
+        // Mostrar fechas de temporada
+        displayLeagueDates(league)
+
+        // Mostrar premios si existen
+        displayLeaguePrizes(league.prizes)
+    }
+
+    private fun displayLeagueDates(league: League) {
+        try {
+            val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+            val startDate = dateFormat.format(league.startDate.toDate())
+            val endDate = dateFormat.format(league.endDate.toDate())
+
+            binding.cardLeagueDates.visibility = View.VISIBLE
+            binding.tvLeagueDates.text = getString(R.string.league_date_range, startDate, endDate)
+        } catch (e: Exception) {
+            binding.cardLeagueDates.visibility = View.GONE
+        }
+    }
+
+    private fun displayLeaguePrizes(prizes: List<models.LeaguePrize>) {
+        if (prizes.isEmpty()) {
+            binding.cardLeaguePrizes.visibility = View.GONE
+            return
+        }
+
+        binding.cardLeaguePrizes.visibility = View.VISIBLE
+        binding.layoutPrizes.removeAllViews()
+
+        prizes.sortedBy { it.position }.forEach { prize ->
+            val prizeView = layoutInflater.inflate(
+                android.R.layout.simple_list_item_2,
+                binding.layoutPrizes,
+                false
+            )
+
+            val text1 = prizeView.findViewById<android.widget.TextView>(android.R.id.text1)
+            val text2 = prizeView.findViewById<android.widget.TextView>(android.R.id.text2)
+
+            text1.text = getString(R.string.league_prize_position, prize.position)
+            text1.textSize = 16f
+            text1.setTypeface(null, android.graphics.Typeface.BOLD)
+
+            var prizeDescription = prize.description
+            if (prize.amount > 0) {
+                prizeDescription += " - \$${prize.amount}"
+            }
+            text2.text = prizeDescription
+            text2.textSize = 14f
+
+            binding.layoutPrizes.addView(prizeView)
+        }
     }
 
     private fun displayUserStats(participant: LeagueParticipant) {
-        binding.tvUserPosition.text = "#${participant.currentPosition}"
-        binding.tvUserPoints.text = "${participant.currentPoints} pts"
-        binding.tvSalesInSeason.text = "${participant.salesInSeason} ventas"
+        binding.tvUserPosition.text = getString(R.string.league_position_format, participant.currentPosition)
+        binding.tvUserPoints.text = getString(R.string.league_points_format, participant.currentPoints)
+        binding.tvSalesInSeason.text = participant.salesInSeason.toString()
 
         // Indicador de cambio de posición
         val positionChange = participant.previousPosition - participant.currentPosition
         when {
             positionChange > 0 -> {
-                binding.tvPositionChange.text = "↑ +$positionChange"
+                binding.tvPositionChange.text = getString(R.string.league_position_change_up, positionChange)
                 binding.tvPositionChange.setTextColor(
                     resources.getColor(android.R.color.holo_green_dark, null)
                 )
             }
             positionChange < 0 -> {
-                binding.tvPositionChange.text = "↓ $positionChange"
+                binding.tvPositionChange.text = getString(R.string.league_position_change_down, positionChange)
                 binding.tvPositionChange.setTextColor(
                     resources.getColor(android.R.color.holo_red_dark, null)
                 )
             }
             else -> {
-                binding.tvPositionChange.text = "→ 0"
+                binding.tvPositionChange.text = getString(R.string.league_position_change_same)
                 binding.tvPositionChange.setTextColor(
                     resources.getColor(android.R.color.darker_gray, null)
                 )

@@ -83,8 +83,8 @@ data class CareerLevelRequirements(
     val requiredCertifications: List<String> = emptyList(),
     val minTrainingsCompleted: Int = 0,
 
-    // Ligas
-    val minLeagueTier: String = "",
+    // Ligas (nombre de la liga requerida)
+    val minLeagueName: String = "",
 
     // Puntos
     val minTotalPoints: Int = 0,
