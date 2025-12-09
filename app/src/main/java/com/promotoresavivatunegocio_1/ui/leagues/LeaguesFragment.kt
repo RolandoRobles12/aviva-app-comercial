@@ -122,23 +122,19 @@ class LeaguesFragment : Fragment() {
 
     private fun displayLeagueInfo(league: League) {
         // Usar nombre dinámico de la liga (con fallback)
-        val leagueName = if (league.name.isNotEmpty()) {
-            league.name
-        } else {
-            getString(R.string.league_default_name)
-        }
+        val leagueName = league.name?.takeIf { it.isNotEmpty() }
+            ?: getString(R.string.league_default_name)
 
         // Mostrar icono + nombre
-        val displayName = if (league.icon.isNotEmpty()) {
-            "${league.icon} $leagueName"
-        } else {
-            leagueName
-        }
+        val displayName = league.icon?.takeIf { it.isNotEmpty() }?.let {
+            "$it $leagueName"
+        } ?: leagueName
+
         binding.tvLeagueName.text = displayName
         binding.tvSeason.text = getString(R.string.league_season, league.season)
 
         // Color personalizado de la liga
-        val colorHex = if (league.color.isNotEmpty()) league.color else "#CD7F32"
+        val colorHex = league.color?.takeIf { it.isNotEmpty() } ?: "#CD7F32"
         try {
             val color = android.graphics.Color.parseColor(colorHex)
             binding.cardLeagueHeader.setCardBackgroundColor(color)
@@ -152,9 +148,10 @@ class LeaguesFragment : Fragment() {
         binding.tvRelegationSpots.text = getString(R.string.league_relegation, league.relegationSpots)
 
         // Mostrar descripción si existe
-        if (league.description.isNotEmpty()) {
+        val description = league.description?.takeIf { it.isNotEmpty() }
+        if (description != null) {
             binding.cardLeagueDescription.visibility = View.VISIBLE
-            binding.tvLeagueDescription.text = league.description
+            binding.tvLeagueDescription.text = description
         } else {
             binding.cardLeagueDescription.visibility = View.GONE
         }
