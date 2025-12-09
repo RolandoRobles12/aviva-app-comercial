@@ -389,8 +389,3 @@ service cloud.firestore {
 - **Navigation Manager**: `app/src/main/java/com/promotoresavivatunegocio_1/services/RoleBasedNavigationManager.kt`
 - **MainActivity**: `app/src/main/java/com/promotoresavivatunegocio_1/MainActivity.kt`
 - **Navigation Graph**: `app/src/main/res/navigation/mobile_navigation.xml`
-
----
-
-**Última actualización**: 2025-11-19
-**Versión**: 1.0.0
