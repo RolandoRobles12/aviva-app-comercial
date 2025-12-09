@@ -55,13 +55,13 @@ firebase deploy --only functions
 
 ## ❌ ERROR: "firestore.indexes.json does not exist"
 
-**YA LO ARREGLÉ** - He creado el archivo faltante. Solo necesitas:
+**Solo necesitas:
 
 1. **Hacer pull de los cambios:**
 
 ```powershell
 git fetch origin
-git pull origin claude/fix-promoter-routes-map-01QCXWei158ixn5MFBhf1sRE
+git pull
 ```
 
 2. **Desplegar:**
@@ -81,8 +81,8 @@ firebase deploy
 3. Verás en **"Tipo de Objetivo"**:
    - ✅ Todos los Promotores
    - ✅ **Por Liga** ← NUEVO
-   - ✅ **Por Promotor Específico** ← NUEVO
-   - ✅ **Por Kiosco Específico** ← NUEVO
+   - ✅ **Por Promotor Específico**
+   - ✅ **Por Kiosco Específico**
 
 4. Al seleccionar **"Por Promotor Específico"**:
    - ✅ Aparecerá un **Autocomplete con búsqueda**
@@ -199,37 +199,6 @@ firebase deploy --only functions
 
 ---
 
-## 🎯 CREAR UNA META DE PRUEBA
-
-### Meta para Usuario Específico
-
-1. **Nombre:** "Meta Prueba - Usuario Individual"
-2. **Período:** Semanal
-3. **Tipo de Objetivo:** **Por Promotor Específico** ← Selecciona esto
-4. **Seleccionar Promotores:**
-   - Aparecerá un campo de búsqueda
-   - Escribe parte del nombre o email
-   - Selecciona uno o varios usuarios
-   - Verás "chips" con los usuarios seleccionados
-5. **Meta Llamadas:** 60
-6. **Meta Colocación:** 150000
-7. **Fecha Inicio:** Hoy
-8. **Fecha Fin:** En 7 días
-9. **Activa:** ✅ Marcada
-10. **Guardar**
-
-### Verificar en la App
-
-1. Asegúrate de que el usuario seleccionado tiene `hubspotOwnerId` configurado
-2. Abre la app **con ese usuario**
-3. Ve a "Metas & Bono"
-4. Deberías ver:
-   - La meta que acabas de crear
-   - Datos reales de llamadas y colocación
-   - Porcentajes de cumplimiento
-
----
-
 ## 📊 VERIFICAR HubSpot API Key
 
 ```powershell
@@ -305,15 +274,3 @@ cd ..
    - Abrir app Android
    - Ir a "Metas & Bono"
    - **Verás datos reales, sin HTTP 404**
-
----
-
-## 💡 IMPORTANTE
-
-El código **YA está completo y funcionando**. Solo necesitas:
-
-1. Hacer `git pull` para obtener `firestore.indexes.json`
-2. Ejecutar `firebase deploy`
-3. Refrescar el admin en el navegador
-
-¡Y todo funcionará! 🎉
