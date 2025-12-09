@@ -163,7 +163,3 @@ Si prefieres un script que te guíe paso a paso:
 chmod +x setup-firebase.sh
 ./setup-firebase.sh
 ```
-
----
-
-**¡Listo!** Con estos pasos tendrás Firebase Functions corriendo y conectado a HubSpot.
