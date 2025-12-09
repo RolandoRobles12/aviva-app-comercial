@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
+import com.promotoresavivatunegocio_1.R
 import com.promotoresavivatunegocio_1.databinding.FragmentLeaguesBinding
 import com.promotoresavivatunegocio_1.services.LeagueService
 import kotlinx.coroutines.launch
