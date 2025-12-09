@@ -34,12 +34,9 @@ export const PrizeType = {
  * Premio de liga
  */
 export interface LeaguePrize {
-  position?: number;              // Posición específica (1 = 1er lugar)
-  positionRangeStart?: number;    // Inicio de rango de posiciones
-  positionRangeEnd?: number;      // Fin de rango de posiciones
-  prizeType: PrizeType;
-  prizeValue: string;
-  description: string;
+  position?: number;         // Posición (1 = 1er lugar, 2 = 2do lugar, etc.)
+  description: string;       // Descripción del premio
+  amount?: number;          // Monto opcional del premio
 }
 
 /**
