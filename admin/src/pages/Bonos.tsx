@@ -176,7 +176,7 @@ const Bonos: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'usuarios'));
+      const querySnapshot = await getDocs(collection(db, 'users'));
       const usersData: User[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
