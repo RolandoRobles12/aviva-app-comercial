@@ -14,15 +14,18 @@ data class League(
     val id: String = "",
 
     // Información de la liga (campos dinámicos)
-    val name: String = "",              // Nombre personalizado de la liga
-    val description: String = "",       // Descripción opcional
-    val color: String = "#CD7F32",      // Color personalizado en formato hex
-    val icon: String = "🏆",            // Icono/emoji personalizado
+    val name: String? = null,           // Nombre personalizado de la liga
+    val description: String? = null,    // Descripción opcional
+    val color: String? = null,          // Color personalizado en formato hex
+    val icon: String? = null,           // Icono/emoji personalizado
     val season: Int = 1,
 
     // Período de la temporada
     val startDate: Timestamp = Timestamp.now(),
     val endDate: Timestamp = Timestamp.now(),
+
+    // Miembros de la liga
+    val members: List<String> = emptyList(),  // IDs de usuarios en esta liga
 
     // Configuración de la liga
     val maxParticipants: Int = 50,

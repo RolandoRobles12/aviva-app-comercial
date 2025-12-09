@@ -92,15 +92,30 @@ class LeaguesFragment : Fragment() {
                 if (currentLeague != null) {
                     displayLeagueInfo(currentLeague)
 
-                    // Obtener información del participante
-                    val participant = leagueService.getUserParticipant(user.uid, currentLeague.id)
-                    if (participant != null) {
-                        displayUserStats(participant)
-                    }
+                    // Obtener información del participante (si existe)
+                    try {
+                        val participant = leagueService.getUserParticipant(user.uid, currentLeague.id)
+                        if (participant != null) {
+                            binding.cardUserStats.visibility = View.VISIBLE
+                            displayUserStats(participant)
+                        } else {
+                            binding.cardUserStats.visibility = View.GONE
+                        }
 
-                    // Cargar tabla de posiciones
-                    val standings = leagueService.getLeagueStandings(currentLeague.id)
-                    standingsAdapter.updateData(standings.participants, user.uid)
+                        // Cargar tabla de posiciones
+                        val standings = leagueService.getLeagueStandings(currentLeague.id)
+                        if (standings.participants.isNotEmpty()) {
+                            binding.layoutStandings.visibility = View.VISIBLE
+                            standingsAdapter.updateData(standings.participants, user.uid)
+                        } else {
+                            binding.layoutStandings.visibility = View.GONE
+                        }
+                    } catch (e: Exception) {
+                        // Si no hay participantes en la colección, simplemente no mostramos esas estadísticas
+                        // pero sí mostramos la información de la liga
+                        binding.cardUserStats.visibility = View.GONE
+                        binding.layoutStandings.visibility = View.GONE
+                    }
 
                     binding.contentLayout.visibility = View.VISIBLE
                     binding.emptyLayout.visibility = View.GONE
@@ -122,23 +137,19 @@ class LeaguesFragment : Fragment() {
 
     private fun displayLeagueInfo(league: League) {
         // Usar nombre dinámico de la liga (con fallback)
-        val leagueName = if (league.name.isNotEmpty()) {
-            league.name
-        } else {
-            getString(R.string.league_default_name)
-        }
+        val leagueName = league.name?.takeIf { it.isNotEmpty() }
+            ?: getString(R.string.league_default_name)
 
         // Mostrar icono + nombre
-        val displayName = if (league.icon.isNotEmpty()) {
-            "${league.icon} $leagueName"
-        } else {
-            leagueName
-        }
+        val displayName = league.icon?.takeIf { it.isNotEmpty() }?.let {
+            "$it $leagueName"
+        } ?: leagueName
+
         binding.tvLeagueName.text = displayName
         binding.tvSeason.text = getString(R.string.league_season, league.season)
 
         // Color personalizado de la liga
-        val colorHex = if (league.color.isNotEmpty()) league.color else "#CD7F32"
+        val colorHex = league.color?.takeIf { it.isNotEmpty() } ?: "#CD7F32"
         try {
             val color = android.graphics.Color.parseColor(colorHex)
             binding.cardLeagueHeader.setCardBackgroundColor(color)
@@ -152,9 +163,10 @@ class LeaguesFragment : Fragment() {
         binding.tvRelegationSpots.text = getString(R.string.league_relegation, league.relegationSpots)
 
         // Mostrar descripción si existe
-        if (league.description.isNotEmpty()) {
+        val description = league.description?.takeIf { it.isNotEmpty() }
+        if (description != null) {
             binding.cardLeagueDescription.visibility = View.VISIBLE
-            binding.tvLeagueDescription.text = league.description
+            binding.tvLeagueDescription.text = description
         } else {
             binding.cardLeagueDescription.visibility = View.GONE
         }
