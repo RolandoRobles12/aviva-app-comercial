@@ -92,15 +92,30 @@ class LeaguesFragment : Fragment() {
                 if (currentLeague != null) {
                     displayLeagueInfo(currentLeague)
 
-                    // Obtener información del participante
-                    val participant = leagueService.getUserParticipant(user.uid, currentLeague.id)
-                    if (participant != null) {
-                        displayUserStats(participant)
-                    }
+                    // Obtener información del participante (si existe)
+                    try {
+                        val participant = leagueService.getUserParticipant(user.uid, currentLeague.id)
+                        if (participant != null) {
+                            binding.cardUserStats.visibility = View.VISIBLE
+                            displayUserStats(participant)
+                        } else {
+                            binding.cardUserStats.visibility = View.GONE
+                        }
 
-                    // Cargar tabla de posiciones
-                    val standings = leagueService.getLeagueStandings(currentLeague.id)
-                    standingsAdapter.updateData(standings.participants, user.uid)
+                        // Cargar tabla de posiciones
+                        val standings = leagueService.getLeagueStandings(currentLeague.id)
+                        if (standings.participants.isNotEmpty()) {
+                            binding.layoutStandings.visibility = View.VISIBLE
+                            standingsAdapter.updateData(standings.participants, user.uid)
+                        } else {
+                            binding.layoutStandings.visibility = View.GONE
+                        }
+                    } catch (e: Exception) {
+                        // Si no hay participantes en la colección, simplemente no mostramos esas estadísticas
+                        // pero sí mostramos la información de la liga
+                        binding.cardUserStats.visibility = View.GONE
+                        binding.layoutStandings.visibility = View.GONE
+                    }
 
                     binding.contentLayout.visibility = View.VISIBLE
                     binding.emptyLayout.visibility = View.GONE

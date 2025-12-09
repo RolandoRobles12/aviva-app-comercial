@@ -24,6 +24,9 @@ data class League(
     val startDate: Timestamp = Timestamp.now(),
     val endDate: Timestamp = Timestamp.now(),
 
+    // Miembros de la liga
+    val members: List<String> = emptyList(),  // IDs de usuarios en esta liga
+
     // Configuración de la liga
     val maxParticipants: Int = 50,
     val promotionSpots: Int = 10,      // Top N usuarios ascienden

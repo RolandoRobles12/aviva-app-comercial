@@ -56,19 +56,21 @@ class LeagueService {
 
     /**
      * Obtiene la liga actual de un usuario
+     * Busca en las ligas activas donde el usuario esté en el array de members
      */
     suspend fun getUserCurrentLeague(userId: String): League? {
         return try {
-            val participant = participantsCollection
-                .whereEqualTo("userId", userId)
-                .whereEqualTo("status", LeagueParticipant.ParticipantStatus.ACTIVE.name)
-                .limit(1)
+            // Obtener todas las ligas activas
+            val activeLeagues = leaguesCollection
+                .whereEqualTo("active", true)
                 .get()
                 .await()
-                .toObjects(LeagueParticipant::class.java)
-                .firstOrNull()
+                .toObjects(League::class.java)
 
-            participant?.let { getLeagueById(it.leagueId) }
+            // Buscar la primera liga donde el usuario esté en members
+            activeLeagues.firstOrNull { league ->
+                league.members.contains(userId)
+            }
         } catch (e: Exception) {
             null
         }
