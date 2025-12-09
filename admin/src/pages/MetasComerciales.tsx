@@ -83,8 +83,8 @@ const MetasComerciales: React.FC = () => {
     targetIds: [],
     targetNames: [],
     metrics: {
-      llamadas: '60',
-      colocacion: '150000'
+      llamadas: '',
+      colocacion: ''
     },
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -231,8 +231,8 @@ const MetasComerciales: React.FC = () => {
         targetIds: [],
         targetNames: [],
         metrics: {
-          llamadas: '60',
-          colocacion: '150000'
+          llamadas: '',
+          colocacion: ''
         },
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
