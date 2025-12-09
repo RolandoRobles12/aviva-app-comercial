@@ -73,6 +73,12 @@ const Ligas: React.FC = () => {
     members: [],
     active: true,
     season: 1,
+    startDate: null,
+    endDate: null,
+    maxParticipants: undefined,
+    promotionSpots: undefined,
+    relegationSpots: undefined,
+    prizes: [],
     status: LeagueStatus.ACTIVE
   });
 
@@ -127,6 +133,12 @@ const Ligas: React.FC = () => {
         members: league.members,
         active: league.active,
         season: league.season || 1,
+        startDate: league.startDate ? league.startDate.toDate() : null,
+        endDate: league.endDate ? league.endDate.toDate() : null,
+        maxParticipants: league.maxParticipants,
+        promotionSpots: league.promotionSpots,
+        relegationSpots: league.relegationSpots,
+        prizes: league.prizes || [],
         status: league.status || LeagueStatus.ACTIVE
       });
     } else {
@@ -139,6 +151,12 @@ const Ligas: React.FC = () => {
         members: [],
         active: true,
         season: 1,
+        startDate: null,
+        endDate: null,
+        maxParticipants: undefined,
+        promotionSpots: undefined,
+        relegationSpots: undefined,
+        prizes: [],
         status: LeagueStatus.ACTIVE
       });
     }
@@ -185,6 +203,26 @@ const Ligas: React.FC = () => {
         // SIEMPRE guardar status para que Android pueda encontrar la liga
         status: formData.active ? 'ACTIVE' : 'PENDING'
       };
+
+      // Agregar campos opcionales solo si tienen valores
+      if (formData.startDate) {
+        dataToSave.startDate = Timestamp.fromDate(formData.startDate);
+      }
+      if (formData.endDate) {
+        dataToSave.endDate = Timestamp.fromDate(formData.endDate);
+      }
+      if (formData.maxParticipants && formData.maxParticipants > 0) {
+        dataToSave.maxParticipants = formData.maxParticipants;
+      }
+      if (formData.promotionSpots && formData.promotionSpots > 0) {
+        dataToSave.promotionSpots = formData.promotionSpots;
+      }
+      if (formData.relegationSpots && formData.relegationSpots > 0) {
+        dataToSave.relegationSpots = formData.relegationSpots;
+      }
+      if (formData.prizes && formData.prizes.length > 0) {
+        dataToSave.prizes = formData.prizes;
+      }
 
       let leagueId: string;
 
@@ -558,15 +596,177 @@ const Ligas: React.FC = () => {
               }
             />
 
-            <TextField
-              label="Temporada"
-              type="number"
-              fullWidth
-              value={formData.season}
-              onChange={(e) => handleInputChange('season', parseInt(e.target.value) || 1)}
-              InputProps={{ inputProps: { min: 1 } }}
-              helperText="Número de temporada (ej: 1, 2, 3...)"
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Temporada"
+                  type="number"
+                  fullWidth
+                  value={formData.season}
+                  onChange={(e) => handleInputChange('season', parseInt(e.target.value) || 1)}
+                  InputProps={{ inputProps: { min: 1 } }}
+                  helperText="Número de temporada"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Fecha de Inicio (Opcional)"
+                  type="date"
+                  fullWidth
+                  value={formData.startDate ? formData.startDate.toISOString().split('T')[0] : ''}
+                  onChange={(e) => handleInputChange('startDate', e.target.value ? new Date(e.target.value) : null)}
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Inicio de temporada"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Fecha de Fin (Opcional)"
+                  type="date"
+                  fullWidth
+                  value={formData.endDate ? formData.endDate.toISOString().split('T')[0] : ''}
+                  onChange={(e) => handleInputChange('endDate', e.target.value ? new Date(e.target.value) : null)}
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Fin de temporada"
+                />
+              </Grid>
+            </Grid>
+
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 2 }}>
+              Configuración de Competencia (Opcional)
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Máximo de Participantes"
+                  type="number"
+                  fullWidth
+                  value={formData.maxParticipants || ''}
+                  onChange={(e) => handleInputChange('maxParticipants', e.target.value ? parseInt(e.target.value) : undefined)}
+                  InputProps={{ inputProps: { min: 1 } }}
+                  helperText="Límite de miembros"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Espacios de Promoción"
+                  type="number"
+                  fullWidth
+                  value={formData.promotionSpots || ''}
+                  onChange={(e) => handleInputChange('promotionSpots', e.target.value ? parseInt(e.target.value) : undefined)}
+                  InputProps={{ inputProps: { min: 0 } }}
+                  helperText="Top N ascienden"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Espacios de Relegación"
+                  type="number"
+                  fullWidth
+                  value={formData.relegationSpots || ''}
+                  onChange={(e) => handleInputChange('relegationSpots', e.target.value ? parseInt(e.target.value) : undefined)}
+                  InputProps={{ inputProps: { min: 0 } }}
+                  helperText="Bottom N descienden"
+                />
+              </Grid>
+            </Grid>
+
+            <Box sx={{ mt: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Premios (Opcional)
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    const newPrizes = [...(formData.prizes || []), {
+                      position: (formData.prizes?.length || 0) + 1,
+                      description: '',
+                      amount: undefined
+                    }];
+                    handleInputChange('prizes', newPrizes);
+                  }}
+                >
+                  Agregar Premio
+                </Button>
+              </Box>
+
+              {formData.prizes && formData.prizes.length > 0 && (
+                <Stack spacing={2}>
+                  {formData.prizes.map((prize, index) => (
+                    <Paper key={index} sx={{ p: 2, bgcolor: 'background.default' }}>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            label="Posición"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            value={prize.position || ''}
+                            onChange={(e) => {
+                              const newPrizes = [...formData.prizes!];
+                              newPrizes[index] = {
+                                ...newPrizes[index],
+                                position: parseInt(e.target.value) || undefined
+                              };
+                              handleInputChange('prizes', newPrizes);
+                            }}
+                            InputProps={{ inputProps: { min: 1 } }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={5}>
+                          <TextField
+                            label="Descripción"
+                            fullWidth
+                            size="small"
+                            value={prize.description}
+                            onChange={(e) => {
+                              const newPrizes = [...formData.prizes!];
+                              newPrizes[index] = {
+                                ...newPrizes[index],
+                                description: e.target.value
+                              };
+                              handleInputChange('prizes', newPrizes);
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            label="Monto (Opcional)"
+                            type="number"
+                            fullWidth
+                            size="small"
+                            value={prize.amount || ''}
+                            onChange={(e) => {
+                              const newPrizes = [...formData.prizes!];
+                              newPrizes[index] = {
+                                ...newPrizes[index],
+                                amount: e.target.value ? parseFloat(e.target.value) : undefined
+                              };
+                              handleInputChange('prizes', newPrizes);
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={1}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              const newPrizes = formData.prizes!.filter((_, i) => i !== index);
+                              handleInputChange('prizes', newPrizes);
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ))}
+                </Stack>
+              )}
+            </Box>
 
             <FormControlLabel
               control={
