@@ -265,19 +265,19 @@ const Usuarios: React.FC = () => {
         updatedAt: Timestamp.now()
       };
 
-      // Agregar campos opcionales solo si tienen valores
-      if (formData.photoUrl) dataToSave.photoUrl = formData.photoUrl;
-      if (formData.phoneNumber) dataToSave.phoneNumber = formData.phoneNumber;
-      if (formData.employeeId) dataToSave.employeeId = formData.employeeId;
-      if (formData.department) dataToSave.department = formData.department;
-      if (formData.position) dataToSave.position = formData.position;
-      if (formData.managerId) dataToSave.managerId = formData.managerId;
+      // Agregar campos opcionales solo si tienen valores REALES (no strings vacías)
+      if (formData.photoUrl && formData.photoUrl.trim()) dataToSave.photoUrl = formData.photoUrl.trim();
+      if (formData.phoneNumber && formData.phoneNumber.trim()) dataToSave.phoneNumber = formData.phoneNumber.trim();
+      if (formData.employeeId && formData.employeeId.trim()) dataToSave.employeeId = formData.employeeId.trim();
+      if (formData.department && formData.department.trim()) dataToSave.department = formData.department.trim();
+      if (formData.position && formData.position.trim()) dataToSave.position = formData.position.trim();
+      if (formData.managerId && formData.managerId.trim()) dataToSave.managerId = formData.managerId.trim();
       if (formData.assignedPromoters && formData.assignedPromoters.length > 0) {
         dataToSave.assignedPromoters = formData.assignedPromoters;
       }
-      if (formData.assignedKioskId) dataToSave.assignedKioskId = formData.assignedKioskId;
-      if (formData.hubspotOwnerId) dataToSave.hubspotOwnerId = formData.hubspotOwnerId;
-      if (formData.uid) dataToSave.uid = formData.uid;
+      if (formData.assignedKioskId && formData.assignedKioskId.trim()) dataToSave.assignedKioskId = formData.assignedKioskId.trim();
+      if (formData.hubspotOwnerId && formData.hubspotOwnerId.trim()) dataToSave.hubspotOwnerId = formData.hubspotOwnerId.trim();
+      if (formData.uid && formData.uid.trim()) dataToSave.uid = formData.uid.trim();
 
       // Agregar productLine solo si NO es admin (isAdminRole ya definido arriba)
       if (!isAdminRole && formData.productLine) {
