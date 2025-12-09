@@ -279,8 +279,7 @@ const Usuarios: React.FC = () => {
       if (formData.hubspotOwnerId) dataToSave.hubspotOwnerId = formData.hubspotOwnerId;
       if (formData.uid) dataToSave.uid = formData.uid;
 
-      // Agregar productLine solo si NO es admin
-      const isAdminRole = formData.role === 'ADMIN' || formData.role === 'SUPER_ADMIN';
+      // Agregar productLine solo si NO es admin (isAdminRole ya definido arriba)
       if (!isAdminRole && formData.productLine) {
         dataToSave.productLine = formData.productLine;
       }
