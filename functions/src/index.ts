@@ -765,7 +765,8 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
           const progress = await hubspotService.calculateGoalProgress(
             hubspotOwnerId,
             startDateObj,
-            endDateObj
+            endDateObj,
+            userData.productLine // Pasar productLine del usuario
           );
 
           // Calcular porcentajes usando los campos normalizados
@@ -906,24 +907,27 @@ export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
       for (const leagueDoc of leaguesSnapshot.docs) {
         const leagueData = leagueDoc.data();
 
-        // Obtener hubspotOwnerIds de todos los miembros
+        // Obtener hubspotOwnerIds y productLines de todos los miembros
         const memberUserIds = leagueData.members as string[];
-        const memberHubspotIds: string[] = [];
+        const memberMap = new Map<string, string | undefined>(); // hubspotOwnerId -> productLine
 
         for (const memberId of memberUserIds) {
           const memberResult = await getUserDocument(memberId);
           if (memberResult?.data?.hubspotOwnerId) {
-            memberHubspotIds.push(memberResult.data.hubspotOwnerId);
+            memberMap.set(
+              memberResult.data.hubspotOwnerId,
+              memberResult.data.productLine
+            );
           }
         }
 
-        if (memberHubspotIds.length === 0) {
+        if (memberMap.size === 0) {
           continue;
         }
 
         // Calcular benchmarks para toda la liga
         const benchmarks = await hubspotService.calculateLeagueBenchmarks(
-          memberHubspotIds,
+          memberMap,
           startDate,
           endDate
         );
@@ -945,7 +949,7 @@ export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
           leagueName: leagueData.name,
           icon: leagueData.icon,
           color: leagueData.color,
-          totalMembers: memberHubspotIds.length,
+          totalMembers: memberMap.size,
           userRank: userRank,
           userMetrics: userStats ? userStats.metrics : {
             llamadas: 0,
