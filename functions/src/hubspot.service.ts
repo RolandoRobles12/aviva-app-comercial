@@ -881,6 +881,7 @@ export class HubSpotService {
       endDateTime.setHours(23, 59, 59, 999);
 
       // Filtros para deals del usuario
+      // Usamos createdate para optimizar la búsqueda inicial
       const filters = [
         {
           propertyName: "hubspot_owner_id",
@@ -902,18 +903,13 @@ export class HubSpotService {
       // Obtener todos los deals del usuario en el rango de fechas
       const deals = await this.getAllDeals([{ filters }]);
 
-      // Calcular llamadas: simplemente el conteo de deals creados
-      const llamadas = deals.length;
-
-      // Calcular colocación: sumar amounts de deals cuya fecha de disbursement
-      // (hs_v2_date_entered_33823866 OR hs_v2_date_entered_146336009)
-      // cae dentro del rango de fechas de la meta
       const startTime = startDate.getTime();
       const endTime = endDateTime.getTime();
 
-      console.log(`💰 Calculando colocación para ${deals.length} deals`);
+      console.log(`💰 Calculando progreso para ${deals.length} deals`);
       console.log(`   Rango: ${new Date(startTime).toISOString()} - ${new Date(endTime).toISOString()}`);
 
+      let llamadas = 0;
       let colocacion = 0;
 
       deals.forEach((deal, index) => {
@@ -921,57 +917,75 @@ export class HubSpotService {
 
         console.log(`\n📋 Deal ${index + 1}/${deals.length}: ${props.dealname || 'Sin nombre'}`);
         console.log(`   - amount: ${props.amount || 'null'}`);
+        console.log(`   - producto_aviva: ${props.producto_aviva || 'null'}`);
         console.log(`   - hs_v2_date_entered_146336009: ${props.hs_v2_date_entered_146336009 || 'null'}`);
         console.log(`   - hs_v2_date_entered_33823866: ${props.hs_v2_date_entered_33823866 || 'null'}`);
+
+        // Determinar tipo de producto
+        const producto = props.producto_aviva;
+        const isAvivaCompra = producto === "aviva_tucompra";
 
         // Obtener fecha de disbursement según el producto
         let disbursementDate = null;
 
-        // Aviva Tu Compra usa hs_v2_date_entered_146336009
-        if (props.hs_v2_date_entered_146336009) {
-          const rawValue = props.hs_v2_date_entered_146336009;
-          // HubSpot puede retornar timestamp numérico o ISO string
-          if (typeof rawValue === 'string' && rawValue.includes('T')) {
-            // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
-            disbursementDate = new Date(rawValue).getTime();
-          } else {
-            // Es timestamp numérico (milisegundos desde epoch)
-            disbursementDate = parseInt(rawValue);
+        if (isAvivaCompra) {
+          // Aviva Tu Compra usa hs_v2_date_entered_146336009
+          if (props.hs_v2_date_entered_146336009) {
+            const rawValue = props.hs_v2_date_entered_146336009;
+            // HubSpot puede retornar timestamp numérico o ISO string
+            if (typeof rawValue === 'string' && rawValue.includes('T')) {
+              // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
+              disbursementDate = new Date(rawValue).getTime();
+            } else {
+              // Es timestamp numérico (milisegundos desde epoch)
+              disbursementDate = parseInt(rawValue);
+            }
+            console.log(`   ✅ Usando disbursement (Aviva Tu Compra): ${new Date(disbursementDate).toISOString()}`);
           }
-          console.log(`   ✅ Usando disbursement (Pipeline 2): ${new Date(disbursementDate).toISOString()}`);
-        }
-        // Otros productos usan hs_v2_date_entered_33823866
-        else if (props.hs_v2_date_entered_33823866) {
-          const rawValue = props.hs_v2_date_entered_33823866;
-          // HubSpot puede retornar timestamp numérico o ISO string
-          if (typeof rawValue === 'string' && rawValue.includes('T')) {
-            // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
-            disbursementDate = new Date(rawValue).getTime();
-          } else {
-            // Es timestamp numérico (milisegundos desde epoch)
-            disbursementDate = parseInt(rawValue);
-          }
-          console.log(`   ✅ Usando disbursement (Pipeline 1): ${new Date(disbursementDate).toISOString()}`);
         } else {
-          console.log(`   ❌ Sin fecha de disbursement`);
+          // Otros productos usan hs_v2_date_entered_33823866
+          if (props.hs_v2_date_entered_33823866) {
+            const rawValue = props.hs_v2_date_entered_33823866;
+            // HubSpot puede retornar timestamp numérico o ISO string
+            if (typeof rawValue === 'string' && rawValue.includes('T')) {
+              // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
+              disbursementDate = new Date(rawValue).getTime();
+            } else {
+              // Es timestamp numérico (milisegundos desde epoch)
+              disbursementDate = parseInt(rawValue);
+            }
+            console.log(`   ✅ Usando disbursement (Otros productos): ${new Date(disbursementDate).toISOString()}`);
+          }
         }
 
-        // Si la fecha de disbursement cae dentro del rango, sumar el amount
-        if (disbursementDate && disbursementDate >= startTime && disbursementDate <= endTime) {
+        if (!disbursementDate) {
+          console.log(`   ❌ Sin fecha de disbursement`);
+          return;
+        }
+
+        // Si la fecha de disbursement cae dentro del rango, contar para llamadas y colocación
+        if (disbursementDate >= startTime && disbursementDate <= endTime) {
+          // Contar para llamadas (deals con disbursement en el período)
+          llamadas++;
+          console.log(`   ✅ CUENTA para llamadas (#${llamadas})`);
+
+          // Contar para colocación (sumar monto)
           const amount = parseFloat(props.amount || "0");
           if (!isNaN(amount) && amount > 0) {
             colocacion += amount;
             console.log(`   ✅ CUENTA para colocación: $${amount.toLocaleString()}`);
           } else {
-            console.log(`   ❌ Amount inválido o cero: ${props.amount}`);
+            console.log(`   ⚠️ Amount inválido o cero: ${props.amount}`);
           }
-        } else if (disbursementDate) {
+        } else {
           const isBeforeStart = disbursementDate < startTime;
           console.log(`   ❌ Disbursement FUERA del rango: ${isBeforeStart ? 'antes del inicio' : 'después del fin'}`);
         }
       });
 
-      console.log(`\n💰 Colocación total: $${colocacion.toLocaleString()}`);
+      console.log(`\n📊 Resultados:`);
+      console.log(`   - Llamadas: ${llamadas}`);
+      console.log(`   - Colocación: $${colocacion.toLocaleString()}`);
 
       return {
         llamadas,
@@ -1002,6 +1016,8 @@ export class HubSpotService {
           "hubspot_owner_id",
           "hs_v2_date_entered_33823866",
           "hs_v2_date_entered_146336009",
+          "hs_v2_date_entered_146251806",
+          "hs_v2_date_entered_36073275",
           "producto_aviva",
         ],
         limit: 100,
@@ -1062,16 +1078,11 @@ export class HubSpotService {
     try {
       const results = await Promise.all(
         userIds.map(async (userId) => {
-          // Calcular métricas básicas
+          // Calcular métricas básicas (llamadas y colocación)
           const progress = await this.calculateGoalProgress(userId, startDate, endDate);
 
-          // Calcular tasa de cierre
-          // Para esto necesitamos deals en estado "closedwon"
-          const closedDeals = await this.getClosedDeals(userId, startDate, endDate);
-
-          const tasaCierre = progress.llamadas > 0
-            ? (closedDeals / progress.llamadas) * 100
-            : 0;
+          // Calcular tasa de cierre según las nuevas reglas
+          const tasaCierre = await this.calculateClosureRate(userId, startDate, endDate);
 
           return {
             userId,
@@ -1092,9 +1103,18 @@ export class HubSpotService {
   }
 
   /**
-   * Obtiene el número de deals cerrados (closedwon) de un usuario
+   * Calcula la tasa de cierre de un usuario
+   * Tasa de cierre = (deals desembolsados / deals aprobados) * 100
+   *
+   * Para Aviva Tu Compra/Cashi:
+   *   - Desembolsados: deals con hs_v2_date_entered_146336009 en el período
+   *   - Aprobados: deals con hs_v2_date_entered_146251806 en el período
+   *
+   * Para otros productos:
+   *   - Desembolsados: deals con hs_v2_date_entered_33823866 en el período
+   *   - Aprobados: deals con hs_v2_date_entered_36073275 en el período
    */
-  private async getClosedDeals(
+  private async calculateClosureRate(
     userId: string,
     startDate: Date,
     endDate: Date
@@ -1103,6 +1123,7 @@ export class HubSpotService {
       const endDateTime = new Date(endDate);
       endDateTime.setHours(23, 59, 59, 999);
 
+      // Filtros base para deals del usuario
       const filters = [
         {
           propertyName: "hubspot_owner_id",
@@ -1119,18 +1140,98 @@ export class HubSpotService {
           operator: "LTE",
           value: endDateTime.getTime().toString(),
         },
-        {
-          propertyName: "dealstage",
-          operator: "EQ",
-          value: "closedwon",
-        },
       ];
 
-      const count = await this.getDealsCount([{ filters }]);
-      return count;
+      // Obtener todos los deals del usuario
+      const deals = await this.getAllDeals([{ filters }]);
+
+      const startTime = startDate.getTime();
+      const endTime = endDateTime.getTime();
+
+      let desembolsadosAvivaCompra = 0;
+      let aprobadosAvivaCompra = 0;
+      let desembolsadosOtros = 0;
+      let aprobadosOtros = 0;
+
+      deals.forEach((deal) => {
+        const props = deal.properties;
+        const producto = props.producto_aviva;
+        const isAvivaCompra = producto === "aviva_tucompra";
+
+        if (isAvivaCompra) {
+          // Aviva Tu Compra
+          // Contar desembolsados
+          if (props.hs_v2_date_entered_146336009) {
+            const dateValue = this.parseHubSpotDate(props.hs_v2_date_entered_146336009);
+            if (dateValue && dateValue >= startTime && dateValue <= endTime) {
+              desembolsadosAvivaCompra++;
+            }
+          }
+
+          // Contar aprobados
+          if (props.hs_v2_date_entered_146251806) {
+            const dateValue = this.parseHubSpotDate(props.hs_v2_date_entered_146251806);
+            if (dateValue && dateValue >= startTime && dateValue <= endTime) {
+              aprobadosAvivaCompra++;
+            }
+          }
+        } else {
+          // Otros productos
+          // Contar desembolsados
+          if (props.hs_v2_date_entered_33823866) {
+            const dateValue = this.parseHubSpotDate(props.hs_v2_date_entered_33823866);
+            if (dateValue && dateValue >= startTime && dateValue <= endTime) {
+              desembolsadosOtros++;
+            }
+          }
+
+          // Contar aprobados
+          if (props.hs_v2_date_entered_36073275) {
+            const dateValue = this.parseHubSpotDate(props.hs_v2_date_entered_36073275);
+            if (dateValue && dateValue >= startTime && dateValue <= endTime) {
+              aprobadosOtros++;
+            }
+          }
+        }
+      });
+
+      // Calcular tasa de cierre combinada
+      const totalDesembolsados = desembolsadosAvivaCompra + desembolsadosOtros;
+      const totalAprobados = aprobadosAvivaCompra + aprobadosOtros;
+
+      console.log(`📊 Tasa de cierre para usuario ${userId}:`);
+      console.log(`   - Aviva Tu Compra: ${desembolsadosAvivaCompra} / ${aprobadosAvivaCompra}`);
+      console.log(`   - Otros: ${desembolsadosOtros} / ${aprobadosOtros}`);
+      console.log(`   - Total: ${totalDesembolsados} / ${totalAprobados}`);
+
+      if (totalAprobados === 0) {
+        return 0;
+      }
+
+      return (totalDesembolsados / totalAprobados) * 100;
     } catch (error) {
-      console.error("Error getting closed deals:", error);
+      console.error("Error calculating closure rate:", error);
       return 0;
+    }
+  }
+
+  /**
+   * Helper para parsear fechas de HubSpot (pueden ser timestamps o ISO strings)
+   */
+  private parseHubSpotDate(value: string): number | null {
+    if (!value) return null;
+
+    try {
+      if (typeof value === 'string' && value.includes('T')) {
+        // Es ISO string (ej: "2025-12-04T18:17:25.649Z")
+        return new Date(value).getTime();
+      } else {
+        // Es timestamp numérico (milisegundos desde epoch)
+        return parseInt(value);
+      }
+    } catch (error) {
+      console.error("Error parsing HubSpot date:", error);
+      return null;
     }
   }
 
@@ -1174,27 +1275,33 @@ export class HubSpotService {
 
       const deals = await this.getAllDeals([{ filters }]);
 
-      const llamadas = deals.length;
-
       const startTime = startDate.getTime();
       const endTime = endDateTime.getTime();
 
+      let llamadas = 0;
       let colocacion = 0;
 
       deals.forEach((deal) => {
         const props = deal.properties;
+        const producto = props.producto_aviva;
+        const isAvivaCompra = producto === "aviva_tucompra";
 
         let disbursementDate = null;
 
-        if (props.hs_v2_date_entered_146336009) {
-          disbursementDate = parseInt(props.hs_v2_date_entered_146336009);
-        } else if (props.hs_v2_date_entered_33823866) {
-          disbursementDate = parseInt(props.hs_v2_date_entered_33823866);
+        if (isAvivaCompra) {
+          if (props.hs_v2_date_entered_146336009) {
+            disbursementDate = this.parseHubSpotDate(props.hs_v2_date_entered_146336009);
+          }
+        } else {
+          if (props.hs_v2_date_entered_33823866) {
+            disbursementDate = this.parseHubSpotDate(props.hs_v2_date_entered_33823866);
+          }
         }
 
         if (disbursementDate && disbursementDate >= startTime && disbursementDate <= endTime) {
+          llamadas++;
           const amount = parseFloat(props.amount || "0");
-          if (!isNaN(amount)) {
+          if (!isNaN(amount) && amount > 0) {
             colocacion += amount;
           }
         }
