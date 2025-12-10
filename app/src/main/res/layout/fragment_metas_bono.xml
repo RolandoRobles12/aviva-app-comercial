@@ -174,7 +174,7 @@
                             android:id="@+id/tvLlamadasValor"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="45 / 60"
+                            android:text="-- / --"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/primary" />
@@ -199,7 +199,7 @@
                             android:id="@+id/tvLlamadasPorcentaje"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="75%"
+                            android:text="--%"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/success_color" />
@@ -212,7 +212,7 @@
                         style="?android:attr/progressBarStyleHorizontal"
                         android:layout_width="match_parent"
                         android:layout_height="8dp"
-                        android:progress="75"
+                        android:progress="0"
                         android:progressTint="@color/primary"
                         android:progressBackgroundTint="@color/primary_container" />
 
@@ -260,7 +260,7 @@
                             android:id="@+id/tvColocacionValor"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="$125,000 / $150,000"
+                            android:text="$-- / $--"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/primary" />
@@ -285,7 +285,7 @@
                             android:id="@+id/tvColocacionPorcentaje"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="83%"
+                            android:text="--%"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/success_color" />
@@ -298,7 +298,7 @@
                         style="?android:attr/progressBarStyleHorizontal"
                         android:layout_width="match_parent"
                         android:layout_height="8dp"
-                        android:progress="83"
+                        android:progress="0"
                         android:progressTint="@color/primary"
                         android:progressBackgroundTint="@color/primary_container" />
 
@@ -339,7 +339,7 @@
                             android:id="@+id/tvProyeccionActual"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="• A esta velocidad llegas a $125,000 de colocación y estás en bono CAC = C ($2,500)"
+                            android:text="Cargando proyección..."
                             android:textSize="14sp"
                             android:textColor="@color/secondary_text"
                             android:layout_marginBottom="8dp"
@@ -349,7 +349,7 @@
                             android:id="@+id/tvProyeccionB"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="• Si colocas $25,000 más, te llevas $3,500 en bono (CAC = B)"
+                            android:text=""
                             android:textSize="14sp"
                             android:textColor="@color/secondary_text"
                             android:layout_marginBottom="8dp"
@@ -359,7 +359,7 @@
                             android:id="@+id/tvProyeccionA"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="• Si colocas $50,000 más, te llevas $5,000 en bono (CAC = A)"
+                            android:text=""
                             android:textSize="14sp"
                             android:textColor="@color/secondary_text"
                             android:lineSpacingExtra="2dp" />
@@ -481,7 +481,7 @@
                                 android:id="@+id/tvBenchLlamadasTu"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="180"
+                                android:text="--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/primary" />
@@ -507,7 +507,7 @@
                                 android:id="@+id/tvBenchLlamadasGrupo"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="165"
+                                android:text="--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/gray" />
@@ -532,10 +532,10 @@
                                 android:id="@+id/tvBenchLlamadasDiff"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="↑ 9%"
+                                android:text="--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
-                                android:textColor="@color/success_color" />
+                                android:textColor="@color/gray" />
 
                         </LinearLayout>
 
@@ -590,7 +590,7 @@
                                 android:id="@+id/tvBenchColocacionTu"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="$450K"
+                                android:text="$--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/primary" />
@@ -616,7 +616,7 @@
                                 android:id="@+id/tvBenchColocacionGrupo"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="$420K"
+                                android:text="$--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/gray" />
@@ -641,10 +641,10 @@
                                 android:id="@+id/tvBenchColocacionDiff"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="↑ 7%"
+                                android:text="--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
-                                android:textColor="@color/success_color" />
+                                android:textColor="@color/gray" />
 
                         </LinearLayout>
 
@@ -698,7 +698,7 @@
                                 android:id="@+id/tvBenchCierreTu"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="28%"
+                                android:text="--%"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/primary" />
@@ -724,7 +724,7 @@
                                 android:id="@+id/tvBenchCierreGrupo"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="25%"
+                                android:text="--%"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/gray" />
@@ -749,10 +749,10 @@
                                 android:id="@+id/tvBenchCierreDiff"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="↑ 12%"
+                                android:text="--"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
-                                android:textColor="@color/success_color" />
+                                android:textColor="@color/gray" />
 
                         </LinearLayout>
 

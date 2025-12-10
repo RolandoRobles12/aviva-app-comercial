@@ -202,24 +202,58 @@ class LeaguesFragment : Fragment() {
 
         prizes.sortedBy { it.position }.forEach { prize ->
             val prizeView = layoutInflater.inflate(
-                android.R.layout.simple_list_item_2,
+                R.layout.item_league_prize,
                 binding.layoutPrizes,
                 false
             )
 
-            val text1 = prizeView.findViewById<android.widget.TextView>(android.R.id.text1)
-            val text2 = prizeView.findViewById<android.widget.TextView>(android.R.id.text2)
+            // Icono según posición
+            val tvPrizeIcon = prizeView.findViewById<android.widget.TextView>(R.id.tvPrizeIcon)
+            val tvPosition = prizeView.findViewById<android.widget.TextView>(R.id.tvPosition)
+            val cardPosition = prizeView.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardPosition)
 
-            text1.text = getString(R.string.league_prize_position, prize.position)
-            text1.textSize = 16f
-            text1.setTypeface(null, android.graphics.Typeface.BOLD)
-
-            var prizeDescription = prize.description
-            if (prize.amount > 0) {
-                prizeDescription += " - \$${prize.amount}"
+            when (prize.position) {
+                1 -> {
+                    tvPrizeIcon.text = "🥇"
+                    cardPosition.setCardBackgroundColor(resources.getColor(android.R.color.holo_orange_light, null))
+                }
+                2 -> {
+                    tvPrizeIcon.text = "🥈"
+                    cardPosition.setCardBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+                }
+                3 -> {
+                    tvPrizeIcon.text = "🥉"
+                    cardPosition.setCardBackgroundColor(resources.getColor(android.R.color.holo_orange_dark, null))
+                }
+                else -> {
+                    tvPrizeIcon.text = "🏅"
+                    cardPosition.setCardBackgroundColor(resources.getColor(R.color.primary, null))
+                }
             }
-            text2.text = prizeDescription
-            text2.textSize = 14f
+
+            tvPosition.text = "#${prize.position}"
+
+            // Descripción del premio
+            val tvPrizeDescription = prizeView.findViewById<android.widget.TextView>(R.id.tvPrizeDescription)
+            tvPrizeDescription.text = prize.description
+
+            // Monto del premio
+            val tvPrizeAmount = prizeView.findViewById<android.widget.TextView>(R.id.tvPrizeAmount)
+            if (prize.amount > 0) {
+                tvPrizeAmount.text = "\$${String.format("%,d", prize.amount)}"
+                tvPrizeAmount.visibility = View.VISIBLE
+            } else {
+                tvPrizeAmount.visibility = View.GONE
+            }
+
+            // Hint motivacional
+            val tvPrizeHint = prizeView.findViewById<android.widget.TextView>(R.id.tvPrizeHint)
+            tvPrizeHint.text = when (prize.position) {
+                1 -> "¡El premio más grande!"
+                2 -> "¡Muy cerca del primero!"
+                3 -> "¡Sigue escalando!"
+                else -> "¡Tú puedes lograrlo!"
+            }
 
             binding.layoutPrizes.addView(prizeView)
         }

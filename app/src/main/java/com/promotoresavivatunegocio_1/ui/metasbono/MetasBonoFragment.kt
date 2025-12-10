@@ -224,7 +224,7 @@ class MetasBonoFragment : Fragment() {
     }
 
     /**
-     * Muestra el ranking de la liga dinámicamente
+     * Muestra el ranking de la liga dinámicamente con el nuevo diseño atractivo
      */
     private fun displayLeagueRanking(view: View, participants: List<LeagueParticipant>, currentUserId: String) {
         val layoutRanking = view.findViewById<ViewGroup>(R.id.layoutLeagueRanking)
@@ -236,52 +236,93 @@ class MetasBonoFragment : Fragment() {
         topParticipants.forEachIndexed { index, participant ->
             val isCurrentUser = participant.userId == currentUserId
             val rankingItem = layoutInflater.inflate(
-                android.R.layout.simple_list_item_2,
+                R.layout.item_league_ranking,
                 layoutRanking,
                 false
-            ) as ViewGroup
+            )
 
-            // Agregar estilo especial para el usuario actual
-            if (isCurrentUser) {
-                rankingItem.setBackgroundColor(resources.getColor(R.color.primary_container, null))
+            // Badge de posición
+            val tvRankPosition = rankingItem.findViewById<TextView>(R.id.tvRankPosition)
+            tvRankPosition.text = "${index + 1}"
+
+            // Cambiar color del badge según posición
+            val cardRankBadge = rankingItem.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardRankBadge)
+            when (index + 1) {
+                1 -> cardRankBadge.setCardBackgroundColor(resources.getColor(android.R.color.holo_orange_light, null))
+                2 -> cardRankBadge.setCardBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+                3 -> cardRankBadge.setCardBackgroundColor(resources.getColor(android.R.color.holo_orange_dark, null))
+                else -> cardRankBadge.setCardBackgroundColor(resources.getColor(R.color.primary_container, null))
             }
 
-            val text1 = rankingItem.findViewById<TextView>(android.R.id.text1)
-            val text2 = rankingItem.findViewById<TextView>(android.R.id.text2)
-
-            // Formato: "#1 - Juan Pérez"
-            val rankText = "#${index + 1}"
+            // Nombre del usuario
+            val tvRankUserName = rankingItem.findViewById<TextView>(R.id.tvRankUserName)
             val nameText = if (isCurrentUser) {
                 "TÚ"
             } else {
                 participant.user?.displayName ?: "Usuario ${participant.userId.take(8)}"
             }
-            text1.text = "$rankText - $nameText"
-            text1.textSize = 14f
-            text1.setTypeface(null, if (isCurrentUser) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+            tvRankUserName.text = nameText
+            if (isCurrentUser) {
+                tvRankUserName.setTypeface(null, android.graphics.Typeface.BOLD)
+                tvRankUserName.setTextColor(resources.getColor(R.color.primary, null))
+            }
+
+            // Indicador de cambio
+            val tvRankChangeIndicator = rankingItem.findViewById<TextView>(R.id.tvRankChangeIndicator)
+            val positionChange = participant.previousPosition - participant.currentPosition
+            when {
+                positionChange > 0 -> {
+                    tvRankChangeIndicator.text = "↑"
+                    tvRankChangeIndicator.setTextColor(resources.getColor(R.color.success_color, null))
+                }
+                positionChange < 0 -> {
+                    tvRankChangeIndicator.text = "↓"
+                    tvRankChangeIndicator.setTextColor(resources.getColor(R.color.error_color, null))
+                }
+                else -> {
+                    tvRankChangeIndicator.text = "→"
+                    tvRankChangeIndicator.setTextColor(resources.getColor(R.color.gray, null))
+                }
+            }
+
+            // Ventas
+            val tvRankSales = rankingItem.findViewById<TextView>(R.id.tvRankSales)
+            tvRankSales.text = "${participant.salesInSeason} ventas"
 
             // Puntos
-            text2.text = "${formatMoney(participant.currentPoints)} pts"
-            text2.textSize = 14f
-            text2.setTypeface(null, android.graphics.Typeface.BOLD)
+            val tvRankPoints = rankingItem.findViewById<TextView>(R.id.tvRankPoints)
+            tvRankPoints.text = "${formatMoney(participant.currentPoints)} pts"
+
+            // Medalla para top 3
+            val tvRankMedal = rankingItem.findViewById<TextView>(R.id.tvRankMedal)
+            when (index + 1) {
+                1 -> {
+                    tvRankMedal.text = "🥇"
+                    tvRankMedal.visibility = View.VISIBLE
+                }
+                2 -> {
+                    tvRankMedal.text = "🥈"
+                    tvRankMedal.visibility = View.VISIBLE
+                }
+                3 -> {
+                    tvRankMedal.text = "🥉"
+                    tvRankMedal.visibility = View.VISIBLE
+                }
+                else -> tvRankMedal.visibility = View.GONE
+            }
+
+            // Destacar usuario actual
+            val containerRanking = rankingItem.findViewById<LinearLayout>(R.id.containerRanking)
+            if (isCurrentUser) {
+                containerRanking.setBackgroundColor(resources.getColor(R.color.primary_container, null))
+            }
 
             layoutRanking.addView(rankingItem)
-
-            // Agregar divider excepto después del último
-            if (index < topParticipants.size - 1) {
-                val divider = View(requireContext())
-                divider.layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    2 // 1dp en píxeles
-                )
-                divider.setBackgroundColor(resources.getColor(R.color.divider, null))
-                layoutRanking.addView(divider)
-            }
         }
     }
 
     /**
-     * Muestra los premios de la liga dinámicamente
+     * Muestra los premios de la liga dinámicamente con el nuevo diseño atractivo
      */
     private fun displayLeaguePrizes(view: View, prizes: List<models.LeaguePrize>) {
         val layoutPrizes = view.findViewById<ViewGroup>(R.id.layoutLeaguePrizes)
@@ -298,34 +339,61 @@ class MetasBonoFragment : Fragment() {
         }
 
         prizes.sortedBy { it.position }.forEach { prize ->
-            val prizeContainer = LinearLayout(requireContext())
-            prizeContainer.orientation = LinearLayout.VERTICAL
-            prizeContainer.layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = 16 // 16dp en píxeles
+            val prizeView = layoutInflater.inflate(
+                R.layout.item_league_prize,
+                layoutPrizes,
+                false
+            )
+
+            // Icono según posición
+            val tvPrizeIcon = prizeView.findViewById<TextView>(R.id.tvPrizeIcon)
+            val tvPosition = prizeView.findViewById<TextView>(R.id.tvPosition)
+            val cardPosition = prizeView.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardPosition)
+
+            when (prize.position) {
+                1 -> {
+                    tvPrizeIcon.text = "🥇"
+                    cardPosition.setCardBackgroundColor(resources.getColor(android.R.color.holo_orange_light, null))
+                }
+                2 -> {
+                    tvPrizeIcon.text = "🥈"
+                    cardPosition.setCardBackgroundColor(resources.getColor(android.R.color.darker_gray, null))
+                }
+                3 -> {
+                    tvPrizeIcon.text = "🥉"
+                    cardPosition.setCardBackgroundColor(resources.getColor(android.R.color.holo_orange_dark, null))
+                }
+                else -> {
+                    tvPrizeIcon.text = "🏅"
+                    cardPosition.setCardBackgroundColor(resources.getColor(R.color.primary, null))
+                }
             }
 
-            // Título del premio
-            val prizeTitle = TextView(requireContext())
-            val emoji = when (prize.position) {
-                1 -> "🥇"
-                2 -> "🥈"
-                3 -> "🥉"
-                else -> "🏅"
-            }
-            var prizeText = "$emoji ${prize.position}° lugar - ${prize.description}"
+            tvPosition.text = "#${prize.position}"
+
+            // Descripción del premio
+            val tvPrizeDescription = prizeView.findViewById<TextView>(R.id.tvPrizeDescription)
+            tvPrizeDescription.text = prize.description
+
+            // Monto del premio
+            val tvPrizeAmount = prizeView.findViewById<TextView>(R.id.tvPrizeAmount)
             if (prize.amount > 0) {
-                prizeText += " - $${formatMoney(prize.amount)}"
+                tvPrizeAmount.text = "\$${formatMoney(prize.amount)}"
+                tvPrizeAmount.visibility = View.VISIBLE
+            } else {
+                tvPrizeAmount.visibility = View.GONE
             }
-            prizeTitle.text = prizeText
-            prizeTitle.textSize = 14f
-            prizeTitle.setTypeface(null, android.graphics.Typeface.BOLD)
-            prizeTitle.setTextColor(resources.getColor(R.color.primary_text, null))
 
-            prizeContainer.addView(prizeTitle)
-            layoutPrizes.addView(prizeContainer)
+            // Hint motivacional
+            val tvPrizeHint = prizeView.findViewById<TextView>(R.id.tvPrizeHint)
+            tvPrizeHint.text = when (prize.position) {
+                1 -> "¡El premio más grande!"
+                2 -> "¡Muy cerca del primero!"
+                3 -> "¡Sigue escalando!"
+                else -> "¡Tú puedes lograrlo!"
+            }
+
+            layoutPrizes.addView(prizeView)
         }
     }
 
