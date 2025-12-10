@@ -13,6 +13,51 @@ admin.initializeApp();
 const corsHandler = cors({ origin: true });
 
 /**
+ * Helper function to find user document by Firebase Auth UID
+ * Handles both cases: document ID = auth UID (old) or uid field = auth UID (new)
+ */
+async function getUserDocument(authUid: string): Promise<{ id: string; data: any } | null> {
+  // First, try to find by document ID (backwards compatibility)
+  const userDocById = await admin.firestore().collection("users").doc(authUid).get();
+  if (userDocById.exists) {
+    return { id: userDocById.id, data: userDocById.data() };
+  }
+
+  // If not found, query by uid field (current admin panel approach)
+  const userQuerySnapshot = await admin.firestore()
+    .collection("users")
+    .where("uid", "==", authUid)
+    .limit(1)
+    .get();
+
+  if (!userQuerySnapshot.empty) {
+    const userDoc = userQuerySnapshot.docs[0];
+    return { id: userDoc.id, data: userDoc.data() };
+  }
+
+  // Also try querying by email as a fallback
+  try {
+    const userRecord = await admin.auth().getUser(authUid);
+    if (userRecord.email) {
+      const emailQuerySnapshot = await admin.firestore()
+        .collection("users")
+        .where("email", "==", userRecord.email)
+        .limit(1)
+        .get();
+
+      if (!emailQuerySnapshot.empty) {
+        const userDoc = emailQuerySnapshot.docs[0];
+        return { id: userDoc.id, data: userDoc.data() };
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching user by email:", err);
+  }
+
+  return null;
+}
+
+/**
  * Function para obtener métricas de HubSpot
  * Endpoint: /getHubSpotMetrics
  * Método: POST
@@ -40,10 +85,9 @@ export const getHubSpotMetrics = functions.https.onRequest(async (req, res) => {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
 
         // Verificar que el usuario es admin
-        const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
-        const userData = userDoc.data();
+        const userResult = await getUserDocument(decodedToken.uid);
 
-        if (!userData || userData.role !== "admin") {
+        if (!userResult || !userResult.data || userResult.data.role !== "admin") {
           res.status(403).json({
             success: false,
             data: null,
@@ -131,10 +175,9 @@ export const getDealsMetrics = functions.https.onRequest(async (req, res) => {
       const decodedToken = await admin.auth().verifyIdToken(idToken);
 
       // Verificar permisos de admin
-      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
-      const userData = userDoc.data();
+      const userResult = await getUserDocument(decodedToken.uid);
 
-      if (!userData || userData.role !== "admin") {
+      if (!userResult || !userResult.data || userResult.data.role !== "admin") {
         res.status(403).json({
           success: false,
           data: null,
@@ -600,11 +643,10 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       const userId = decodedToken.uid;
 
-      // Obtener datos del usuario
-      const userDoc = await admin.firestore().collection("users").doc(userId).get();
-      const userData = userDoc.data();
+      // Obtener datos del usuario usando el helper que busca por uid o email
+      const userResult = await getUserDocument(userId);
 
-      if (!userData) {
+      if (!userResult) {
         res.status(404).json({
           success: false,
           data: null,
@@ -613,6 +655,8 @@ export const getMyGoals = functions.https.onRequest(async (req, res) => {
         });
         return;
       }
+
+      const userData = userResult.data;
 
       // Verificar que el usuario tenga hubspotOwnerId
       const hubspotOwnerId = userData.hubspotOwnerId;
@@ -804,11 +848,10 @@ export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       const userId = decodedToken.uid;
 
-      // Obtener datos del usuario
-      const userDoc = await admin.firestore().collection("users").doc(userId).get();
-      const userData = userDoc.data();
+      // Obtener datos del usuario usando el helper que busca por uid o email
+      const userResult = await getUserDocument(userId);
 
-      if (!userData) {
+      if (!userResult) {
         res.status(404).json({
           success: false,
           data: null,
@@ -817,6 +860,8 @@ export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
         });
         return;
       }
+
+      const userData = userResult.data;
 
       const hubspotOwnerId = userData.hubspotOwnerId;
       if (!hubspotOwnerId) {
@@ -866,10 +911,9 @@ export const getMyLeagueStats = functions.https.onRequest(async (req, res) => {
         const memberHubspotIds: string[] = [];
 
         for (const memberId of memberUserIds) {
-          const memberDoc = await admin.firestore().collection("users").doc(memberId).get();
-          const memberData = memberDoc.data();
-          if (memberData?.hubspotOwnerId) {
-            memberHubspotIds.push(memberData.hubspotOwnerId);
+          const memberResult = await getUserDocument(memberId);
+          if (memberResult?.data?.hubspotOwnerId) {
+            memberHubspotIds.push(memberResult.data.hubspotOwnerId);
           }
         }
 
