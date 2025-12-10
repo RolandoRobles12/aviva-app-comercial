@@ -1,45 +1,62 @@
-# Instrucciones para Desplegar Admin Actualizado
+# Instrucciones de Despliegue - Fix HubSpot Integration
 
-## El problema actual:
+## ⚠️ IMPORTANTE: Debes desplegar las Firebase Functions para que los cambios surtan efecto
 
-El admin que está en producción tiene código viejo. Los cambios que hice están en el repositorio pero NO están desplegados.
+La app Android **NO** necesita cambios. El código ya está correcto y listo para funcionar.
 
-## Para desplegar el admin:
+## Pasos para Desplegar
 
+### 1. Autenticarse en Firebase
 ```bash
-# Desde la carpeta raíz del proyecto
-firebase deploy --only hosting
+firebase login
 ```
 
-## Qué se arreglará después del deployment:
-
-1. ✅ **Usuarios aparecerán en el autocomplete** - Cambié el query para buscar todos los usuarios (no solo role='seller')
-2. ✅ **Kioscos aparecerán en el autocomplete** - El código ya estaba bien
-3. ✅ **Ligas aparecerán** - El código ya estaba bien
-4. ✅ **Editar metas funcionará** - Arreglé la conversión de períodos y tipos
-5. ✅ **No más error de userId** - El código nuevo NO envía userId
-
-## Cómo verificar que funcionó:
-
-Después del deploy, abre la consola del navegador (F12) y ve a la pestaña "Console".
-
-Deberías ver estos logs cuando cargas la página de Metas Comerciales:
-
-```
-✅ Usuarios cargados: X ["Nombre1 (role)", "Nombre2 (role)", ...]
-✅ Kioscos cargados: X ["Kiosco1", "Kiosco2", ...]
-✅ Ligas cargadas: X ["Liga1", "Liga2", ...]
+### 2. Verificar el proyecto correcto
+```bash
+firebase use promotores-aviva-tu-negocio
 ```
 
-Si ves 0 usuarios/kioscos/ligas, entonces hay un problema de permisos o datos.
+### 3. Compilar las funciones
+```bash
+cd functions
+npm run build
+```
 
-## Si después del deploy todavía no aparecen usuarios:
+### 4. Desplegar solo las funciones (recomendado)
+```bash
+firebase deploy --only functions
+```
 
-Ejecuta este query en Firebase Console para verificar que existen usuarios:
+### 5. Verificar que se desplegaron correctamente
+Después del deploy, deberías ver URLs como:
+```
+✔  functions[getMyGoals(us-central1)]: Successful update operation
+✔  functions[getMyLeagueStats(us-central1)]: Successful update operation
+```
 
-1. Ve a Firebase Console
-2. Firestore Database
-3. Busca la colección "users"
-4. Verifica que hay documentos con role diferente de "admin"
+## ¿Por qué NO necesita cambios la app Android?
 
-Si NO hay usuarios, entonces necesitamos crear usuarios primero.
+El código Android ya está perfectamente configurado:
+- ✅ Llama correctamente a getMyGoals() con POST
+- ✅ Llama correctamente a getMyLeagueStats() con POST  
+- ✅ Los modelos de datos están alineados
+- ✅ Maneja las respuestas correctamente
+
+El problema estaba SOLO en las Firebase Functions que no podían encontrar 
+el documento de usuario porque buscaban por document ID en lugar de por 
+campo uid o email.
+
+## Solución del Problema
+
+**Problema**:
+- Error "No HubSpot Owner ID configured for this user"
+- Aunque el usuario SÍ tenía el HubSpot Owner ID configurado
+
+**Causa**:
+- Admin guardaba usuarios con IDs auto-generados y campo uid
+- Functions buscaban por document ID = auth UID
+- No encontraban el documento
+
+**Solución**:
+- Nuevo helper getUserDocument() que busca por ID, uid, y email
+- Ahora encuentra correctamente todos los usuarios
