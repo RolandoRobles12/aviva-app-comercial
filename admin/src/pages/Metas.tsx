@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   IconButton,
   Paper,
   Table,
@@ -14,12 +19,23 @@ import {
   Chip,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import {
   collection,
   getDocs,
+  addDoc,
+  updateDoc,
   deleteDoc,
   doc,
   Timestamp
@@ -74,10 +90,28 @@ const tipoLabels: Record<MetaTipo, string> = {
 const Metas: React.FC = () => {
   // Estados para Metas
   const [metas, setMetas] = useState<Meta[]>([]);
+  const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+  const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [error, setError] = useState<string>('');
 
+  // Form Data para Metas
+  const [metaFormData, setMetaFormData] = useState<Omit<Meta, 'id'>>({
+    nombre: '',
+    descripcion: '',
+    tipo: 'GLOBAL',
+    periodo: 'SEMANAL',
+    llamadasObjetivo: 0,
+    colocacionObjetivo: 0,
+    tasaCierreObjetivo: 0,
+    targetIds: [],
+    targetNames: [],
+    fechaInicio: Timestamp.now(),
+    fechaFin: Timestamp.now(),
+    activo: true
+  });
+
   useEffect(() => {
-    console.log('🚀 Metas v3.0 - Con selección dinámica de ligas/usuarios/kioscos');
+    console.log('🚀 Metas v3.0 - Gestión de Metas');
     fetchMetas();
   }, []);
   // ==================== FETCH FUNCTIONS ====================
@@ -96,6 +130,99 @@ const Metas: React.FC = () => {
     }
   };
   // ==================== HANDLERS PARA METAS ====================
+
+  const handleOpenMetaDialog = (meta?: Meta) => {
+    if (meta) {
+      setEditingMeta(meta);
+      setMetaFormData({
+        nombre: meta.nombre,
+        descripcion: meta.descripcion,
+        tipo: meta.tipo,
+        periodo: meta.periodo,
+        llamadasObjetivo: meta.llamadasObjetivo,
+        colocacionObjetivo: meta.colocacionObjetivo,
+        tasaCierreObjetivo: meta.tasaCierreObjetivo,
+        targetIds: meta.targetIds || [],
+        targetNames: meta.targetNames || [],
+        fechaInicio: meta.fechaInicio,
+        fechaFin: meta.fechaFin,
+        activo: meta.activo
+      });
+    } else {
+      setEditingMeta(null);
+      setMetaFormData({
+        nombre: '',
+        descripcion: '',
+        tipo: 'GLOBAL',
+        periodo: 'SEMANAL',
+        llamadasObjetivo: 0,
+        colocacionObjetivo: 0,
+        tasaCierreObjetivo: 0,
+        targetIds: [],
+        targetNames: [],
+        fechaInicio: Timestamp.now(),
+        fechaFin: Timestamp.now(),
+        activo: true
+      });
+    }
+    setMetaDialogOpen(true);
+  };
+
+  const handleCloseMetaDialog = () => {
+    setMetaDialogOpen(false);
+    setEditingMeta(null);
+    setError('');
+  };
+
+  const handleMetaInputChange = (field: keyof typeof metaFormData, value: any) => {
+    setMetaFormData({ ...metaFormData, [field]: value });
+  };
+
+  const handleSubmitMeta = async () => {
+    try {
+      setError('');
+
+      if (!metaFormData.nombre) {
+        setError('El nombre de la meta es obligatorio');
+        return;
+      }
+
+      const dataToSave: any = {
+        nombre: metaFormData.nombre,
+        descripcion: metaFormData.descripcion,
+        tipo: metaFormData.tipo,
+        periodo: metaFormData.periodo,
+        llamadasObjetivo: Number(metaFormData.llamadasObjetivo),
+        colocacionObjetivo: Number(metaFormData.colocacionObjetivo),
+        tasaCierreObjetivo: Number(metaFormData.tasaCierreObjetivo),
+        fechaInicio: metaFormData.fechaInicio,
+        fechaFin: metaFormData.fechaFin,
+        activo: metaFormData.activo,
+        updatedAt: Timestamp.now()
+      };
+
+      if (metaFormData.targetIds && metaFormData.targetIds.length > 0) {
+        dataToSave.targetIds = metaFormData.targetIds;
+        dataToSave.targetNames = metaFormData.targetNames;
+      }
+
+      if (!editingMeta) {
+        dataToSave.createdAt = Timestamp.now();
+      }
+
+      if (editingMeta) {
+        await updateDoc(doc(db, 'metas', editingMeta.id), dataToSave);
+      } else {
+        await addDoc(collection(db, 'metas'), dataToSave);
+      }
+
+      await fetchMetas();
+      handleCloseMetaDialog();
+    } catch (err) {
+      setError('Error al guardar la meta');
+      console.error(err);
+    }
+  };
 
   const handleDeleteMeta = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar esta meta?')) {
@@ -138,7 +265,13 @@ const Metas: React.FC = () => {
       <Box>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6">Metas Definidas</Typography>
-            {/* Meta creation/editing removed - functionality handled elsewhere */}
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenMetaDialog()}
+            >
+              Nueva Meta
+            </Button>
           </Box>
 
           <Grid container spacing={2} mb={3}>
@@ -231,6 +364,9 @@ const Metas: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell align="right">
+                      <IconButton size="small" onClick={() => handleOpenMetaDialog(meta)}>
+                        <EditIcon />
+                      </IconButton>
                       <IconButton size="small" color="error" onClick={() => handleDeleteMeta(meta.id)}>
                         <DeleteIcon />
                       </IconButton>
@@ -241,6 +377,138 @@ const Metas: React.FC = () => {
             </Table>
           </TableContainer>
       </Box>
+
+      {/* ==================== DIALOG PARA CREAR/EDITAR META ==================== */}
+      <Dialog open={metaDialogOpen} onClose={handleCloseMetaDialog} maxWidth="md" fullWidth>
+        <DialogTitle>{editingMeta ? 'Editar Meta' : 'Nueva Meta'}</DialogTitle>
+        <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nombre de la Meta"
+                value={metaFormData.nombre}
+                onChange={(e) => handleMetaInputChange('nombre', e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Descripción"
+                multiline
+                rows={2}
+                value={metaFormData.descripcion}
+                onChange={(e) => handleMetaInputChange('descripcion', e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <FormControl fullWidth>
+                <InputLabel>Tipo de Meta</InputLabel>
+                <Select
+                  value={metaFormData.tipo}
+                  label="Tipo de Meta"
+                  onChange={(e) => handleMetaInputChange('tipo', e.target.value)}
+                >
+                  <MenuItem value="GLOBAL">Todos los Promotores</MenuItem>
+                  <MenuItem value="LIGA">Por Liga</MenuItem>
+                  <MenuItem value="USUARIO">Por Promotor Específico</MenuItem>
+                  <MenuItem value="KIOSCO">Por Kiosco Específico</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={6}>
+              <FormControl fullWidth>
+                <InputLabel>Período</InputLabel>
+                <Select
+                  value={metaFormData.periodo}
+                  label="Período"
+                  onChange={(e) => handleMetaInputChange('periodo', e.target.value)}
+                >
+                  <MenuItem value="SEMANAL">Semanal</MenuItem>
+                  <MenuItem value="MENSUAL">Mensual</MenuItem>
+                  <MenuItem value="TRIMESTRAL">Trimestral</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Llamadas Objetivo"
+                value={metaFormData.llamadasObjetivo}
+                onChange={(e) => handleMetaInputChange('llamadasObjetivo', e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Colocación Objetivo (MXN)"
+                value={metaFormData.colocacionObjetivo / 100}
+                onChange={(e) => handleMetaInputChange('colocacionObjetivo', Number(e.target.value) * 100)}
+                helperText="Ingresa el monto en pesos"
+              />
+            </Grid>
+
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Tasa de Cierre Objetivo (%)"
+                value={metaFormData.tasaCierreObjetivo}
+                onChange={(e) => handleMetaInputChange('tasaCierreObjetivo', e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Fecha de Inicio"
+                value={metaFormData.fechaInicio.toDate().toISOString().split('T')[0]}
+                onChange={(e) => handleMetaInputChange('fechaInicio', Timestamp.fromDate(new Date(e.target.value)))}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Fecha de Fin"
+                value={metaFormData.fechaFin.toDate().toISOString().split('T')[0]}
+                onChange={(e) => handleMetaInputChange('fechaFin', Timestamp.fromDate(new Date(e.target.value)))}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={metaFormData.activo}
+                    onChange={(e) => handleMetaInputChange('activo', e.target.checked)}
+                  />
+                }
+                label="Meta Activa"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseMetaDialog}>Cancelar</Button>
+          <Button onClick={handleSubmitMeta} variant="contained">
+            {editingMeta ? 'Guardar Cambios' : 'Crear Meta'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
