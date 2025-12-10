@@ -17,20 +17,20 @@ const corsHandler = cors({ origin: true });
  * Handles both cases: document ID = auth UID (old) or uid field = auth UID (new)
  */
 async function getUserDocument(authUid: string): Promise<{ id: string; data: any } | null> {
-  console.log(`🔍 Buscando usuario con authUid: ${authUid}`);
+  functions.logger.info(`Buscando usuario con authUid: ${authUid}`);
 
   // First, try to find by document ID (backwards compatibility)
   const userDocById = await admin.firestore().collection("users").doc(authUid).get();
   if (userDocById.exists) {
-    console.log(`✅ Usuario encontrado por document ID: ${authUid}`);
+    functions.logger.info(`Usuario encontrado por document ID: ${authUid}`);
     const data = userDocById.data();
-    console.log(`   - email: ${data?.email}`);
-    console.log(`   - hubspotOwnerId: ${data?.hubspotOwnerId || 'NO CONFIGURADO'}`);
-    console.log(`   - productLine: ${data?.productLine || 'NO CONFIGURADO'}`);
+    functions.logger.info(`email: ${data?.email}`);
+    functions.logger.info(`hubspotOwnerId: ${data?.hubspotOwnerId || 'NO CONFIGURADO'}`);
+    functions.logger.info(`productLine: ${data?.productLine || 'NO CONFIGURADO'}`);
     return { id: userDocById.id, data: data };
   }
 
-  console.log(`⚠️  No encontrado por document ID, buscando por campo uid...`);
+  functions.logger.warn(`No encontrado por document ID, buscando por campo uid...`);
 
   // If not found, query by uid field (current admin panel approach)
   const userQuerySnapshot = await admin.firestore()
@@ -41,21 +41,21 @@ async function getUserDocument(authUid: string): Promise<{ id: string; data: any
 
   if (!userQuerySnapshot.empty) {
     const userDoc = userQuerySnapshot.docs[0];
-    console.log(`✅ Usuario encontrado por campo uid: ${userDoc.id}`);
+    functions.logger.info(`Usuario encontrado por campo uid: ${userDoc.id}`);
     const data = userDoc.data();
-    console.log(`   - email: ${data?.email}`);
-    console.log(`   - hubspotOwnerId: ${data?.hubspotOwnerId || 'NO CONFIGURADO'}`);
-    console.log(`   - productLine: ${data?.productLine || 'NO CONFIGURADO'}`);
+    functions.logger.info(`email: ${data?.email}`);
+    functions.logger.info(`hubspotOwnerId: ${data?.hubspotOwnerId || 'NO CONFIGURADO'}`);
+    functions.logger.info(`productLine: ${data?.productLine || 'NO CONFIGURADO'}`);
     return { id: userDoc.id, data: data };
   }
 
-  console.log(`⚠️  No encontrado por uid, buscando por email...`);
+  functions.logger.warn(`No encontrado por uid, buscando por email...`);
 
   // Also try querying by email as a fallback
   try {
     const userRecord = await admin.auth().getUser(authUid);
     if (userRecord.email) {
-      console.log(`   Buscando por email: ${userRecord.email}`);
+      functions.logger.info(`Buscando por email: ${userRecord.email}`);
       const emailQuerySnapshot = await admin.firestore()
         .collection("users")
         .where("email", "==", userRecord.email)
@@ -64,19 +64,19 @@ async function getUserDocument(authUid: string): Promise<{ id: string; data: any
 
       if (!emailQuerySnapshot.empty) {
         const userDoc = emailQuerySnapshot.docs[0];
-        console.log(`✅ Usuario encontrado por email: ${userDoc.id}`);
+        functions.logger.info(`Usuario encontrado por email: ${userDoc.id}`);
         const data = userDoc.data();
-        console.log(`   - email: ${data?.email}`);
-        console.log(`   - hubspotOwnerId: ${data?.hubspotOwnerId || 'NO CONFIGURADO'}`);
-        console.log(`   - productLine: ${data?.productLine || 'NO CONFIGURADO'}`);
+        functions.logger.info(`email: ${data?.email}`);
+        functions.logger.info(`hubspotOwnerId: ${data?.hubspotOwnerId || 'NO CONFIGURADO'}`);
+        functions.logger.info(`productLine: ${data?.productLine || 'NO CONFIGURADO'}`);
         return { id: userDoc.id, data: data };
       }
     }
   } catch (err) {
-    console.error("❌ Error fetching user by email:", err);
+    functions.logger.error("Error fetching user by email:", err);
   }
 
-  console.error(`❌ NO SE ENCONTRÓ el usuario con authUid: ${authUid}`);
+  functions.logger.error(`NO SE ENCONTRO el usuario con authUid: ${authUid}`);
   return null;
 }
 
