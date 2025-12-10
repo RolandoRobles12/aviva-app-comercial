@@ -1017,7 +1017,7 @@ export class HubSpotService {
           "hs_v2_date_entered_33823866",
           "hs_v2_date_entered_146336009",
           "hs_v2_date_entered_146251806",
-          "hs_v2_date_exited_36073275",
+          "hs_v2_date_entered_36073275",
           "producto_aviva",
         ],
         limit: 100,
@@ -1112,7 +1112,7 @@ export class HubSpotService {
    *
    * Para otros productos:
    *   - Desembolsados: deals con hs_v2_date_entered_33823866 en el período
-   *   - Aprobados: deals con hs_v2_date_exited_36073275 en el período
+   *   - Aprobados: deals con hs_v2_date_entered_36073275 en el período
    */
   private async calculateClosureRate(
     userId: string,
@@ -1186,8 +1186,8 @@ export class HubSpotService {
           }
 
           // Contar aprobados
-          if (props.hs_v2_date_exited_36073275) {
-            const dateValue = this.parseHubSpotDate(props.hs_v2_date_exited_36073275);
+          if (props.hs_v2_date_entered_36073275) {
+            const dateValue = this.parseHubSpotDate(props.hs_v2_date_entered_36073275);
             if (dateValue && dateValue >= startTime && dateValue <= endTime) {
               aprobadosOtros++;
             }
