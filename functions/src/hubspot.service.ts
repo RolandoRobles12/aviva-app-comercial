@@ -863,17 +863,35 @@ export class HubSpotService {
   }
 
   /**
+   * Mapea productLine de Firestore a valores de producto_aviva en HubSpot
+   */
+  private getHubSpotProductsForProductLine(productLine?: string): string[] {
+    if (!productLine) return []; // Sin filtro si no hay productLine
+
+    const productMap: { [key: string]: string[] } = {
+      "AVIVA_TU_NEGOCIO": ["aviva_atn"],
+      "AVIVA_CONTIGO": ["aviva_contigo"],
+      "AVIVA_TU_COMPRA": ["aviva_tucompra"],
+      "AVIVA_TU_CASA": ["aviva_tucasa", "disensa_aviva_tucasa", "construrama_aviva_tucasa", "casa_marchand", "salauno"],
+    };
+
+    return productMap[productLine] || [];
+  }
+
+  /**
    * Calcula el progreso de una meta comercial para un usuario específico
    *
    * @param userId - ID del usuario (hubspot_owner_id)
    * @param startDate - Fecha de inicio de la meta
    * @param endDate - Fecha de fin de la meta
+   * @param productLine - Línea de producto del usuario (AVIVA_TU_NEGOCIO, AVIVA_CONTIGO, etc.)
    * @returns Objeto con llamadas y colocación actuales
    */
   async calculateGoalProgress(
     userId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    productLine?: string
   ): Promise<{ llamadas: number; colocacion: number }> {
     try {
       // Ajustar endDate al final del día
@@ -906,8 +924,13 @@ export class HubSpotService {
       const startTime = startDate.getTime();
       const endTime = endDateTime.getTime();
 
+      // Obtener productos válidos según productLine del usuario
+      const validProducts = this.getHubSpotProductsForProductLine(productLine);
+
       console.log(`💰 Calculando progreso para ${deals.length} deals`);
       console.log(`   Rango: ${new Date(startTime).toISOString()} - ${new Date(endTime).toISOString()}`);
+      console.log(`   ProductLine: ${productLine || 'no especificado'}`);
+      console.log(`   Productos válidos: ${validProducts.length > 0 ? validProducts.join(', ') : 'TODOS'}`);
 
       let llamadas = 0;
       let colocacion = 0;
@@ -923,6 +946,12 @@ export class HubSpotService {
 
         // Determinar tipo de producto
         const producto = props.producto_aviva;
+
+        // FILTRAR: Solo procesar deals del productLine del usuario
+        if (validProducts.length > 0 && !validProducts.includes(producto)) {
+          console.log(`   ⏭️  OMITIDO - Producto no coincide con productLine del usuario`);
+          return;
+        }
         const isAvivaCompra = producto === "aviva_tucompra";
 
         // Obtener fecha de disbursement según el producto
@@ -1064,7 +1093,7 @@ export class HubSpotService {
    * @returns Array de resultados con métricas por usuario
    */
   async calculateLeagueBenchmarks(
-    userIds: string[],
+    userMap: Map<string, string | undefined>, // Map de hubspotOwnerId -> productLine
     startDate: Date,
     endDate: Date
   ): Promise<Array<{
@@ -1077,12 +1106,12 @@ export class HubSpotService {
   }>> {
     try {
       const results = await Promise.all(
-        userIds.map(async (userId) => {
+        Array.from(userMap.entries()).map(async ([userId, productLine]) => {
           // Calcular métricas básicas (llamadas y colocación)
-          const progress = await this.calculateGoalProgress(userId, startDate, endDate);
+          const progress = await this.calculateGoalProgress(userId, startDate, endDate, productLine);
 
           // Calcular tasa de cierre según las nuevas reglas
-          const tasaCierre = await this.calculateClosureRate(userId, startDate, endDate);
+          const tasaCierre = await this.calculateClosureRate(userId, startDate, endDate, productLine);
 
           return {
             userId,
@@ -1117,7 +1146,8 @@ export class HubSpotService {
   private async calculateClosureRate(
     userId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    productLine?: string
   ): Promise<number> {
     try {
       const endDateTime = new Date(endDate);
@@ -1145,6 +1175,9 @@ export class HubSpotService {
       // Obtener todos los deals del usuario
       const deals = await this.getAllDeals([{ filters }]);
 
+      // Obtener productos válidos según productLine del usuario
+      const validProducts = this.getHubSpotProductsForProductLine(productLine);
+
       const startTime = startDate.getTime();
       const endTime = endDateTime.getTime();
 
@@ -1156,6 +1189,12 @@ export class HubSpotService {
       deals.forEach((deal) => {
         const props = deal.properties;
         const producto = props.producto_aviva;
+
+        // FILTRAR: Solo procesar deals del productLine del usuario
+        if (validProducts.length > 0 && !validProducts.includes(producto)) {
+          return; // Skip este deal
+        }
+
         const isAvivaCompra = producto === "aviva_tucompra";
 
         if (isAvivaCompra) {
