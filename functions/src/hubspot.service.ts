@@ -948,6 +948,16 @@ export class HubSpotService {
         console.log(`   - hs_v2_date_entered_146336009: ${props.hs_v2_date_entered_146336009 || 'null'}`);
         console.log(`   - hs_v2_date_entered_33823866: ${props.hs_v2_date_entered_33823866 || 'null'}`);
 
+        // Mostrar TODAS las propiedades para el primer deal con venta
+        if (index === 0) {
+          console.log(`\n🔍 TODAS LAS PROPIEDADES del primer deal (para diagnóstico):`);
+          Object.keys(props).forEach(key => {
+            if (key.includes('date') || key.includes('Date') || key.includes('entered')) {
+              console.log(`   📅 ${key}: ${props[key]}`);
+            }
+          });
+        }
+
         // Determinar tipo de producto
         const producto = props.producto_aviva;
 
