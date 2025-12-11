@@ -941,29 +941,32 @@ export class HubSpotService {
       let dealsWithoutDisbursement = 0;
       let dealsFiltered = 0;
 
+      // Mostrar detalles del PRIMER deal solamente para diagnóstico
+      if (deals.length > 0) {
+        const firstDeal = deals[0];
+        const props = firstDeal.properties;
+        console.log(`\n========================================`);
+        console.log(`📋 DEAL #1 (DIAGNÓSTICO COMPLETO)`);
+        console.log(`========================================`);
+        console.log(`Nombre: ${props.dealname || 'Sin nombre'}`);
+        console.log(`Amount: ${props.amount || 'null'}`);
+        console.log(`Producto: ${props.producto_aviva || 'null'}`);
+        console.log(`\n🔍 TODAS LAS PROPIEDADES con 'date' o 'entered':`);
+        Object.keys(props).sort().forEach(key => {
+          if (key.includes('date') || key.includes('Date') || key.includes('entered')) {
+            const value = props[key];
+            if (value && value !== 'null' && value !== null) {
+              console.log(`   ✅ ${key}: ${value}`);
+            } else {
+              console.log(`   ❌ ${key}: null`);
+            }
+          }
+        });
+        console.log(`========================================\n`);
+      }
+
       deals.forEach((deal, index) => {
         const props = deal.properties;
-
-        // Mostrar TODAS las propiedades para los primeros 3 deals
-        if (index < 3) {
-          console.log(`\n📋 Deal ${index + 1}/${deals.length}: ${props.dealname || 'Sin nombre'}`);
-          console.log(`   - amount: ${props.amount || 'null'}`);
-          console.log(`   - producto_aviva: ${props.producto_aviva || 'null'}`);
-          console.log(`   - createdate: ${props.createdate || 'null'}`);
-          console.log(`   - closedate: ${props.closedate || 'null'}`);
-          console.log(`   - dealstage: ${props.dealstage || 'null'}`);
-          console.log(`\n   🔍 TODAS LAS PROPIEDADES con 'date' o 'entered':`);
-          Object.keys(props).sort().forEach(key => {
-            if (key.includes('date') || key.includes('Date') || key.includes('entered')) {
-              const value = props[key];
-              if (value && value !== 'null' && value !== null) {
-                console.log(`      ✅ ${key}: ${value}`);
-              } else {
-                console.log(`      ❌ ${key}: null`);
-              }
-            }
-          });
-        }
 
         // Determinar tipo de producto
         const producto = props.producto_aviva;
@@ -975,9 +978,16 @@ export class HubSpotService {
           return;
         }
 
-        // LLAMADAS = Todos los deals creados en el período (ya filtrados por createdate)
-        llamadas++;
-        console.log(`   ✅ CUENTA para llamadas (#${llamadas}) - deal creado en el período`);
+        // LLAMADAS = Deals CREADOS en el período (verificar createdate)
+        const createDate = props.createdate ? new Date(props.createdate).getTime() : null;
+        const createdInPeriod = createDate && createDate >= startTime && createDate <= endTime;
+
+        if (createdInPeriod) {
+          llamadas++;
+          console.log(`   ✅ CUENTA para llamadas (#${llamadas}) - deal creado en el período`);
+        } else {
+          console.log(`   ⏭️  NO cuenta para llamadas - creado fuera del período`);
+        }
 
         const isAvivaCompra = producto === "aviva_tucompra";
 
