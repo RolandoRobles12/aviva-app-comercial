@@ -934,6 +934,9 @@ export class HubSpotService {
 
       let llamadas = 0;
       let colocacion = 0;
+      let dealsWithDisbursement = 0;
+      let dealsWithoutDisbursement = 0;
+      let dealsFiltered = 0;
 
       deals.forEach((deal, index) => {
         const props = deal.properties;
@@ -951,6 +954,7 @@ export class HubSpotService {
         // FILTRAR: Solo procesar deals del productLine del usuario
         if (validProducts.length > 0 && !validProducts.includes(producto)) {
           console.log(`   ⏭️  OMITIDO - Producto no coincide con productLine del usuario`);
+          dealsFiltered++;
           return;
         }
 
@@ -998,6 +1002,7 @@ export class HubSpotService {
           const amount = parseFloat(props.amount || "0");
           if (!isNaN(amount) && amount > 0) {
             colocacion += amount;
+            dealsWithDisbursement++;
             console.log(`   ✅ CUENTA para colocación: $${amount.toLocaleString()} (disbursement en período)`);
           } else {
             console.log(`   ⚠️  Disbursement en período pero amount inválido: ${props.amount}`);
@@ -1005,14 +1010,36 @@ export class HubSpotService {
         } else if (disbursementDate) {
           const isBeforeStart = disbursementDate < startTime;
           console.log(`   ❌ Disbursement FUERA del rango: ${isBeforeStart ? 'antes del inicio' : 'después del fin'}`);
+          dealsWithDisbursement++;
         } else {
           console.log(`   ℹ️  Sin fecha de disbursement - no cuenta para colocación`);
+          dealsWithoutDisbursement++;
         }
       });
 
       console.log(`\n📊 Resultados:`);
+      console.log(`   - Total deals encontrados: ${deals.length}`);
+      console.log(`   - Deals filtrados (producto no coincide): ${dealsFiltered}`);
+      console.log(`   - Deals procesados: ${llamadas}`);
+      console.log(`   - Deals CON fecha de disbursement: ${dealsWithDisbursement}`);
+      console.log(`   - Deals SIN fecha de disbursement: ${dealsWithoutDisbursement}`);
       console.log(`   - Llamadas: ${llamadas}`);
       console.log(`   - Colocación: $${colocacion.toLocaleString()}`);
+
+      // Diagnóstico adicional si colocación es 0
+      if (colocacion === 0 && llamadas > 0) {
+        console.log(`\n⚠️  DIAGNÓSTICO: Colocación es $0 pero hay ${llamadas} llamadas`);
+        if (dealsWithoutDisbursement === llamadas) {
+          console.log(`   ❌ PROBLEMA: NINGÚN deal tiene fecha de disbursement`);
+          console.log(`   💡 Solución: Los deals deben avanzar a la etapa de disbursement en HubSpot`);
+          console.log(`   💡 O verificar que las propiedades de disbursement sean correctas:`);
+          console.log(`      - Aviva Tu Compra: hs_v2_date_entered_146336009`);
+          console.log(`      - Otros productos: hs_v2_date_entered_33823866`);
+        } else if (dealsWithDisbursement > 0 && dealsWithDisbursement < llamadas) {
+          console.log(`   ⚠️  Solo ${dealsWithDisbursement}/${llamadas} deals tienen disbursement`);
+          console.log(`   💡 Los ${dealsWithDisbursement} deals con disbursement están fuera del rango de fechas`);
+        }
+      }
 
       return {
         llamadas,
