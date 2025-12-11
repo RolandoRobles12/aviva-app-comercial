@@ -941,19 +941,23 @@ export class HubSpotService {
       deals.forEach((deal, index) => {
         const props = deal.properties;
 
-        console.log(`\n📋 Deal ${index + 1}/${deals.length}: ${props.dealname || 'Sin nombre'}`);
-        console.log(`   - amount: ${props.amount || 'null'}`);
-        console.log(`   - producto_aviva: ${props.producto_aviva || 'null'}`);
-        console.log(`   - createdate: ${props.createdate || 'null'}`);
-        console.log(`   - hs_v2_date_entered_146336009: ${props.hs_v2_date_entered_146336009 || 'null'}`);
-        console.log(`   - hs_v2_date_entered_33823866: ${props.hs_v2_date_entered_33823866 || 'null'}`);
-
-        // Mostrar TODAS las propiedades para el primer deal con venta
-        if (index === 0) {
-          console.log(`\n🔍 TODAS LAS PROPIEDADES del primer deal (para diagnóstico):`);
-          Object.keys(props).forEach(key => {
+        // Mostrar TODAS las propiedades para los primeros 3 deals
+        if (index < 3) {
+          console.log(`\n📋 Deal ${index + 1}/${deals.length}: ${props.dealname || 'Sin nombre'}`);
+          console.log(`   - amount: ${props.amount || 'null'}`);
+          console.log(`   - producto_aviva: ${props.producto_aviva || 'null'}`);
+          console.log(`   - createdate: ${props.createdate || 'null'}`);
+          console.log(`   - closedate: ${props.closedate || 'null'}`);
+          console.log(`   - dealstage: ${props.dealstage || 'null'}`);
+          console.log(`\n   🔍 TODAS LAS PROPIEDADES con 'date' o 'entered':`);
+          Object.keys(props).sort().forEach(key => {
             if (key.includes('date') || key.includes('Date') || key.includes('entered')) {
-              console.log(`   📅 ${key}: ${props[key]}`);
+              const value = props[key];
+              if (value && value !== 'null' && value !== null) {
+                console.log(`      ✅ ${key}: ${value}`);
+              } else {
+                console.log(`      ❌ ${key}: null`);
+              }
             }
           });
         }
@@ -1073,16 +1077,25 @@ export class HubSpotService {
     while (true) {
       const payload: any = {
         filterGroups,
+        // TEMPORAL: Solicitar TODAS las propiedades para diagnóstico
+        // Esto mostrará qué propiedades existen realmente en HubSpot
         properties: [
           "dealname",
           "amount",
           "createdate",
+          "closedate",
           "hubspot_owner_id",
+          "dealstage",
+          "pipeline",
           "hs_v2_date_entered_33823866",
           "hs_v2_date_entered_146336009",
           "hs_v2_date_entered_146251806",
           "hs_v2_date_entered_36073275",
           "producto_aviva",
+          "hs_date_entered_33823866",
+          "hs_date_entered_146336009",
+          "hs_date_entered_146251806",
+          "hs_date_entered_36073275",
         ],
         limit: 100,
         sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
