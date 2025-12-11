@@ -898,8 +898,11 @@ export class HubSpotService {
       const endDateTime = new Date(endDate);
       endDateTime.setHours(23, 59, 59, 999);
 
-      // Filtros para deals del usuario
-      // Usamos createdate para optimizar la búsqueda inicial
+      // CORREGIDO: Traer deals de los últimos 6 meses para incluir
+      // deals creados antes pero desembolsados en el período actual
+      const sixMonthsAgo = new Date(startDate);
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
       const filters = [
         {
           propertyName: "hubspot_owner_id",
@@ -909,7 +912,7 @@ export class HubSpotService {
         {
           propertyName: "createdate",
           operator: "GTE",
-          value: startDate.getTime().toString(),
+          value: sixMonthsAgo.getTime().toString(),
         },
         {
           propertyName: "createdate",
@@ -918,7 +921,7 @@ export class HubSpotService {
         },
       ];
 
-      // Obtener todos los deals del usuario en el rango de fechas
+      // Obtener todos los deals del usuario de los últimos 6 meses
       const deals = await this.getAllDeals([{ filters }]);
 
       const startTime = startDate.getTime();
