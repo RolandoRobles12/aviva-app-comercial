@@ -1,5 +1,6 @@
 {
   "name": "functions",
+  "version": "1.0.1",
   "description": "Firebase Cloud Functions para integración con HubSpot",
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
