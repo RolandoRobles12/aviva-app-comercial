@@ -941,6 +941,7 @@ export class HubSpotService {
         console.log(`\n📋 Deal ${index + 1}/${deals.length}: ${props.dealname || 'Sin nombre'}`);
         console.log(`   - amount: ${props.amount || 'null'}`);
         console.log(`   - producto_aviva: ${props.producto_aviva || 'null'}`);
+        console.log(`   - createdate: ${props.createdate || 'null'}`);
         console.log(`   - hs_v2_date_entered_146336009: ${props.hs_v2_date_entered_146336009 || 'null'}`);
         console.log(`   - hs_v2_date_entered_33823866: ${props.hs_v2_date_entered_33823866 || 'null'}`);
 
@@ -952,9 +953,14 @@ export class HubSpotService {
           console.log(`   ⏭️  OMITIDO - Producto no coincide con productLine del usuario`);
           return;
         }
+
+        // LLAMADAS = Todos los deals creados en el período (ya filtrados por createdate)
+        llamadas++;
+        console.log(`   ✅ CUENTA para llamadas (#${llamadas}) - deal creado en el período`);
+
         const isAvivaCompra = producto === "aviva_tucompra";
 
-        // Obtener fecha de disbursement según el producto
+        // Obtener fecha de disbursement según el producto SOLO para colocación
         let disbursementDate = null;
 
         if (isAvivaCompra) {
@@ -969,7 +975,7 @@ export class HubSpotService {
               // Es timestamp numérico (milisegundos desde epoch)
               disbursementDate = parseInt(rawValue);
             }
-            console.log(`   ✅ Usando disbursement (Aviva Tu Compra): ${new Date(disbursementDate).toISOString()}`);
+            console.log(`   ✅ Tiene disbursement (Aviva Tu Compra): ${new Date(disbursementDate).toISOString()}`);
           }
         } else {
           // Otros productos usan hs_v2_date_entered_33823866
@@ -983,32 +989,24 @@ export class HubSpotService {
               // Es timestamp numérico (milisegundos desde epoch)
               disbursementDate = parseInt(rawValue);
             }
-            console.log(`   ✅ Usando disbursement (Otros productos): ${new Date(disbursementDate).toISOString()}`);
+            console.log(`   ✅ Tiene disbursement (Otros productos): ${new Date(disbursementDate).toISOString()}`);
           }
         }
 
-        if (!disbursementDate) {
-          console.log(`   ❌ Sin fecha de disbursement`);
-          return;
-        }
-
-        // Si la fecha de disbursement cae dentro del rango, contar para llamadas y colocación
-        if (disbursementDate >= startTime && disbursementDate <= endTime) {
-          // Contar para llamadas (deals con disbursement en el período)
-          llamadas++;
-          console.log(`   ✅ CUENTA para llamadas (#${llamadas})`);
-
-          // Contar para colocación (sumar monto)
+        // COLOCACIÓN = Solo deals con disbursement en el período
+        if (disbursementDate && disbursementDate >= startTime && disbursementDate <= endTime) {
           const amount = parseFloat(props.amount || "0");
           if (!isNaN(amount) && amount > 0) {
             colocacion += amount;
-            console.log(`   ✅ CUENTA para colocación: $${amount.toLocaleString()}`);
+            console.log(`   ✅ CUENTA para colocación: $${amount.toLocaleString()} (disbursement en período)`);
           } else {
-            console.log(`   ⚠️ Amount inválido o cero: ${props.amount}`);
+            console.log(`   ⚠️  Disbursement en período pero amount inválido: ${props.amount}`);
           }
-        } else {
+        } else if (disbursementDate) {
           const isBeforeStart = disbursementDate < startTime;
           console.log(`   ❌ Disbursement FUERA del rango: ${isBeforeStart ? 'antes del inicio' : 'después del fin'}`);
+        } else {
+          console.log(`   ℹ️  Sin fecha de disbursement - no cuenta para colocación`);
         }
       });
 
