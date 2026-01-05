@@ -22,8 +22,7 @@ import {
   Card,
   CardContent,
   Switch,
-  FormControlLabel,
-  Tooltip
+  FormControlLabel
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -44,8 +43,7 @@ import type {
   HubSpotMetric,
   HubSpotMetricFormData,
   HubSpotCalculationMethod,
-  HubSpotExtractField,
-  DEFAULT_HUBSPOT_METRICS
+  HubSpotExtractField
 } from '../types/hubspotMetric';
 import { DEFAULT_HUBSPOT_METRICS as defaultMetrics } from '../types/hubspotMetric';
 
