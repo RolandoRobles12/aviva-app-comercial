@@ -40,6 +40,37 @@ export interface LeaguePrize {
 }
 
 /**
+ * Tipo de fuente de datos para criterios
+ */
+export type CriteriaSource = 'VISITS' | 'CUSTOM_FIELD' | 'MANUAL';
+
+/**
+ * Criterio de puntuación personalizable
+ */
+export interface LeagueCriteria {
+  id: string;                      // ID único del criterio
+  name: string;                    // Nombre del criterio (ej: "Visitas Realizadas")
+  description?: string;            // Descripción del criterio
+
+  // Fuente de datos
+  source: CriteriaSource;          // De dónde se obtienen los datos
+  firestoreCollection?: string;    // Colección de Firestore (si source = CUSTOM_FIELD)
+  firestoreField?: string;         // Campo a contar/sumar
+  firestoreUserField?: string;     // Campo que identifica al usuario (ej: "userId", "promotorId")
+
+  // Cálculo
+  pointsPerUnit: number;           // Puntos otorgados por cada unidad
+  calculationType: 'COUNT' | 'SUM' | 'AVERAGE';  // Tipo de cálculo
+
+  // Filtros opcionales
+  whereField?: string;             // Campo para filtrar (ej: "status")
+  whereOperator?: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  whereValue?: any;                // Valor del filtro (ej: "completed")
+
+  enabled: boolean;                // Si el criterio está activo
+}
+
+/**
  * Modelo de Liga Simplificado
  * Sistema simple y amigable de benchmarking y competencias
  */
@@ -65,6 +96,9 @@ export interface League {
 
   // Premios (opcional)
   prizes?: LeaguePrize[];          // Premios configurables
+
+  // ✨ NUEVO: Criterios personalizables
+  criteria?: LeagueCriteria[];     // Criterios de puntuación
 
   // Status
   active: boolean;                 // Si está activa
@@ -95,6 +129,7 @@ export interface LeagueFormData {
   promotionSpots?: number;
   relegationSpots?: number;
   prizes?: LeaguePrize[];
+  criteria?: LeagueCriteria[];
   status?: LeagueStatus;
 }
 
