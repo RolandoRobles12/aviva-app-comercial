@@ -42,7 +42,7 @@ export interface LeaguePrize {
 /**
  * Tipo de fuente de datos para criterios
  */
-export type CriteriaSource = 'VISITS' | 'CUSTOM_FIELD' | 'MANUAL';
+export type CriteriaSource = 'VISITS' | 'CUSTOM_FIELD' | 'MANUAL' | 'HUBSPOT_METRIC';
 
 /**
  * Criterio de puntuación personalizable
@@ -66,6 +66,9 @@ export interface LeagueCriteria {
   whereField?: string;             // Campo para filtrar (ej: "status")
   whereOperator?: '==' | '!=' | '>' | '<' | '>=' | '<=';
   whereValue?: any;                // Valor del filtro (ej: "completed")
+
+  // HubSpot Metric (si source = HUBSPOT_METRIC)
+  hubspotMetricId?: string;        // ID de la métrica en collection hubspotMetrics
 
   enabled: boolean;                // Si el criterio está activo
 }

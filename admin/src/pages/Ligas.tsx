@@ -53,6 +53,7 @@ import type {
 import {
   LeagueStatus
 } from '../types/league';
+import type { HubSpotMetric } from '../types/hubspotMetric';
 import { v4 as uuidv4 } from 'uuid';
 
 interface User {
@@ -65,6 +66,7 @@ interface User {
 const Ligas: React.FC = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [hubspotMetrics, setHubspotMetrics] = useState<HubSpotMetric[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const [error, setError] = useState<string>('');
@@ -92,6 +94,7 @@ const Ligas: React.FC = () => {
   useEffect(() => {
     fetchLeagues();
     fetchUsers();
+    fetchHubspotMetrics();
   }, []);
 
   const fetchLeagues = async () => {
@@ -126,6 +129,19 @@ const Ligas: React.FC = () => {
       setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
     } catch (err) {
       console.error('Error al cargar usuarios:', err);
+    }
+  };
+
+  const fetchHubspotMetrics = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'hubspotMetrics'));
+      const metricsData: HubSpotMetric[] = [];
+      querySnapshot.forEach((doc) => {
+        metricsData.push({ id: doc.id, ...doc.data() } as HubSpotMetric);
+      });
+      setHubspotMetrics(metricsData.filter(m => m.active).sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (err) {
+      console.error('Error al cargar métricas de HubSpot:', err);
     }
   };
 
@@ -952,6 +968,7 @@ const Ligas: React.FC = () => {
                           >
                             <option value="VISITS">Visitas (Firestore)</option>
                             <option value="CUSTOM_FIELD">Campo Personalizado</option>
+                            <option value="HUBSPOT_METRIC">Métrica de HubSpot</option>
                             <option value="MANUAL">Manual (sin cálculo)</option>
                           </TextField>
                         </Grid>
@@ -1097,6 +1114,45 @@ const Ligas: React.FC = () => {
                                 }}
                                 placeholder="Ej: completed"
                               />
+                            </Grid>
+                          </>
+                        )}
+
+                        {/* Campos condicionales para HUBSPOT_METRIC */}
+                        {criteria.source === 'HUBSPOT_METRIC' && (
+                          <>
+                            <Grid item xs={12}>
+                              <TextField
+                                label="Métrica de HubSpot"
+                                fullWidth
+                                size="small"
+                                select
+                                required
+                                value={criteria.hubspotMetricId || ''}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], hubspotMetricId: e.target.value };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                SelectProps={{ native: true }}
+                                helperText={
+                                  criteria.hubspotMetricId
+                                    ? hubspotMetrics.find(m => m.id === criteria.hubspotMetricId)?.description
+                                    : 'Selecciona una métrica predefinida de HubSpot'
+                                }
+                              >
+                                <option value="">-- Selecciona una métrica --</option>
+                                {hubspotMetrics.map(metric => (
+                                  <option key={metric.id} value={metric.id}>
+                                    {metric.name}
+                                  </option>
+                                ))}
+                              </TextField>
+                              {hubspotMetrics.length === 0 && (
+                                <Alert severity="warning" sx={{ mt: 1 }}>
+                                  No hay métricas de HubSpot disponibles. Ve a la sección de Métricas de HubSpot para crear algunas.
+                                </Alert>
+                              )}
                             </Grid>
                           </>
                         )}

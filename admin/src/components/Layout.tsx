@@ -25,6 +25,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import HistoryIcon from '@mui/icons-material/History';
 import StoreIcon from '@mui/icons-material/Store';
@@ -45,6 +46,7 @@ const menuItems = [
   { text: 'Rutas Promotores', icon: <RouteIcon />, path: '/rutas', category: 'main' },
   { text: 'Metas', icon: <TrendingUpIcon />, path: '/metas', category: 'gamification' },
   { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas', category: 'gamification' },
+  { text: 'Métricas HubSpot', icon: <BarChartIcon />, path: '/hubspot-metrics', category: 'gamification' },
   { text: 'Bonos', icon: <MonetizationOnIcon />, path: '/bonos', category: 'gamification' },
   { text: 'Giros', icon: <CategoryIcon />, path: '/giros', category: 'config' },
   { text: 'Administradores', icon: <AdminPanelSettingsIcon />, path: '/administradores', category: 'config' },
