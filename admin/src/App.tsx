@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
 import Metas from './pages/Metas';
 import Ligas from './pages/Ligas';
+import HubSpotMetrics from './pages/HubSpotMetrics';
 import Giros from './pages/Giros';
 import Kioscos from './pages/Kioscos';
 import Productos from './pages/Productos';
@@ -239,6 +240,7 @@ function AppRoutes() {
         <Route path="rutas" element={<RutasPromotores />} />
         <Route path="metas" element={<Metas />} />
         <Route path="ligas" element={<Ligas />} />
+        <Route path="hubspot-metrics" element={<HubSpotMetrics />} />
         <Route path="bonos" element={<Bonos />} />
         <Route path="giros" element={<Giros />} />
         <Route path="administradores" element={<Administradores />} />

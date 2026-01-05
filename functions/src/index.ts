@@ -1163,6 +1163,92 @@ export const updateLeaguePoints = functions.https.onRequest(async (req, res) => 
             }
 
             functions.logger.info(`   Valor calculado (${criterion.calculationType}): ${value}`);
+          } else if (criterion.source === 'HUBSPOT_METRIC') {
+            // Obtener configuración de la métrica desde hubspotMetrics collection
+            if (!criterion.hubspotMetricId) {
+              functions.logger.warn(`   ⚠️  Criterio mal configurado: falta hubspotMetricId`);
+              continue;
+            }
+
+            const metricDoc = await admin.firestore()
+              .collection("hubspotMetrics")
+              .doc(criterion.hubspotMetricId)
+              .get();
+
+            if (!metricDoc.exists) {
+              functions.logger.warn(`   ⚠️  Métrica de HubSpot no encontrada: ${criterion.hubspotMetricId}`);
+              continue;
+            }
+
+            const metricConfig = metricDoc.data();
+            if (!metricConfig?.active) {
+              functions.logger.warn(`   ⚠️  Métrica de HubSpot inactiva: ${metricConfig?.name}`);
+              continue;
+            }
+
+            // Obtener datos del usuario (hubspotOwnerId y productLine)
+            const userResult = await getUserDocument(userId);
+            if (!userResult || !userResult.data?.hubspotOwnerId) {
+              functions.logger.warn(`   ⚠️  Usuario sin hubspotOwnerId configurado`);
+              continue;
+            }
+
+            const hubspotOwnerId = userResult.data.hubspotOwnerId;
+            const productLine = userResult.data.productLine;
+
+            // Obtener API key de HubSpot
+            const hubspotApiKey = functions.config().hubspot?.apikey;
+            if (!hubspotApiKey) {
+              functions.logger.error("   ❌ HubSpot API key not configured");
+              continue;
+            }
+
+            // Calcular fechas según configuración de la métrica
+            let metricStartDate = startDate;
+            let metricEndDate = endDate;
+
+            if (!metricConfig.usesDateRange) {
+              // Si no usa rango de fechas, usar todo el tiempo
+              metricStartDate = undefined;
+              metricEndDate = undefined;
+            }
+
+            functions.logger.info(`   🔧 Usando métrica: ${metricConfig.name}`);
+            functions.logger.info(`   📅 Rango: ${metricStartDate?.toISOString() || 'sin inicio'} - ${metricEndDate?.toISOString() || 'sin fin'}`);
+            functions.logger.info(`   🏢 ProductLine: ${productLine || 'todos'}`);
+
+            // Llamar al método de HubSpot correspondiente
+            const hubspotService = new HubSpotService(hubspotApiKey);
+            let result: any;
+
+            try {
+              if (metricConfig.calculationMethod === 'calculateGoalProgress') {
+                result = await hubspotService.calculateGoalProgress(
+                  hubspotOwnerId,
+                  metricStartDate,
+                  metricEndDate,
+                  metricConfig.usesProductLine ? productLine : undefined
+                );
+              } else if (metricConfig.calculationMethod === 'calculateClosureRate') {
+                result = await hubspotService.calculateClosureRate(
+                  hubspotOwnerId,
+                  metricStartDate,
+                  metricEndDate,
+                  metricConfig.usesProductLine ? productLine : undefined
+                );
+              } else {
+                functions.logger.warn(`   ⚠️  Método desconocido: ${metricConfig.calculationMethod}`);
+                continue;
+              }
+
+              // Extraer el campo especificado
+              value = result[metricConfig.extractField] || 0;
+              functions.logger.info(`   Valor extraído (${metricConfig.extractField}): ${value}`);
+
+            } catch (error: any) {
+              functions.logger.error(`   ❌ Error al calcular métrica de HubSpot: ${error.message}`);
+              continue;
+            }
           } else if (criterion.source === 'MANUAL') {
             functions.logger.info(`   Criterio manual - puntos no calculados automáticamente`);
             continue;
