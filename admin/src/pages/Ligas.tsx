@@ -25,7 +25,8 @@ import {
   FormControlLabel,
   Autocomplete,
   Stack,
-  Avatar
+  Avatar,
+  CircularProgress
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -33,6 +34,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import GroupIcon from '@mui/icons-material/Group';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import PeopleIcon from '@mui/icons-material/People';
+import CalculateIcon from '@mui/icons-material/Calculate';
 import {
   collection,
   getDocs,
@@ -45,11 +47,13 @@ import {
 import { db } from '../config/firebase';
 import type {
   League,
-  LeagueFormData
+  LeagueFormData,
+  LeagueCriteria
 } from '../types/league';
 import {
   LeagueStatus
 } from '../types/league';
+import { v4 as uuidv4 } from 'uuid';
 
 interface User {
   id: string;
@@ -64,6 +68,8 @@ const Ligas: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
+  const [recalculatingLeague, setRecalculatingLeague] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<LeagueFormData>({
     name: '',
@@ -79,6 +85,7 @@ const Ligas: React.FC = () => {
     promotionSpots: undefined,
     relegationSpots: undefined,
     prizes: [],
+    criteria: [],
     status: LeagueStatus.ACTIVE
   });
 
@@ -139,6 +146,7 @@ const Ligas: React.FC = () => {
         promotionSpots: league.promotionSpots,
         relegationSpots: league.relegationSpots,
         prizes: league.prizes || [],
+        criteria: league.criteria || [],
         status: league.status || LeagueStatus.ACTIVE
       });
     } else {
@@ -157,6 +165,7 @@ const Ligas: React.FC = () => {
         promotionSpots: undefined,
         relegationSpots: undefined,
         prizes: [],
+        criteria: [],
         status: LeagueStatus.ACTIVE
       });
     }
@@ -223,6 +232,9 @@ const Ligas: React.FC = () => {
       if (formData.prizes && formData.prizes.length > 0) {
         dataToSave.prizes = formData.prizes;
       }
+      if (formData.criteria && formData.criteria.length > 0) {
+        dataToSave.criteria = formData.criteria;
+      }
 
       let leagueId: string;
 
@@ -254,6 +266,41 @@ const Ligas: React.FC = () => {
         setError('Error al eliminar la liga');
         console.error(err);
       }
+    }
+  };
+
+  const handleRecalculatePoints = async (leagueId: string, leagueName: string) => {
+    if (!window.confirm(`¿Recalcular puntos de la liga "${leagueName}"?\n\nEsto actualizará los puntos y rankings de todos los participantes según los criterios configurados.`)) {
+      return;
+    }
+
+    try {
+      setRecalculatingLeague(leagueId);
+      setError('');
+      setSuccess('');
+
+      // Llamar a la Firebase Function
+      const response = await fetch('https://us-central1-promotores-aviva-tu-negocio.cloudfunctions.net/updateLeaguePoints', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ leagueId })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSuccess(`✅ Puntos actualizados exitosamente para "${leagueName}". ${result.data.membersProcessed} miembros procesados.`);
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        setError(`Error: ${result.error || 'Error desconocido'}`);
+      }
+    } catch (err: any) {
+      setError(`Error al recalcular puntos: ${err.message}`);
+      console.error(err);
+    } finally {
+      setRecalculatingLeague(null);
     }
   };
 
@@ -346,6 +393,7 @@ const Ligas: React.FC = () => {
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} md={4}>
@@ -463,6 +511,21 @@ const Ligas: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell align="right">
+                    {league.criteria && league.criteria.length > 0 && (
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => handleRecalculatePoints(league.id, league.name)}
+                        disabled={recalculatingLeague === league.id}
+                        title="Recalcular puntos"
+                      >
+                        {recalculatingLeague === league.id ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <CalculateIcon />
+                        )}
+                      </IconButton>
+                    )}
                     <IconButton size="small" onClick={() => handleOpenDialog(league)}>
                       <EditIcon />
                     </IconButton>
@@ -765,6 +828,288 @@ const Ligas: React.FC = () => {
                     </Paper>
                   ))}
                 </Stack>
+              )}
+            </Box>
+
+            {/* Sección de Criterios de Puntuación */}
+            <Box sx={{ mt: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Criterios de Puntuación
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Define cómo se calculan los puntos de cada participante
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    const newCriteria: LeagueCriteria = {
+                      id: uuidv4(),
+                      name: '',
+                      description: '',
+                      source: 'VISITS',
+                      pointsPerUnit: 1,
+                      calculationType: 'COUNT',
+                      enabled: true
+                    };
+                    handleInputChange('criteria', [...(formData.criteria || []), newCriteria]);
+                  }}
+                >
+                  Agregar Criterio
+                </Button>
+              </Box>
+
+              {formData.criteria && formData.criteria.length > 0 && (
+                <Stack spacing={2}>
+                  {formData.criteria.map((criteria, index) => (
+                    <Paper key={criteria.id} sx={{ p: 2, bgcolor: 'background.default' }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              Criterio #{index + 1}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => {
+                                const newCriteria = formData.criteria!.filter((_, i) => i !== index);
+                                handleInputChange('criteria', newCriteria);
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Box>
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Nombre del Criterio"
+                            fullWidth
+                            size="small"
+                            required
+                            value={criteria.name}
+                            onChange={(e) => {
+                              const newCriteria = [...formData.criteria!];
+                              newCriteria[index] = { ...newCriteria[index], name: e.target.value };
+                              handleInputChange('criteria', newCriteria);
+                            }}
+                            placeholder="Ej: Visitas Realizadas"
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Puntos por Unidad"
+                            fullWidth
+                            size="small"
+                            type="number"
+                            required
+                            value={criteria.pointsPerUnit}
+                            onChange={(e) => {
+                              const newCriteria = [...formData.criteria!];
+                              newCriteria[index] = { ...newCriteria[index], pointsPerUnit: parseInt(e.target.value) || 0 };
+                              handleInputChange('criteria', newCriteria);
+                            }}
+                            InputProps={{ inputProps: { min: 0 } }}
+                          />
+                        </Grid>
+
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Descripción (Opcional)"
+                            fullWidth
+                            size="small"
+                            multiline
+                            rows={2}
+                            value={criteria.description || ''}
+                            onChange={(e) => {
+                              const newCriteria = [...formData.criteria!];
+                              newCriteria[index] = { ...newCriteria[index], description: e.target.value };
+                              handleInputChange('criteria', newCriteria);
+                            }}
+                            placeholder="Describe qué mide este criterio..."
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} md={4}>
+                          <TextField
+                            label="Fuente de Datos"
+                            fullWidth
+                            size="small"
+                            select
+                            required
+                            value={criteria.source}
+                            onChange={(e) => {
+                              const newCriteria = [...formData.criteria!];
+                              newCriteria[index] = { ...newCriteria[index], source: e.target.value as any };
+                              handleInputChange('criteria', newCriteria);
+                            }}
+                            SelectProps={{ native: true }}
+                          >
+                            <option value="VISITS">Visitas (Firestore)</option>
+                            <option value="CUSTOM_FIELD">Campo Personalizado</option>
+                            <option value="MANUAL">Manual (sin cálculo)</option>
+                          </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} md={4}>
+                          <TextField
+                            label="Tipo de Cálculo"
+                            fullWidth
+                            size="small"
+                            select
+                            required
+                            value={criteria.calculationType}
+                            onChange={(e) => {
+                              const newCriteria = [...formData.criteria!];
+                              newCriteria[index] = { ...newCriteria[index], calculationType: e.target.value as any };
+                              handleInputChange('criteria', newCriteria);
+                            }}
+                            SelectProps={{ native: true }}
+                          >
+                            <option value="COUNT">Contar registros</option>
+                            <option value="SUM">Sumar valores</option>
+                            <option value="AVERAGE">Promedio</option>
+                          </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} md={4}>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={criteria.enabled}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], enabled: e.target.checked };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                              />
+                            }
+                            label="Activo"
+                          />
+                        </Grid>
+
+                        {/* Campos condicionales para CUSTOM_FIELD */}
+                        {criteria.source === 'CUSTOM_FIELD' && (
+                          <>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                label="Colección de Firestore"
+                                fullWidth
+                                size="small"
+                                required
+                                value={criteria.firestoreCollection || ''}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], firestoreCollection: e.target.value };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                placeholder="Ej: sales, orders"
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                label="Campo Usuario"
+                                fullWidth
+                                size="small"
+                                required
+                                value={criteria.firestoreUserField || ''}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], firestoreUserField: e.target.value };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                placeholder="Ej: userId, promotorId"
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                label="Campo a Sumar (opcional)"
+                                fullWidth
+                                size="small"
+                                value={criteria.firestoreField || ''}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], firestoreField: e.target.value };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                placeholder="Ej: amount, quantity"
+                                helperText="Solo si tipo = SUM"
+                              />
+                            </Grid>
+
+                            {/* Filtros opcionales */}
+                            <Grid item xs={12}>
+                              <Typography variant="caption" color="text.secondary">
+                                Filtro (Opcional)
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                label="Campo del Filtro"
+                                fullWidth
+                                size="small"
+                                value={criteria.whereField || ''}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], whereField: e.target.value };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                placeholder="Ej: status"
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                label="Operador"
+                                fullWidth
+                                size="small"
+                                select
+                                value={criteria.whereOperator || '=='}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], whereOperator: e.target.value as any };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                SelectProps={{ native: true }}
+                              >
+                                <option value="==">Igual (==)</option>
+                                <option value="!=">Diferente (!=)</option>
+                                <option value=">">Mayor (&gt;)</option>
+                                <option value="<">Menor (&lt;)</option>
+                                <option value=">=">Mayor o igual (&gt;=)</option>
+                                <option value="<=">Menor o igual (&lt;=)</option>
+                              </TextField>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                label="Valor del Filtro"
+                                fullWidth
+                                size="small"
+                                value={criteria.whereValue || ''}
+                                onChange={(e) => {
+                                  const newCriteria = [...formData.criteria!];
+                                  newCriteria[index] = { ...newCriteria[index], whereValue: e.target.value };
+                                  handleInputChange('criteria', newCriteria);
+                                }}
+                                placeholder="Ej: completed"
+                              />
+                            </Grid>
+                          </>
+                        )}
+                      </Grid>
+                    </Paper>
+                  ))}
+                </Stack>
+              )}
+
+              {(!formData.criteria || formData.criteria.length === 0) && (
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  No hay criterios configurados. Agrega al menos un criterio para calcular puntos automáticamente.
+                </Alert>
               )}
             </Box>
 
