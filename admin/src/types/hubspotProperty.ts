@@ -41,15 +41,24 @@ export interface HubSpotPropertyFormData {
 
 /**
  * Properties predefinidas comunes
+ * Estas son las properties que actualmente se usan en el sistema
  */
 export const DEFAULT_HUBSPOT_PROPERTIES = [
-  // Deals
+  // ========== DEALS - Información Básica ==========
+  {
+    name: 'Nombre del Deal',
+    internalName: 'dealname',
+    objectType: 'deals' as HubSpotObjectType,
+    dataType: 'text' as HubSpotDataType,
+    description: 'Nombre o título del deal',
+    active: true
+  },
   {
     name: 'Monto del Deal',
     internalName: 'amount',
     objectType: 'deals' as HubSpotObjectType,
     dataType: 'number' as HubSpotDataType,
-    description: 'Monto total del deal',
+    description: 'Monto total del deal en pesos',
     active: true
   },
   {
@@ -57,9 +66,27 @@ export const DEFAULT_HUBSPOT_PROPERTIES = [
     internalName: 'dealstage',
     objectType: 'deals' as HubSpotObjectType,
     dataType: 'enum' as HubSpotDataType,
-    description: 'Etapa actual del deal',
+    description: 'Etapa actual del deal en el pipeline',
     active: true
   },
+  {
+    name: 'Pipeline',
+    internalName: 'pipeline',
+    objectType: 'deals' as HubSpotObjectType,
+    dataType: 'text' as HubSpotDataType,
+    description: 'Pipeline al que pertenece el deal',
+    active: true
+  },
+  {
+    name: 'Prioridad',
+    internalName: 'hs_priority',
+    objectType: 'deals' as HubSpotObjectType,
+    dataType: 'enum' as HubSpotDataType,
+    description: 'Prioridad del deal (high, medium, low)',
+    active: true
+  },
+
+  // ========== DEALS - Fechas ==========
   {
     name: 'Fecha de Creación',
     internalName: 'createdate',
@@ -77,38 +104,73 @@ export const DEFAULT_HUBSPOT_PROPERTIES = [
     active: true
   },
   {
+    name: 'Fecha Disbursement Aviva Tu Compra',
+    internalName: 'hs_v2_date_entered_146336009',
+    objectType: 'deals' as HubSpotObjectType,
+    dataType: 'date' as HubSpotDataType,
+    description: 'Fecha de desembolso para Aviva Tu Compra',
+    active: true
+  },
+  {
+    name: 'Fecha Disbursement Otros Productos',
+    internalName: 'hs_v2_date_entered_33823866',
+    objectType: 'deals' as HubSpotObjectType,
+    dataType: 'date' as HubSpotDataType,
+    description: 'Fecha de desembolso para Vida, Contigo, Tu Casa',
+    active: true
+  },
+
+  // ========== DEALS - Producto y Owner ==========
+  {
     name: 'Owner ID',
     internalName: 'hubspot_owner_id',
     objectType: 'deals' as HubSpotObjectType,
     dataType: 'text' as HubSpotDataType,
-    description: 'ID del propietario del deal',
+    description: 'ID del propietario/vendedor del deal',
     active: true
   },
   {
-    name: 'Línea de Producto',
-    internalName: 'product_line',
+    name: 'Producto Aviva',
+    internalName: 'producto_aviva',
+    objectType: 'deals' as HubSpotObjectType,
+    dataType: 'enum' as HubSpotDataType,
+    description: 'Producto Aviva (aviva_atn, aviva_contigo, aviva_tucompra, aviva_tucasa, etc.)',
+    active: true
+  },
+  {
+    name: 'Cross Selling AOS',
+    internalName: 'aos_cross_selling',
     objectType: 'deals' as HubSpotObjectType,
     dataType: 'text' as HubSpotDataType,
-    description: 'Línea de producto asociada al deal',
+    description: 'Indicador de cross-selling con AOS',
     active: true
   },
   {
-    name: 'Fecha Venta Vida',
-    internalName: 'fecha_venta_vida',
+    name: 'Kiosk ID',
+    internalName: 'kiosk_id',
     objectType: 'deals' as HubSpotObjectType,
-    dataType: 'date' as HubSpotDataType,
-    description: 'Fecha de venta de seguro de vida',
+    dataType: 'text' as HubSpotDataType,
+    description: 'ID del kiosko asociado al deal',
+    active: true
+  },
+
+  // ========== CONTACTS - Información Básica ==========
+  {
+    name: 'Nombre',
+    internalName: 'firstname',
+    objectType: 'contacts' as HubSpotObjectType,
+    dataType: 'text' as HubSpotDataType,
+    description: 'Nombre del contacto',
     active: true
   },
   {
-    name: 'Fecha Venta Ahorro',
-    internalName: 'fecha_venta_ahorro',
-    objectType: 'deals' as HubSpotObjectType,
-    dataType: 'date' as HubSpotDataType,
-    description: 'Fecha de venta de seguro de ahorro',
+    name: 'Apellido',
+    internalName: 'lastname',
+    objectType: 'contacts' as HubSpotObjectType,
+    dataType: 'text' as HubSpotDataType,
+    description: 'Apellido del contacto',
     active: true
   },
-  // Contacts
   {
     name: 'Email',
     internalName: 'email',
@@ -126,11 +188,37 @@ export const DEFAULT_HUBSPOT_PROPERTIES = [
     active: true
   },
   {
+    name: 'Empresa',
+    internalName: 'company',
+    objectType: 'contacts' as HubSpotObjectType,
+    dataType: 'text' as HubSpotDataType,
+    description: 'Nombre de la empresa del contacto',
+    active: true
+  },
+
+  // ========== CONTACTS - Ciclo de Vida ==========
+  {
     name: 'Fecha de Creación',
     internalName: 'createdate',
     objectType: 'contacts' as HubSpotObjectType,
     dataType: 'date' as HubSpotDataType,
     description: 'Fecha en que se creó el contacto',
+    active: true
+  },
+  {
+    name: 'Lifecycle Stage',
+    internalName: 'lifecyclestage',
+    objectType: 'contacts' as HubSpotObjectType,
+    dataType: 'enum' as HubSpotDataType,
+    description: 'Etapa del ciclo de vida (lead, customer, etc.)',
+    active: true
+  },
+  {
+    name: 'Lead Status',
+    internalName: 'hs_lead_status',
+    objectType: 'contacts' as HubSpotObjectType,
+    dataType: 'enum' as HubSpotDataType,
+    description: 'Estado del lead (NEW, OPEN, IN_PROGRESS, etc.)',
     active: true
   }
 ];
