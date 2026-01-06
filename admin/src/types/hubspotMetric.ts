@@ -1,87 +1,80 @@
 import { Timestamp } from 'firebase/firestore';
+import type { HubSpotObjectType } from './hubspotProperty';
 
 /**
- * Método de cálculo de HubSpot
+ * Operadores para filtros
  */
-export type HubSpotCalculationMethod =
-  | 'calculateGoalProgress'
-  | 'calculateClosureRate';
+export type HubSpotFilterOperator = '==' | '!=' | '>' | '<' | '>=' | '<=' | 'contains' | 'in';
 
 /**
- * Campo que se puede extraer de cada método
+ * Tipo de cálculo para la métrica
  */
-export type HubSpotExtractField =
-  | 'llamadas'
-  | 'colocacion'
-  | 'tasaCierre';
+export type HubSpotCalculationType = 'COUNT' | 'SUM' | 'AVERAGE';
 
 /**
- * Métrica de HubSpot configurable
+ * Filtro individual para una métrica
+ */
+export interface HubSpotMetricFilter {
+  id: string; // UUID para identificar el filtro en el form
+  propertyId: string; // ID de la property en hubspotProperties collection
+  operator: HubSpotFilterOperator;
+  value: string | number | boolean; // Valor a comparar
+}
+
+/**
+ * Filtro de rango de fechas
+ */
+export interface HubSpotDateRangeFilter {
+  enabled: boolean;
+  propertyId: string; // ID de la property de tipo fecha
+  useLeagueDates: boolean; // Si true, usa startDate/endDate de la liga/meta
+  customStartDate?: Date; // Fecha fija de inicio (si useLeagueDates = false)
+  customEndDate?: Date; // Fecha fija de fin (si useLeagueDates = false)
+}
+
+/**
+ * Métrica de HubSpot completamente configurable
  */
 export interface HubSpotMetric {
   id: string;
-  name: string;
-  description: string;
+  name: string; // "Ventas de Vida en 2024"
+  description?: string; // Descripción opcional
+  objectType: HubSpotObjectType; // deals, contacts, companies
+  calculationType: HubSpotCalculationType; // COUNT, SUM, AVERAGE
+  sumPropertyId?: string; // ID de property a sumar (si calculationType = SUM o AVERAGE)
 
-  // Configuración del cálculo
-  calculationMethod: HubSpotCalculationMethod;
-  extractField: HubSpotExtractField;
+  // Filtros
+  filters: HubSpotMetricFilter[]; // Filtros personalizados
+  dateRangeFilter?: HubSpotDateRangeFilter; // Filtro de fechas opcional
 
-  // Opciones
-  usesProductLine: boolean;  // Si filtra por productLine del usuario
-  usesDateRange: boolean;     // Si usa el rango de fechas de la liga
+  // Filtros automáticos basados en usuario
+  filterByOwnerId: boolean; // Si true, filtra por hubspot_owner_id del usuario
+  ownerIdPropertyId?: string; // ID de la property que contiene el owner ID (normalmente hubspot_owner_id)
 
-  // Estado
-  active: boolean;
+  filterByProductLine: boolean; // Si true, filtra por product_line del usuario
+  productLinePropertyId?: string; // ID de la property que contiene la línea de producto
 
   // Metadata
+  active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;
 }
 
 /**
- * DTO para crear/editar métrica
+ * DTO para formularios
  */
 export interface HubSpotMetricFormData {
   name: string;
-  description: string;
-  calculationMethod: HubSpotCalculationMethod;
-  extractField: HubSpotExtractField;
-  usesProductLine: boolean;
-  usesDateRange: boolean;
+  description?: string;
+  objectType: HubSpotObjectType;
+  calculationType: HubSpotCalculationType;
+  sumPropertyId?: string;
+  filters: HubSpotMetricFilter[];
+  dateRangeFilter?: HubSpotDateRangeFilter;
+  filterByOwnerId: boolean;
+  ownerIdPropertyId?: string;
+  filterByProductLine: boolean;
+  productLinePropertyId?: string;
   active: boolean;
 }
-
-/**
- * Configuración de métricas predefinidas
- */
-export const DEFAULT_HUBSPOT_METRICS: Omit<HubSpotMetric, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>[] = [
-  {
-    name: 'Llamadas (Deals Creados)',
-    description: 'Número de deals creados en el período. Usa el campo createdate de HubSpot.',
-    calculationMethod: 'calculateGoalProgress',
-    extractField: 'llamadas',
-    usesProductLine: true,
-    usesDateRange: true,
-    active: true
-  },
-  {
-    name: 'Colocación (Monto Desembolsado)',
-    description: 'Monto total de deals desembolsados en el período. Usa campos de disbursement específicos por producto.',
-    calculationMethod: 'calculateGoalProgress',
-    extractField: 'colocacion',
-    usesProductLine: true,
-    usesDateRange: true,
-    active: true
-  },
-  {
-    name: 'Tasa de Cierre (%)',
-    description: 'Porcentaje de deals desembolsados vs aprobados. Calcula (desembolsados / aprobados) × 100.',
-    calculationMethod: 'calculateClosureRate',
-    extractField: 'tasaCierre',
-    usesProductLine: true,
-    usesDateRange: true,
-    active: true
-  }
-];
