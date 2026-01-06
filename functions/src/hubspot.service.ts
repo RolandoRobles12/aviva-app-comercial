@@ -1204,7 +1204,7 @@ export class HubSpotService {
    *   - Desembolsados: deals con hs_v2_date_entered_33823866 en el período
    *   - Aprobados: deals con hs_v2_date_entered_36073275 en el período
    */
-  private async calculateClosureRate(
+  async calculateClosureRate(
     userId: string,
     startDate: Date,
     endDate: Date,
