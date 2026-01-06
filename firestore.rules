@@ -269,6 +269,18 @@ service cloud.firestore {
       allow create, update: if isAvivaEmail() && adminId == request.auth.uid;
     }
 
+    // HubSpot Properties - anyone authenticated can read, admins can write
+    match /hubspotProperties/{propertyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // HubSpot Metrics - anyone authenticated can read, admins can write
+    match /hubspotMetrics/{metricId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Catch-all rule for admin access to any other collection
     // This ensures admins can access any collection even if not explicitly listed
     match /{collection}/{document=**} {
