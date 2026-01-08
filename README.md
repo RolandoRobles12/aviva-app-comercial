@@ -1,0 +1,256 @@
+# 📱 Aviva App Comercial
+
+Sistema completo de gestión comercial para promotores y vendedores de Aviva Crédito.
+
+## 🎯 Descripción del Proyecto
+
+**Aviva App Comercial** es una plataforma integral que incluye:
+
+- 📱 **App Android** - Aplicación móvil nativa para vendedores
+- 🖥️ **Panel Admin Web** - Interfaz de administración y reportería
+- ☁️ **Firebase Functions** - Backend serverless
+- 🤖 **Chatbot IA** - Asistente inteligente con OpenAI
+- 📊 **Integración HubSpot** - CRM y métricas en tiempo real
+
+## 🏗️ Arquitectura
+
+```
+aviva-app-comercial/
+├── app/                    # 📱 Aplicación Android (Kotlin)
+├── admin/                  # 🖥️ Panel Web (React + TypeScript)
+├── functions/              # ☁️ Firebase Cloud Functions (TypeScript)
+├── firestore.rules         # 🔒 Reglas de seguridad Firestore
+├── firebase.json           # ⚙️ Configuración Firebase
+└── docs/                   # 📚 Documentación (*.md)
+```
+
+## 🚀 Inicio Rápido
+
+### Requisitos Previos
+
+- **Android Studio** (Arctic Fox o superior)
+- **Node.js** 18+
+- **Firebase CLI**: `npm install -g firebase-tools`
+- **JDK** 17+
+- Cuenta de **Firebase** y **HubSpot**
+
+### Configuración Inicial
+
+1. **Clonar el repositorio**
+   ```bash
+   git clone https://github.com/RolandoRobles12/aviva-app-comercial.git
+   cd aviva-app-comercial
+   ```
+
+2. **Configurar Firebase**
+   ```bash
+   firebase login
+   firebase use --add
+   ```
+
+3. **Instalar dependencias**
+   ```bash
+   # Admin Panel
+   cd admin && npm install
+
+   # Firebase Functions
+   cd ../functions && npm install
+   ```
+
+4. **Configurar variables de entorno**
+   - Ver: [`FIREBASE_SETUP_DETALLADO.md`](./FIREBASE_SETUP_DETALLADO.md)
+
+5. **Abrir proyecto Android**
+   - Abre la carpeta `app/` en Android Studio
+   - Sincroniza Gradle
+   - Ejecuta en emulador o dispositivo
+
+## 📚 Documentación
+
+### 🎯 Guías de Inicio
+
+| Documento | Descripción |
+|-----------|-------------|
+| [**FIREBASE_SETUP_DETALLADO.md**](./FIREBASE_SETUP_DETALLADO.md) | Configuración paso a paso de Firebase Functions |
+| [**DEPLOYMENT_WINDOWS.md**](./DEPLOYMENT_WINDOWS.md) | Guía de deployment para Windows/PowerShell |
+
+### 🔧 Configuración de Integraciones
+
+| Documento | Descripción |
+|-----------|-------------|
+| [**HUBSPOT_INTEGRATION_SETUP.md**](./HUBSPOT_INTEGRATION_SETUP.md) | Integración completa con HubSpot CRM |
+| [**OPENAI_ASSISTANT_SETUP.md**](./OPENAI_ASSISTANT_SETUP.md) | Configuración del chatbot con OpenAI |
+| [**LOOKER_STUDIO_SIMPLE.md**](./LOOKER_STUDIO_SIMPLE.md) | Integración de dashboards de Looker Studio |
+
+### 🖥️ Panel Administrativo
+
+| Documento | Descripción |
+|-----------|-------------|
+| [**ADMIN_PANEL_README.md**](./ADMIN_PANEL_README.md) | Arquitectura y módulos del panel admin |
+| [**admin/README.md**](./admin/README.md) | Guía técnica del panel web |
+| [**admin/MAPA_VENDEDORES.md**](./admin/MAPA_VENDEDORES.md) | Mapa de vendedores en tiempo real |
+
+### 📱 Funcionalidades de la App
+
+| Documento | Descripción |
+|-----------|-------------|
+| [**ROLES_SYSTEM.md**](./ROLES_SYSTEM.md) | Sistema de roles y permisos completo |
+| [**ECOSISTEMA_VENDEDORES.md**](./ECOSISTEMA_VENDEDORES.md) | Métricas, ligas, badges y plan de carrera |
+| [**SISTEMA_LIGAS_PERSONALIZABLE.md**](./SISTEMA_LIGAS_PERSONALIZABLE.md) | Sistema de ligas con criterios configurables |
+| [**CHATBOT_DOCUMENTATION.md**](./CHATBOT_DOCUMENTATION.md) | Chatbot asistente con IA |
+| [**CHROME_CUSTOM_TABS.md**](./CHROME_CUSTOM_TABS.md) | Solución OAuth con Chrome Custom Tabs |
+| [**TABLET_OFFLINE_IMPROVEMENTS.md**](./TABLET_OFFLINE_IMPROVEMENTS.md) | Optimización para tablets y modo offline |
+
+## 🏃 Comandos Comunes
+
+### Panel Admin
+
+```bash
+cd admin
+npm run dev              # Desarrollo (localhost:5173)
+npm run build           # Compilar para producción
+```
+
+### Firebase Functions
+
+```bash
+cd functions
+npm run build           # Compilar TypeScript
+firebase deploy --only functions    # Desplegar
+firebase functions:log  # Ver logs
+```
+
+### Deployment Completo
+
+```bash
+# Desde la raíz del proyecto
+firebase deploy         # Desplegar todo (hosting + functions)
+```
+
+## 🔑 Variables de Entorno
+
+### Admin Panel (`.env` en `/admin`)
+
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_GOOGLE_MAPS_API_KEY=...
+```
+
+### Firebase Functions
+
+```bash
+firebase functions:config:set hubspot.apikey="..."
+firebase functions:config:set openai.apikey="..."
+firebase functions:config:set openai.assistantid="..."
+```
+
+## 🏆 Módulos Principales
+
+### 📱 App Android
+
+- ✅ **Asistencia y Check-in** con geolocalización
+- ✅ **Registro de visitas** a clientes
+- ✅ **Prospección** con DENUE
+- ✅ **Métricas personales** y reportería
+- ✅ **Ligas y competencias**
+- ✅ **Badges y logros**
+- ✅ **Plan de carrera**
+- ✅ **Chat con IA** (OpenAI Assistant)
+- ✅ **Modo offline** completo
+
+### 🖥️ Panel Admin
+
+- ✅ **Dashboard** con métricas generales
+- ✅ **Gestión de usuarios** y roles
+- ✅ **Gestión de kioscos** y ubicaciones
+- ✅ **Ligas de ventas** personalizables
+- ✅ **Metas comerciales** configurables
+- ✅ **HubSpot** - Métricas y sincronización
+- ✅ **Mapa de vendedores** en tiempo real
+- ✅ **Badges y logros**
+
+### ☁️ Firebase Functions
+
+- ✅ **HubSpot** - Consultas y sincronización
+- ✅ **OpenAI** - Chatbot con function calling
+- ✅ **Cálculo de métricas** automatizado
+- ✅ **Metas comerciales** con progreso en tiempo real
+- ✅ **Ligas** - Actualización de puntos y rankings
+
+## 🔐 Seguridad
+
+- **Autenticación**: Firebase Auth con Google OAuth
+- **Autorización**: Sistema de roles con múltiples niveles
+- **Dominio restringido**: `@avivacredito.com`
+- **Firestore Rules**: Reglas granulares por colección
+- **API Keys**: Protegidas en Firebase Functions Config
+
+## 📊 Stack Tecnológico
+
+### Frontend
+
+- **Android**: Kotlin, Jetpack Compose, Material Design 3
+- **Web**: React 18, TypeScript, Material-UI v5, Vite
+
+### Backend
+
+- **Firebase**: Firestore, Cloud Functions, Auth, Hosting, Storage
+- **Node.js**: v18+ con TypeScript
+- **APIs**: HubSpot, OpenAI, Google Maps
+
+### Herramientas
+
+- **Build**: Gradle (Android), Vite (Web)
+- **CI/CD**: Firebase Hosting, GitHub Actions
+- **Monitoreo**: Firebase Crashlytics, Cloud Logging
+
+## 🤝 Contribuir
+
+1. Crea una branch: `git checkout -b feature/nueva-funcionalidad`
+2. Commit: `git commit -m "feat: agregar funcionalidad X"`
+3. Push: `git push origin feature/nueva-funcionalidad`
+4. Crea un Pull Request
+
+### Convenciones
+
+- **Commits**: Conventional Commits (feat, fix, docs, etc.)
+- **Branches**: `feature/`, `fix/`, `docs/`
+- **Código**: ESLint + Prettier (Web), ktlint (Android)
+
+## 📞 Soporte
+
+Para problemas o preguntas:
+
+1. Revisa la [documentación](#-documentación)
+2. Verifica logs de Firebase: `firebase functions:log`
+3. Revisa Logcat de Android: `adb logcat`
+4. Consulta issues en GitHub
+
+## 📝 Licencia
+
+Proyecto propietario de **Aviva Crédito**.
+
+---
+
+## 🎯 Roadmap
+
+### En Desarrollo
+
+- [ ] Notificaciones push personalizadas
+- [ ] Reportes PDF exportables
+- [ ] Dashboard de BI avanzado
+- [ ] Integración con WhatsApp Business
+
+### Completado Recientemente
+
+- [x] Sistema de ligas personalizable
+- [x] Mapa de vendedores en tiempo real
+- [x] Modo offline completo
+- [x] Chatbot con OpenAI Assistant
+- [x] Integración HubSpot completa
+
+---
+
+**Desarrollado con ❤️ para Aviva Crédito** 🚀

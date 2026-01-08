@@ -1,15 +1,17 @@
-# 🪟 Instrucciones de Deployment para Windows
+# 🪟 Guía de Deployment (Windows/PowerShell)
 
-## 🚀 DEPLOYMENT RÁPIDO (3 comandos)
+## 🚀 DEPLOYMENT RÁPIDO
 
 ```powershell
 # 1. Ve a la raíz del proyecto
-cd C:\Users\RolandoRobles\AndroidStudioProjects\PromotoresAvivaTuNegocio2
+cd ruta\a\tu\proyecto\aviva-app-comercial
 
-# 2. Ejecuta el script de deployment
-.\deploy-all.ps1
+# 2. Desplegar todo
+firebase deploy
 
-# 3. Selecciona opción 1 (Todo)
+# O desplegar componentes específicos
+firebase deploy --only hosting      # Solo admin panel
+firebase deploy --only functions    # Solo cloud functions
 ```
 
 ---
@@ -19,7 +21,8 @@ cd C:\Users\RolandoRobles\AndroidStudioProjects\PromotoresAvivaTuNegocio2
 ### Paso 1: Ir a la raíz del proyecto
 
 ```powershell
-cd C:\Users\RolandoRobles\AndroidStudioProjects\PromotoresAvivaTuNegocio2
+# Navega a la carpeta de tu proyecto
+cd C:\ruta\a\tu\proyecto\aviva-app-comercial
 ```
 
 ### Paso 2: Construir el Admin
@@ -72,39 +75,35 @@ firebase deploy
 
 ---
 
-## ✅ DEPLOYMENT EXITOSO - ¿Qué esperar?
+## ✅ VERIFICAR DEPLOYMENT EXITOSO
 
-### En el Admin (https://promotores-aviva-tu-negocio.web.app)
+### Admin Panel
 
-1. Ve a **"Metas Comerciales"**
-2. Clic en **"Nueva Meta"**
-3. Verás en **"Tipo de Objetivo"**:
-   - ✅ Todos los Promotores
-   - ✅ **Por Liga** ← NUEVO
-   - ✅ **Por Promotor Específico**
-   - ✅ **Por Kiosco Específico**
+```powershell
+# Ver URL del admin desplegado
+firebase hosting:channel:list
+```
 
-4. Al seleccionar **"Por Promotor Específico"**:
-   - ✅ Aparecerá un **Autocomplete con búsqueda**
-   - ✅ Podrás **seleccionar MÚLTIPLES usuarios**
-   - ✅ Verás nombre y email de cada usuario
-   - ✅ Podrás buscar por nombre o email
+Abre tu admin panel en: `https://TU_PROJECT_ID.web.app`
 
-5. Al seleccionar **"Por Liga"**:
-   - ✅ Aparecerá un **Autocomplete de ligas**
-   - ✅ Podrás **seleccionar MÚLTIPLES ligas**
-   - ✅ Todos los miembros de esas ligas tendrán la meta
+Verifica:
+- ✅ Login funciona correctamente
+- ✅ Todas las secciones cargan sin errores
+- ✅ Conexión a Firestore funciona
 
-### En la App Android
+### Firebase Functions
 
-1. Abre la app
-2. Ve a **"Metas & Bono"**
-3. Verás:
-   - ✅ **Datos REALES de HubSpot** (no dummy)
-   - ✅ Progreso actual de llamadas
-   - ✅ Progreso actual de colocación
-   - ✅ Porcentajes reales
-   - ✅ **Sin errores HTTP 404**
+```powershell
+# Ver funciones desplegadas
+firebase functions:list
+
+# Ver logs
+firebase functions:log
+```
+
+Verifica:
+- ✅ Todas las funciones aparecen con estado "ACTIVE"
+- ✅ No hay errores en los logs
 
 ---
 
@@ -114,15 +113,13 @@ firebase deploy
 
 **Causa:** Estás intentando ejecutar un script bash en PowerShell.
 
-**Solución:** Usa el script de PowerShell:
+**Solución:**
 
 ```powershell
-.\deploy-all.ps1
-```
+# Usa Firebase CLI directamente
+firebase deploy
 
-Si no funciona, ejecuta:
-
-```powershell
+# O si hay un script PowerShell disponible
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\deploy-all.ps1
 ```
@@ -132,10 +129,10 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 **Solución:**
 
 ```powershell
-# Hacer pull de los cambios
-git pull origin claude/fix-promoter-routes-map-01QCXWei158ixn5MFBhf1sRE
+# Opción 1: Hacer pull de los últimos cambios
+git pull
 
-# O crear el archivo manualmente
+# Opción 2: Crear el archivo manualmente
 @"
 {
   "indexes": [],
@@ -144,9 +141,9 @@ git pull origin claude/fix-promoter-routes-map-01QCXWei158ixn5MFBhf1sRE
 "@ | Out-File -FilePath firestore.indexes.json -Encoding utf8
 ```
 
-### No puedo ver el Autocomplete en el admin
+### El admin no carga después del deploy
 
-**Causa:** Cache del navegador o deployment no completado.
+**Causa:** Cache del navegador.
 
 **Solución:**
 
@@ -154,48 +151,22 @@ git pull origin claude/fix-promoter-routes-map-01QCXWei158ixn5MFBhf1sRE
 2. Abre en modo incógnito: `Ctrl + Shift + N`
 3. Refresca con cache limpio: `Ctrl + F5`
 
-### Sigue apareciendo HTTP 404 en la app
+### Las functions no responden
 
-**Causa:** Las functions no están desplegadas correctamente.
-
-**Verificación:**
-
-```powershell
-# Ver functions desplegadas
-firebase functions:list
-```
-
-Debes ver (entre otras):
-- ✅ getMyGoals
-- ✅ getMyLeagueStats
+**Causa:** Functions no desplegadas o error de configuración.
 
 **Solución:**
 
 ```powershell
+# Ver estado de functions
+firebase functions:list
+
+# Ver logs de errores
+firebase functions:log
+
+# Redesplegar
 firebase deploy --only functions
 ```
-
-### No aparecen usuarios en el Autocomplete
-
-**Causa:** No hay usuarios con rol "seller" en Firebase.
-
-**Solución:**
-
-1. Ve al admin → **"Usuarios"**
-2. Edita o crea usuarios
-3. Asegúrate de que tengan **Rol: "Promotor"** (seller)
-4. Refresca la página de Metas Comerciales
-
-### No aparecen ligas en el Autocomplete
-
-**Causa:** No hay ligas creadas.
-
-**Solución:**
-
-1. Ve al admin → **"Ligas"**
-2. Crea al menos una liga
-3. Agrega miembros a la liga
-4. Refresca la página de Metas Comerciales
 
 ---
 
@@ -251,26 +222,13 @@ cd ..
 
 ---
 
-## 📞 RESUMEN DE PASOS
+## 📞 CHECKLIST DE DEPLOYMENT
 
-1. ✅ **Pull los cambios:**
-   ```powershell
-   git pull origin claude/fix-promoter-routes-map-01QCXWei158ixn5MFBhf1sRE
-   ```
-
-2. ✅ **Desplegar:**
-   ```powershell
-   firebase deploy
-   ```
-
-3. ✅ **Abrir admin:**
-   - https://promotores-aviva-tu-negocio.web.app
-   - Ir a "Metas Comerciales"
-   - Crear nueva meta
-   - Seleccionar "Por Promotor Específico"
-   - **Verás el Autocomplete para seleccionar usuarios**
-
-4. ✅ **Probar en app:**
-   - Abrir app Android
-   - Ir a "Metas & Bono"
-   - **Verás datos reales, sin HTTP 404**
+- [ ] Código actualizado con `git pull`
+- [ ] Admin compilado: `cd admin && npm run build`
+- [ ] Functions compiladas: `cd functions && npm run build`
+- [ ] Deployment ejecutado: `firebase deploy`
+- [ ] Admin panel verificado en navegador
+- [ ] Functions activas: `firebase functions:list`
+- [ ] Logs sin errores: `firebase functions:log`
+- [ ] App Android probada con nuevos cambios
