@@ -206,42 +206,6 @@ firebase functions:config:set openai.assistantid="..."
 - **CI/CD**: Firebase Hosting, GitHub Actions
 - **Monitoreo**: Firebase Crashlytics, Cloud Logging
 
-## 🤝 Contribuir
-
-1. Crea una branch: `git checkout -b feature/nueva-funcionalidad`
-2. Commit: `git commit -m "feat: agregar funcionalidad X"`
-3. Push: `git push origin feature/nueva-funcionalidad`
-4. Crea un Pull Request
-
-### Convenciones
-
-- **Commits**: Conventional Commits (feat, fix, docs, etc.)
-- **Branches**: `feature/`, `fix/`, `docs/`
-- **Código**: ESLint + Prettier (Web), ktlint (Android)
-
-## 📞 Soporte
-
-Para problemas o preguntas:
-
-1. Revisa la [documentación](#-documentación)
-2. Verifica logs de Firebase: `firebase functions:log`
-3. Revisa Logcat de Android: `adb logcat`
-4. Consulta issues en GitHub
-
-## 📝 Licencia
-
-Proyecto propietario de **Aviva Crédito**.
-
----
-
-## 🎯 Roadmap
-
-### En Desarrollo
-
-- [ ] Notificaciones push personalizadas
-- [ ] Reportes PDF exportables
-- [ ] Dashboard de BI avanzado
-- [ ] Integración con WhatsApp Business
 
 ### Completado Recientemente
 
@@ -250,7 +214,3 @@ Proyecto propietario de **Aviva Crédito**.
 - [x] Modo offline completo
 - [x] Chatbot con OpenAI Assistant
 - [x] Integración HubSpot completa
-
----
-
-**Desarrollado con ❤️ para Aviva Crédito** 🚀
