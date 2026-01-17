@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Aviva App</title>
+  <link rel="stylesheet" href="00-base-styles.css">
+</head>
+<body>
+  <div class="android-frame">
+    <!-- App Bar -->
+    <div class="app-bar">
+      <span class="material-icons menu-icon">arrow_back</span>
+      <div class="title">Dashboard</div>
+      <span class="material-icons action-icon">more_vert</span>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Summary Stats -->
+      <div class="card">
+        <div class="card-title">Resumen del Día</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div style="text-align: center;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--primary);">15</div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">Activos</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--primary);">42</div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">Visitas</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--primary);">8</div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">Metas</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="section-header">🗺️ Mapa del Equipo</div>
+      <div class="card" style="padding: 0; height: 200px; position: relative; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--gray);">
+          <span class="material-icons" style="font-size: 48px; opacity: 0.5;">map</span>
+          <div style="font-size: 14px; margin-top: 8px; opacity: 0.7;">Mapa con ubicaciones en tiempo real</div>
+        </div>
+        <!-- Simulated markers -->
+        <div style="position: absolute; top: 30%; left: 25%; width: 24px; height: 24px; background: var(--primary); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+        <div style="position: absolute; top: 50%; left: 60%; width: 24px; height: 24px; background: var(--primary); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+        <div style="position: absolute; top: 70%; left: 40%; width: 24px; height: 24px; background: var(--primary); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+      </div>
+
+      <!-- Filters -->
+      <div style="display: flex; gap: 8px; margin: 16px 0;">
+        <div class="chip">Todos</div>
+        <div class="chip">Hoy</div>
+        <div class="chip">Producto</div>
+      </div>
+
+      <!-- Active Sellers -->
+      <div class="section-header">Vendedores Activos</div>
+
+      <!-- Seller 1 -->
+      <div class="card">
+        <div class="list-item" style="padding: 0;">
+          <div class="avatar">
+            <span class="material-icons">person</span>
+          </div>
+          <div class="content">
+            <div class="title">Juan Pérez</div>
+            <div class="subtitle">8 visitas - Centro</div>
+          </div>
+          <div class="status-indicator online"></div>
+        </div>
+      </div>
+
+      <!-- Seller 2 -->
+      <div class="card">
+        <div class="list-item" style="padding: 0;">
+          <div class="avatar">
+            <span class="material-icons">person</span>
+          </div>
+          <div class="content">
+            <div class="title">María García</div>
+            <div class="subtitle">5 visitas - Norte</div>
+          </div>
+          <div class="status-indicator online"></div>
+        </div>
+      </div>
+
+      <!-- Seller 3 -->
+      <div class="card">
+        <div class="list-item" style="padding: 0;">
+          <div class="avatar">
+            <span class="material-icons">person</span>
+          </div>
+          <div class="content">
+            <div class="title">Carlos López</div>
+            <div class="subtitle">12 visitas - Sur</div>
+          </div>
+          <div class="status-indicator online"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">home</span>
+        <span class="label">Home</span>
+      </a>
+      <a href="#" class="nav-item active">
+        <span class="material-icons icon">dashboard</span>
+        <span class="label">Dash</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">check_circle</span>
+        <span class="label">Check</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">storefront</span>
+        <span class="label">Negocio</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">person</span>
+        <span class="label">Perfil</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

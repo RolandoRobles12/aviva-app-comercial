@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistencia - Aviva App</title>
+  <link rel="stylesheet" href="00-base-styles.css">
+</head>
+<body>
+  <div class="android-frame">
+    <!-- App Bar -->
+    <div class="app-bar">
+      <span class="material-icons menu-icon">arrow_back</span>
+      <div class="title">Asistencia</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Current Status -->
+      <div class="card" style="text-align: center; padding: 32px 16px;">
+        <span class="material-icons" style="font-size: 64px; color: var(--gray); margin-bottom: 16px;">schedule</span>
+        <div style="font-size: 18px; font-weight: 500; color: var(--on-surface); margin-bottom: 4px;">
+          Sin registrar
+        </div>
+        <div style="font-size: 14px; color: var(--gray);">
+          Marca tu entrada para iniciar
+        </div>
+      </div>
+
+      <!-- Assigned Kiosk -->
+      <div class="section-header">Tu Kiosko Asignado</div>
+      <div class="card">
+        <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
+          <span class="material-icons" style="color: var(--primary); margin-right: 12px;">storefront</span>
+          <div style="flex: 1;">
+            <div style="font-size: 16px; font-weight: 500; color: var(--on-surface);">
+              Kiosko Centro
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
+          <span class="material-icons" style="color: var(--gray); margin-right: 12px; font-size: 20px;">location_on</span>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; color: var(--on-surface-variant);">
+              Av. Juárez #123
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start;">
+          <span class="material-icons" style="color: var(--gray); margin-right: 12px; font-size: 20px;">radar</span>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; color: var(--on-surface-variant);">
+              Radio: 100m
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Location -->
+      <div class="section-header">Ubicación Actual</div>
+      <div class="card">
+        <div style="display: flex; align-items: center;">
+          <span class="material-icons" style="color: var(--gray); margin-right: 12px;">my_location</span>
+          <div style="font-size: 14px; color: var(--gray);">
+            Detectando ubicación...
+          </div>
+        </div>
+      </div>
+
+      <!-- Check-in Button -->
+      <div style="text-align: center; margin-top: 32px;">
+        <button class="btn btn-primary" style="width: 100%; height: 56px; font-size: 16px;">
+          CHECK-IN
+        </button>
+      </div>
+
+      <!-- Today's History -->
+      <div class="section-header">Historial de Hoy</div>
+      <div class="card" style="text-align: center; padding: 32px 16px;">
+        <div style="font-size: 14px; color: var(--gray);">
+          No hay registros aún
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 16px;">
+        <button class="btn btn-text">Ver historial completo</button>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">home</span>
+        <span class="label">Home</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">dashboard</span>
+        <span class="label">Dash</span>
+      </a>
+      <a href="#" class="nav-item active">
+        <span class="material-icons icon">check_circle</span>
+        <span class="label">Check</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">storefront</span>
+        <span class="label">Negocio</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">person</span>
+        <span class="label">Perfil</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

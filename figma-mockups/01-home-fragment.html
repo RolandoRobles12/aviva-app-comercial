@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home - Aviva App</title>
+  <link rel="stylesheet" href="00-base-styles.css">
+</head>
+<body>
+  <div class="android-frame">
+    <!-- App Bar -->
+    <div class="app-bar">
+      <span class="material-icons menu-icon">menu</span>
+      <div class="title">Inicio</div>
+      <div style="position: relative;">
+        <span class="material-icons action-icon">notifications</span>
+        <span class="badge">3</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- User Summary Card -->
+      <div class="card">
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+          <div class="avatar" style="width: 48px; height: 48px; font-size: 24px;">
+            <span class="material-icons">person</span>
+          </div>
+          <div style="margin-left: 12px; flex: 1;">
+            <div style="font-size: 18px; font-weight: 500; color: var(--on-surface);">
+              👋 Hola, Juan Pérez
+            </div>
+            <div style="font-size: 14px; color: var(--on-surface-variant);">
+              Promotor - Kiosko Centro
+            </div>
+          </div>
+        </div>
+        <div class="card-divider"></div>
+        <div style="display: flex; gap: 16px; margin-top: 12px;">
+          <div style="flex: 1; display: flex; align-items: center;">
+            <span class="material-icons" style="color: var(--primary); margin-right: 6px;">flag</span>
+            <span style="font-size: 14px; color: var(--on-surface-variant);">2 metas activas</span>
+          </div>
+          <div style="flex: 1; display: flex; align-items: center;">
+            <span class="material-icons" style="color: var(--warning); margin-right: 6px;">emoji_events</span>
+            <span style="font-size: 14px; color: var(--on-surface-variant);">Liga Oro #3</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section-header">Acciones Rápidas</div>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
+        <div class="card" style="text-align: center; cursor: pointer;">
+          <div style="width: 56px; height: 56px; margin: 0 auto 8px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <span class="material-icons" style="font-size: 32px; color: var(--primary);">check_circle</span>
+          </div>
+          <div style="font-size: 14px; font-weight: 500; color: var(--on-surface);">Check-in</div>
+        </div>
+        <div class="card" style="text-align: center; cursor: pointer;">
+          <div style="width: 56px; height: 56px; margin: 0 auto 8px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <span class="material-icons" style="font-size: 32px; color: var(--primary);">storefront</span>
+          </div>
+          <div style="font-size: 14px; font-weight: 500; color: var(--on-surface);">Nueva Visita</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="section-header">Actividad Reciente</div>
+
+      <!-- Activity Item 1 -->
+      <div class="card">
+        <div style="display: flex; align-items: flex-start;">
+          <span class="material-icons" style="color: var(--primary); margin-right: 12px;">storefront</span>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; font-weight: 500; color: var(--on-surface);">
+              Visita: Abarrotes "La Esquina"
+            </div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">
+              Hace 2 horas
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Item 2 -->
+      <div class="card">
+        <div style="display: flex; align-items: flex-start;">
+          <span class="material-icons" style="color: var(--success); margin-right: 12px;">check_circle</span>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; font-weight: 500; color: var(--on-surface);">
+              Check-in registrado
+            </div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">
+              08:30 AM - Kiosko Centro
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Item 3 -->
+      <div class="card">
+        <div style="display: flex; align-items: flex-start;">
+          <span class="material-icons" style="color: var(--primary); margin-right: 12px;">flag</span>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; font-weight: 500; color: var(--on-surface);">
+              Meta "Llamadas Nov" al 73% - On Track
+            </div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">
+              Hace 1 hora
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+      <a href="#" class="nav-item active">
+        <span class="material-icons icon">home</span>
+        <span class="label">Home</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">dashboard</span>
+        <span class="label">Dash</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">check_circle</span>
+        <span class="label">Check</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">storefront</span>
+        <span class="label">Negocio</span>
+      </a>
+      <a href="#" class="nav-item">
+        <span class="material-icons icon">person</span>
+        <span class="label">Perfil</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
