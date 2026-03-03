@@ -170,7 +170,8 @@ class AvivaTuNegocioApplication : Application() {
                         // Enable manager-specific features (supervisor replacement)
                         enableSupervisorFeatures(user.assignedPromoters)
                     }
-                    models.User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO -> {
+                    models.User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
+                    models.User.UserRole.PROMOTOR_CONSTRURAMA -> {
                         // Enable promotor-specific features (full functionality)
                         enablePromotorFeatures(user.productTypes, user.kiosks)
                     }
