@@ -43,14 +43,28 @@
                     android:fontFamily="sans-serif-medium" />
 
                 <TextView
+                    android:id="@+id/productNameText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Aviva Tu Negocio"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:gravity="center"
+                    android:layout_marginTop="6dp"
+                    android:alpha="1.0"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/productSubtitleText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Panel de Inicio"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:textColor="@color/white"
                     android:gravity="center"
-                    android:layout_marginTop="8dp"
-                    android:alpha="0.95"
+                    android:layout_marginTop="4dp"
+                    android:alpha="0.85"
                     android:fontFamily="sans-serif-light" />
 
             </LinearLayout>
@@ -97,6 +111,7 @@
                 </com.google.android.material.card.MaterialCardView>
 
                 <TextView
+                    android:id="@+id/textMetasComerciales"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Mis metas comerciales"

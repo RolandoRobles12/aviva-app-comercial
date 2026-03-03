@@ -20,8 +20,11 @@ import {
   ListItemIcon,
   Tooltip,
   Collapse,
-  ListItemButton
+  ListItemButton,
+  Tabs,
+  Tab
 } from '@mui/material';
+import ReportesRutas from './ReportesRutas';
 import {
   Route as RouteIcon,
   Place as PlaceIcon,
@@ -91,6 +94,8 @@ interface LongStop {
 type QuickFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
 const RutasPromotores: React.FC = () => {
+  const [mainTab, setMainTab] = useState(0);
+
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES
@@ -419,25 +424,6 @@ const RutasPromotores: React.FC = () => {
     };
   }, [selectedUserIds, locationPoints, kioskVisits, longStops]);
 
-  if (loadError) {
-    return (
-      <Box sx={{ p: 4 }}>
-        <Alert severity="error">Error al cargar Google Maps: {loadError.message}</Alert>
-      </Box>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <Stack alignItems="center" spacing={2}>
-          <CircularProgress size={60} />
-          <Typography>Cargando Google Maps...</Typography>
-        </Stack>
-      </Box>
-    );
-  }
-
   if (!GOOGLE_MAPS_API_KEY) {
     return (
       <Box sx={{ p: 4 }}>
@@ -461,9 +447,43 @@ const RutasPromotores: React.FC = () => {
       right: 0,
       bottom: 0,
       display: 'flex',
+      flexDirection: 'column',
       bgcolor: 'background.default',
       zIndex: 1
     }}>
+      {/* Tabs principales: Mapa de Rutas | Reportes */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', px: 2, flexShrink: 0 }}>
+        <Tabs value={mainTab} onChange={(_, v) => setMainTab(v)}>
+          <Tab label="Mapa de Rutas" />
+          <Tab label="Reportes" />
+        </Tabs>
+      </Box>
+
+      {/* Tab Reportes */}
+      {mainTab === 1 && (
+        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+          <ReportesRutas />
+        </Box>
+      )}
+
+      {/* Tab Mapa de Rutas */}
+      {mainTab === 0 && (
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {loadError && (
+        <Box sx={{ p: 4 }}>
+          <Alert severity="error">Error al cargar Google Maps: {loadError.message}</Alert>
+        </Box>
+      )}
+      {!isLoaded && !loadError && (
+        <Box display="flex" justifyContent="center" alignItems="center" sx={{ flex: 1 }}>
+          <Stack alignItems="center" spacing={2}>
+            <CircularProgress size={60} />
+            <Typography>Cargando Google Maps...</Typography>
+          </Stack>
+        </Box>
+      )}
+      {isLoaded && !loadError && (
+      <Box sx={{ display: 'flex', flex: 1 }}>
       {/* Barra superior de estadísticas */}
       <Paper
         elevation={3}
@@ -977,6 +997,12 @@ const RutasPromotores: React.FC = () => {
           )}
         </GoogleMap>
       </Box>
+    </Box>
+      )}
+      {/* End isLoaded check */}
+      </Box>
+      )}
+      {/* End mainTab === 0 */}
     </Box>
   );
 };

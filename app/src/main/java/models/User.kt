@@ -51,14 +51,16 @@ data class User(
         GERENTE_AVIVA_CONTIGO,          // Gerente con promotores a cargo (solo Aviva Tu Negocio)
         PROMOTOR_AVIVA_TU_NEGOCIO,      // Promotor con visitas y prospección
         EMBAJADOR_AVIVA_TU_COMPRA,      // Embajador sin visitas ni prospección
-        PROMOTOR_AVIVA_TU_CASA          // Promotor de casa sin visitas, prospección ni ligas
+        PROMOTOR_AVIVA_TU_CASA,         // Promotor de casa sin visitas, prospección ni ligas
+        PROMOTOR_CONSTRURAMA            // Promotor de Construrama
     }
 
     enum class ProductLine {
         AVIVA_TU_NEGOCIO,   // Producto actual (con visitas y prospección)
         AVIVA_CONTIGO,       // Gerentes
         AVIVA_TU_COMPRA,     // Embajadores
-        AVIVA_TU_CASA        // Promotores de casa
+        AVIVA_TU_CASA,       // Promotores de casa
+        CONSTRURAMA          // Promotores de Construrama
     }
 
     enum class UserStatus {
@@ -76,6 +78,7 @@ data class User(
             UserRole.PROMOTOR_AVIVA_TU_NEGOCIO -> promotorNegocioPermissions.contains(permission)
             UserRole.EMBAJADOR_AVIVA_TU_COMPRA -> embajadorCompraPermissions.contains(permission)
             UserRole.PROMOTOR_AVIVA_TU_CASA -> promotorCasaPermissions.contains(permission)
+            UserRole.PROMOTOR_CONSTRURAMA -> promotorNegocioPermissions.contains(permission)
         }
     }
 
@@ -88,7 +91,8 @@ data class User(
                 assignedPromoters.contains(targetUser.id)
             UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
             UserRole.EMBAJADOR_AVIVA_TU_COMPRA,
-            UserRole.PROMOTOR_AVIVA_TU_CASA -> false
+            UserRole.PROMOTOR_AVIVA_TU_CASA,
+            UserRole.PROMOTOR_CONSTRURAMA -> false
         }
     }
 
@@ -100,6 +104,7 @@ data class User(
             UserRole.PROMOTOR_AVIVA_TU_NEGOCIO -> "Promotor Aviva Tu Negocio"
             UserRole.EMBAJADOR_AVIVA_TU_COMPRA -> "Embajador Aviva Tu Compra"
             UserRole.PROMOTOR_AVIVA_TU_CASA -> "Promotor Aviva Tu Casa"
+            UserRole.PROMOTOR_CONSTRURAMA -> "Promotor Construrama"
         }
     }
 
@@ -123,8 +128,11 @@ data class User(
         UserRole.GERENTE_AVIVA_CONTIGO,
         UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
         UserRole.EMBAJADOR_AVIVA_TU_COMPRA,
-        UserRole.PROMOTOR_AVIVA_TU_CASA
+        UserRole.PROMOTOR_AVIVA_TU_CASA,
+        UserRole.PROMOTOR_CONSTRURAMA
     )
+
+    fun isConstrama(): Boolean = productLine == ProductLine.CONSTRURAMA
 
     fun getProductLineDisplayName(): String {
         return when (productLine) {
@@ -132,6 +140,14 @@ data class User(
             ProductLine.AVIVA_CONTIGO -> "Aviva Contigo"
             ProductLine.AVIVA_TU_COMPRA -> "Aviva Tu Compra"
             ProductLine.AVIVA_TU_CASA -> "Aviva Tu Casa"
+            ProductLine.CONSTRURAMA -> "Construrama"
+        }
+    }
+
+    fun getAppProductName(): String {
+        return when (productLine) {
+            ProductLine.CONSTRURAMA -> "Construrama"
+            else -> "Aviva Tu Negocio"
         }
     }
 
