@@ -22,6 +22,7 @@ import Administradores from './pages/Administradores';
 import Auditoria from './pages/Auditoria';
 import Configuracion from './pages/Configuracion';
 import Bonos from './pages/Bonos';
+import ZonasVendedores from './pages/ZonasVendedores';
 
 const theme = createTheme({
   palette: {
@@ -239,6 +240,7 @@ function AppRoutes() {
         <Route path="productos" element={<Productos />} />
         <Route path="mapa" element={<MapaVendedores />} />
         <Route path="rutas" element={<RutasPromotores />} />
+        <Route path="zonas" element={<ZonasVendedores />} />
         <Route path="metas" element={<Metas />} />
         <Route path="ligas" element={<Ligas />} />
         <Route path="hubspot-properties" element={<HubSpotProperties />} />

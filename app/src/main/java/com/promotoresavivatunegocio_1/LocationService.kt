@@ -51,9 +51,9 @@ class LocationService : Service() {
         private const val CHANNEL_ID = "LocationServiceChannel"
         private const val NOTIFICATION_ID = 1001
 
-        // CONFIGURACION: Cada 15 minutos
-        private const val LOCATION_INTERVAL = 15 * 60 * 1000L // 15 minutos
-        private const val FASTEST_INTERVAL = 5 * 60 * 1000L   // 5 minutos mínimo
+        // CONFIGURACION: Cada 5 minutos
+        private const val LOCATION_INTERVAL = 5 * 60 * 1000L  // 5 minutos
+        private const val FASTEST_INTERVAL = 2 * 60 * 1000L   // 2 minutos mínimo
 
         // FILTROS DE CALIDAD
         private const val MIN_ACCURACY = 100f // Precisión mínima 100 metros (ajustado para edificios/zonas urbanas)
@@ -178,7 +178,7 @@ class LocationService : Service() {
             stopWorkHoursMonitoring()
 
             // Iniciar como servicio foreground con notificacion neutra
-            val notification = createNotification("Tracking activo", "Registrando ubicación cada 15 minutos")
+            val notification = createNotification("Tracking activo", "Registrando ubicación cada 5 minutos")
             startForeground(NOTIFICATION_ID, notification)
 
             // Configurar y solicitar actualizaciones

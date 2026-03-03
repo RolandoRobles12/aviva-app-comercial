@@ -4,10 +4,15 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.promotoresavivatunegocio_1.services.*
+import com.promotoresavivatunegocio_1.workers.TrackingKeepaliveWorker
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class AvivaTuNegocioApplication : Application() {
 
@@ -54,6 +59,11 @@ class AvivaTuNegocioApplication : Application() {
     }
 
     private fun setupBackgroundMonitoring() {
+        // Registrar worker periódico de keepalive para el tracking de ubicación.
+        // Se ejecuta cada 15 minutos (mínimo de WorkManager) y garantiza que el
+        // LocationService esté activo aunque el OS lo haya detenido o la app esté cerrada.
+        scheduleTrackingKeepalive()
+
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             try {
                 // Initialize background jobs
@@ -69,6 +79,24 @@ class AvivaTuNegocioApplication : Application() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error setting up background monitoring", e)
             }
+        }
+    }
+
+    private fun scheduleTrackingKeepalive() {
+        try {
+            val keepaliveRequest = PeriodicWorkRequestBuilder<TrackingKeepaliveWorker>(
+                15, TimeUnit.MINUTES
+            ).build()
+
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                TrackingKeepaliveWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP, // No reemplazar si ya existe
+                keepaliveRequest
+            )
+
+            Log.d(TAG, "Tracking keepalive worker registrado (cada 15 min)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registrando tracking keepalive worker", e)
         }
     }
 

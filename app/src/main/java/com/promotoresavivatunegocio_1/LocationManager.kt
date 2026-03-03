@@ -27,7 +27,7 @@ class LocationManager private constructor(private val context: Context) {
     }
 
     var isTrackingEnabled: Boolean
-        get() = prefs.getBoolean(KEY_TRACKING_ENABLED, false)
+        get() = prefs.getBoolean(KEY_TRACKING_ENABLED, true) // Default true: siempre activo
         private set(value) = prefs.edit().putBoolean(KEY_TRACKING_ENABLED, value).apply()
 
     fun startTracking(): Boolean {

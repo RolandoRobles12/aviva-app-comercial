@@ -73,6 +73,15 @@ class RoleBasedNavigationManager(private val user: User) {
                 showProfile = true,
                 showAdmin = false
             )
+
+            User.UserRole.PROMOTOR_CONSTRURAMA -> NavigationConfig(
+                showHome = false,
+                showMetrics = true,
+                showAttendance = true,
+                showLeagues = true,
+                showProfile = true,
+                showAdmin = false
+            )
         }
     }
 
