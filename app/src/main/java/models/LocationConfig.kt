@@ -80,7 +80,8 @@ data class LocationConfig(
         fun getValidationTypeForProductLine(productLine: User.ProductLine): ValidationType {
             return when (productLine) {
                 User.ProductLine.AVIVA_TU_NEGOCIO,
-                User.ProductLine.AVIVA_TU_CASA -> ValidationType.ROUTE_ONLY
+                User.ProductLine.AVIVA_TU_CASA,
+                User.ProductLine.CONSTRURAMA -> ValidationType.ROUTE_ONLY
 
                 User.ProductLine.AVIVA_TU_COMPRA,
                 User.ProductLine.AVIVA_CONTIGO -> ValidationType.FIXED_LOCATION
