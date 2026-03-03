@@ -471,6 +471,8 @@ const ZonasVendedores: React.FC = () => {
               value={panelSeller}
               onChange={(_, v) => setPanelSeller(v)}
               getOptionLabel={u => u.displayName}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderOption={(props, u) => <li {...props} key={u.id}>{u.displayName}</li>}
               renderInput={(params) => (
                 <TextField {...params} label="Vendedor *" size="small" placeholder="Selecciona primero el vendedor" />
               )}
@@ -531,6 +533,7 @@ const ZonasVendedores: React.FC = () => {
                   options={MEXICO_STATES}
                   value={newZoneState}
                   onChange={(_, v) => setNewZoneState(v || '')}
+                  isOptionEqualToValue={(option, value) => option === value || value === ''}
                   renderInput={(params) => <TextField {...params} label="Estado" size="small" />}
                 />
                 <Autocomplete
@@ -542,6 +545,7 @@ const ZonasVendedores: React.FC = () => {
                     setNewZoneMunicipality(value);
                     fetchMunicipalitySuggestions(value);
                   }}
+                  isOptionEqualToValue={(option, value) => option === value || value === ''}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -588,6 +592,7 @@ const ZonasVendedores: React.FC = () => {
                   options={MEXICO_STATES}
                   value={newZoneState}
                   onChange={(_, v) => setNewZoneState(v || '')}
+                  isOptionEqualToValue={(option, value) => option === value || value === ''}
                   renderInput={(params) => <TextField {...params} label="Estado" size="small" />}
                 />
                 <Autocomplete
@@ -599,6 +604,7 @@ const ZonasVendedores: React.FC = () => {
                     setNewZoneMunicipality(value);
                     fetchMunicipalitySuggestions(value);
                   }}
+                  isOptionEqualToValue={(option, value) => option === value || value === ''}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -883,6 +889,8 @@ const ZonasVendedores: React.FC = () => {
               value={newZoneSeller}
               onChange={(_, v) => setNewZoneSeller(v)}
               getOptionLabel={u => `${u.displayName} (${u.email})`}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderOption={(props, u) => <li {...props} key={u.id}>{u.displayName} ({u.email})</li>}
               renderInput={(params) => (
                 <TextField {...params} label="Asignar a vendedor *" />
               )}

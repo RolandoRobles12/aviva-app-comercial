@@ -281,6 +281,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Zones (zonas de vendedores) - admins can read/write, sellers can read their own
+    match /zones/{zoneId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Kiosk Visits - users can create/read their own, admins can read all
+    match /kioskVisits/{visitId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
     // Catch-all rule for admin access to any other collection
     // This ensures admins can access any collection even if not explicitly listed
     match /{collection}/{document=**} {
