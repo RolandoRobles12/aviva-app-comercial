@@ -94,6 +94,8 @@ interface Zone {
   municipalityState?: string;
   coloniaName?: string;
   postalCode?: string;
+  startDate?: string;
+  endDate?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -138,7 +140,6 @@ const ZonasVendedores: React.FC = () => {
   const [newZoneDialog, setNewZoneDialog] = useState(false);
   const [newZoneType, setNewZoneType] = useState<'polygon' | 'municipality' | 'colonia'>('polygon');
   const [pendingPolygon, setPendingPolygon] = useState<ZoneCoord[] | null>(null);
-  const [newZoneName, setNewZoneName] = useState('');
   const [newZoneDescription, setNewZoneDescription] = useState('');
   const [newZoneSeller, setNewZoneSeller] = useState<User | null>(null);
   const [newZoneColor, setNewZoneColor] = useState(ZONE_COLORS[0]);
@@ -146,6 +147,14 @@ const ZonasVendedores: React.FC = () => {
   const [newZoneState, setNewZoneState] = useState('');
   const [newZoneColonia, setNewZoneColonia] = useState('');
   const [newZonePostalCode, setNewZonePostalCode] = useState('');
+  // Seller-first flow: seller selected in the panel before zone creation
+  const [panelSeller, setPanelSeller] = useState<User | null>(null);
+  // Date range as zone name
+  const [newZoneStartDate, setNewZoneStartDate] = useState('');
+  const [newZoneEndDate, setNewZoneEndDate] = useState('');
+  // Google Places autocomplete for municipality
+  const [municipalityOptions, setMunicipalityOptions] = useState<string[]>([]);
+  const [municipalityLoading, setMunicipalityLoading] = useState(false);
 
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null);
 
@@ -194,19 +203,50 @@ const ZonasVendedores: React.FC = () => {
     polygon.setMap(null); // Quitar el polígono temporal
     setPendingPolygon(coords);
     setNewZoneType('polygon');
+    setNewZoneSeller(panelSeller); // Pre-populate seller from panel
     setNewZoneDialog(true);
     setDrawingMode('none');
+  }, [panelSeller]);
+
+  const generateZoneName = (start: string, end: string): string => {
+    const fmt = (d: string) => {
+      const [y, m, day] = d.split('-');
+      return `${day}/${m}/${y}`;
+    };
+    return `${fmt(start)} al ${fmt(end)}`;
+  };
+
+  const fetchMunicipalitySuggestions = useCallback((input: string) => {
+    if (!input || input.length < 2 || !window.google) {
+      setMunicipalityOptions([]);
+      return;
+    }
+    setMunicipalityLoading(true);
+    const service = new google.maps.places.AutocompleteService();
+    service.getPlacePredictions(
+      { input, types: ['(cities)'], componentRestrictions: { country: 'mx' } },
+      (predictions, status) => {
+        setMunicipalityLoading(false);
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setMunicipalityOptions([...new Set(predictions.map(p => p.structured_formatting.main_text))]);
+        } else {
+          setMunicipalityOptions([]);
+        }
+      }
+    );
   }, []);
 
   const handleSaveZone = async () => {
-    if (!newZoneName.trim()) {
-      setError('El nombre de la zona es requerido');
+    if (!newZoneStartDate || !newZoneEndDate) {
+      setError('Debes seleccionar el rango de fechas de la zona');
       return;
     }
     if (!newZoneSeller) {
       setError('Debes asignar un vendedor a la zona');
       return;
     }
+
+    const generatedName = generateZoneName(newZoneStartDate, newZoneEndDate);
 
     let coordinates: ZoneCoord[] = [];
     if (newZoneType === 'polygon' && pendingPolygon) {
@@ -223,7 +263,7 @@ const ZonasVendedores: React.FC = () => {
     setSaving(true);
     try {
       const zoneData: Omit<Zone, 'id'> = {
-        name: newZoneName.trim(),
+        name: generatedName,
         description: newZoneDescription.trim(),
         type: newZoneType,
         assignedSellerId: newZoneSeller.id,
@@ -231,6 +271,8 @@ const ZonasVendedores: React.FC = () => {
         coordinates,
         color: newZoneColor,
         isActive: true,
+        startDate: newZoneStartDate,
+        endDate: newZoneEndDate,
         ...(newZoneType === 'municipality' && {
           municipalityName: newZoneMunicipality,
           municipalityState: newZoneState
@@ -305,7 +347,6 @@ const ZonasVendedores: React.FC = () => {
 
   const resetNewZoneForm = () => {
     setNewZoneDialog(false);
-    setNewZoneName('');
     setNewZoneDescription('');
     setNewZoneSeller(null);
     setNewZoneColor(ZONE_COLORS[0]);
@@ -315,6 +356,8 @@ const ZonasVendedores: React.FC = () => {
     setNewZonePostalCode('');
     setPendingPolygon(null);
     setNewZoneType('polygon');
+    setNewZoneStartDate('');
+    setNewZoneEndDate('');
   };
 
   const getZoneTypeLabel = (type: string) => {
@@ -419,12 +462,28 @@ const ZonasVendedores: React.FC = () => {
               </Alert>
             )}
 
-            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-              Tipo de zona a crear:
+            {/* Paso 1: Seleccionar vendedor */}
+            <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+              1. Selecciona el vendedor:
+            </Typography>
+            <Autocomplete
+              options={users}
+              value={panelSeller}
+              onChange={(_, v) => setPanelSeller(v)}
+              getOptionLabel={u => u.displayName}
+              renderInput={(params) => (
+                <TextField {...params} label="Vendedor *" size="small" placeholder="Selecciona primero el vendedor" />
+              )}
+              sx={{ mb: 2 }}
+            />
+
+            {/* Paso 2: Tipo de zona */}
+            <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+              2. Tipo de zona a crear:
             </Typography>
 
             {/* Opción 1: Dibujar polígono */}
-            <Paper variant="outlined" sx={{ p: 2, mb: 2, cursor: 'pointer',
+            <Paper variant="outlined" sx={{ p: 2, mb: 2,
               border: drawingMode === 'polygon' ? '2px solid' : '1px solid',
               borderColor: drawingMode === 'polygon' ? 'primary.main' : 'divider'
             }}>
@@ -436,13 +495,18 @@ const ZonasVendedores: React.FC = () => {
                     Dibuja libremente el área en el mapa
                   </Typography>
                 </Box>
-                <Button
-                  variant={drawingMode === 'polygon' ? 'contained' : 'outlined'}
-                  size="small"
-                  onClick={() => setDrawingMode(drawingMode === 'polygon' ? 'none' : 'polygon')}
-                >
-                  {drawingMode === 'polygon' ? 'Cancelar' : 'Dibujar'}
-                </Button>
+                <Tooltip title={!panelSeller ? 'Selecciona un vendedor primero' : ''}>
+                  <span>
+                    <Button
+                      variant={drawingMode === 'polygon' ? 'contained' : 'outlined'}
+                      size="small"
+                      disabled={!panelSeller}
+                      onClick={() => setDrawingMode(drawingMode === 'polygon' ? 'none' : 'polygon')}
+                    >
+                      {drawingMode === 'polygon' ? 'Cancelar' : 'Dibujar'}
+                    </Button>
+                  </span>
+                </Tooltip>
               </Stack>
               {drawingMode === 'polygon' && (
                 <Alert severity="info" sx={{ mt: 1 }}>
@@ -469,26 +533,42 @@ const ZonasVendedores: React.FC = () => {
                   onChange={(_, v) => setNewZoneState(v || '')}
                   renderInput={(params) => <TextField {...params} label="Estado" size="small" />}
                 />
-                <TextField
-                  label="Municipio / Alcaldía"
-                  size="small"
-                  fullWidth
+                <Autocomplete
+                  freeSolo
+                  options={municipalityOptions}
+                  loading={municipalityLoading}
                   value={newZoneMunicipality}
-                  onChange={e => setNewZoneMunicipality(e.target.value)}
-                />
-                <Button
-                  variant="outlined"
-                  size="small"
-                  disabled={!newZoneState || !newZoneMunicipality}
-                  onClick={() => {
-                    setNewZoneType('municipality');
-                    setNewZoneName(`${newZoneMunicipality}, ${newZoneState}`);
-                    setNewZoneDialog(true);
+                  onInputChange={(_, value) => {
+                    setNewZoneMunicipality(value);
+                    fetchMunicipalitySuggestions(value);
                   }}
-                  startIcon={<AddIcon />}
-                >
-                  Agregar municipio como zona
-                </Button>
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Municipio / Alcaldía"
+                      size="small"
+                      placeholder="Escribe para ver sugerencias..."
+                    />
+                  )}
+                />
+                <Tooltip title={!panelSeller ? 'Selecciona un vendedor primero' : ''}>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      fullWidth
+                      disabled={!panelSeller || !newZoneState || !newZoneMunicipality}
+                      onClick={() => {
+                        setNewZoneType('municipality');
+                        setNewZoneSeller(panelSeller);
+                        setNewZoneDialog(true);
+                      }}
+                      startIcon={<AddIcon />}
+                    >
+                      Agregar municipio como zona
+                    </Button>
+                  </span>
+                </Tooltip>
               </Stack>
             </Paper>
 
@@ -510,12 +590,23 @@ const ZonasVendedores: React.FC = () => {
                   onChange={(_, v) => setNewZoneState(v || '')}
                   renderInput={(params) => <TextField {...params} label="Estado" size="small" />}
                 />
-                <TextField
-                  label="Municipio / Alcaldía"
-                  size="small"
-                  fullWidth
+                <Autocomplete
+                  freeSolo
+                  options={municipalityOptions}
+                  loading={municipalityLoading}
                   value={newZoneMunicipality}
-                  onChange={e => setNewZoneMunicipality(e.target.value)}
+                  onInputChange={(_, value) => {
+                    setNewZoneMunicipality(value);
+                    fetchMunicipalitySuggestions(value);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Municipio / Alcaldía"
+                      size="small"
+                      placeholder="Escribe para ver sugerencias..."
+                    />
+                  )}
                 />
                 <TextField
                   label="Colonia"
@@ -531,20 +622,25 @@ const ZonasVendedores: React.FC = () => {
                   value={newZonePostalCode}
                   onChange={e => setNewZonePostalCode(e.target.value)}
                 />
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="success"
-                  disabled={!newZoneState || !newZoneMunicipality || !newZoneColonia}
-                  onClick={() => {
-                    setNewZoneType('colonia');
-                    setNewZoneName(newZoneColonia + (newZonePostalCode ? ` (CP ${newZonePostalCode})` : ''));
-                    setNewZoneDialog(true);
-                  }}
-                  startIcon={<AddIcon />}
-                >
-                  Agregar colonia como zona
-                </Button>
+                <Tooltip title={!panelSeller ? 'Selecciona un vendedor primero' : ''}>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="success"
+                      fullWidth
+                      disabled={!panelSeller || !newZoneState || !newZoneMunicipality || !newZoneColonia}
+                      onClick={() => {
+                        setNewZoneType('colonia');
+                        setNewZoneSeller(panelSeller);
+                        setNewZoneDialog(true);
+                      }}
+                      startIcon={<AddIcon />}
+                    >
+                      Agregar colonia como zona
+                    </Button>
+                  </span>
+                </Tooltip>
               </Stack>
             </Paper>
           </Box>
@@ -741,13 +837,37 @@ const ZonasVendedores: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <TextField
-              label="Nombre de la zona *"
-              fullWidth
-              value={newZoneName}
-              onChange={e => setNewZoneName(e.target.value)}
-              helperText="Ej: Zona Norte CDMX, Colonia Polanco, Municipio Tlalnepantla"
-            />
+            {/* Rango de fechas como nombre */}
+            <Box>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                Rango de fechas de la zona: *
+              </Typography>
+              <Stack direction="row" spacing={1.5}>
+                <TextField
+                  label="Desde"
+                  type="date"
+                  fullWidth
+                  size="small"
+                  value={newZoneStartDate}
+                  onChange={e => setNewZoneStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Hasta"
+                  type="date"
+                  fullWidth
+                  size="small"
+                  value={newZoneEndDate}
+                  onChange={e => setNewZoneEndDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Stack>
+              {newZoneStartDate && newZoneEndDate && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                  Nombre de la zona: <strong>{generateZoneName(newZoneStartDate, newZoneEndDate)}</strong>
+                </Typography>
+              )}
+            </Box>
 
             <TextField
               label="Descripción (opcional)"
@@ -810,7 +930,7 @@ const ZonasVendedores: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleSaveZone}
-            disabled={saving || !newZoneName.trim() || !newZoneSeller}
+            disabled={saving || !newZoneStartDate || !newZoneEndDate || !newZoneSeller}
             startIcon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
           >
             {saving ? 'Guardando...' : 'Guardar Zona'}

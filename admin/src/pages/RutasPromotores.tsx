@@ -537,14 +537,18 @@ const RutasPromotores: React.FC = () => {
           </Stack>
           <Stack direction="row" spacing={1}>
             <Tooltip title="Refrescar">
-              <IconButton onClick={handleLoadRoute} size="small" disabled={selectedUserIds.length === 0 || loading}>
-                <RefreshIcon />
-              </IconButton>
+              <span>
+                <IconButton onClick={handleLoadRoute} size="small" disabled={selectedUserIds.length === 0 || loading}>
+                  <RefreshIcon />
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title="Centrar mapa">
-              <IconButton onClick={centerMap} size="small" disabled={!hasData}>
-                <MyLocationIcon />
-              </IconButton>
+              <span>
+                <IconButton onClick={centerMap} size="small" disabled={!hasData}>
+                  <MyLocationIcon />
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
               <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
