@@ -27,6 +27,7 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
   Draw as DrawIcon,
+  Block as BlockIcon,
   Apartment as ApartmentIcon,
   Home as HomeIcon,
   Visibility as VisibilityIcon,
@@ -87,6 +88,15 @@ interface Zone {
   updatedAt?: Timestamp;
 }
 
+interface ForbiddenZone {
+  id: string;
+  name: string;
+  description: string;
+  coordinates: ZoneCoord[];
+  isActive: boolean;
+  createdAt?: Timestamp;
+}
+
 // Estados de México para el selector
 const MEXICO_STATES = [
   'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche',
@@ -135,11 +145,23 @@ const ZonasVendedores: React.FC = () => {
   const [municipalityOptions, setMunicipalityOptions] = useState<string[]>([]);
   const [municipalityLoading, setMunicipalityLoading] = useState(false);
 
+  // ── Zonas Prohibidas ──────────────────────────────────────────
+  const [forbiddenZones, setForbiddenZones] = useState<ForbiddenZone[]>([]);
+  const [drawingForbiddenMode, setDrawingForbiddenMode] = useState(false);
+  const [pendingForbiddenPolygon, setPendingForbiddenPolygon] = useState<ZoneCoord[] | null>(null);
+  const [forbiddenDialog, setForbiddenDialog] = useState(false);
+  const [forbiddenZoneName, setForbiddenZoneName] = useState('');
+  const [forbiddenZoneDesc, setForbiddenZoneDesc] = useState('');
+  const [savingForbidden, setSavingForbidden] = useState(false);
+  const [deleteForbiddenDialog, setDeleteForbiddenDialog] = useState<ForbiddenZone | null>(null);
+  const [selectedForbiddenZone, setSelectedForbiddenZone] = useState<ForbiddenZone | null>(null);
+
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null);
 
   useEffect(() => {
     fetchZones();
     fetchUsers();
+    fetchForbiddenZones();
   }, []);
 
   const fetchZones = async () => {
@@ -152,6 +174,18 @@ const ZonasVendedores: React.FC = () => {
       setError('Error al cargar zonas: ' + e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchForbiddenZones = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'forbidden_zones'));
+      const data: ForbiddenZone[] = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as ForbiddenZone))
+        .filter(z => z.isActive !== false);
+      setForbiddenZones(data);
+    } catch (e: any) {
+      console.error('Error cargando zonas prohibidas:', e);
     }
   };
 
@@ -169,6 +203,54 @@ const ZonasVendedores: React.FC = () => {
       ));
     } catch (e) {
       console.error('Error cargando usuarios:', e);
+    }
+  };
+
+  const handleForbiddenPolygonComplete = useCallback((polygon: google.maps.Polygon) => {
+    const path = polygon.getPath();
+    const coords: ZoneCoord[] = [];
+    for (let i = 0; i < path.getLength(); i++) {
+      const point = path.getAt(i);
+      coords.push({ lat: point.lat(), lng: point.lng() });
+    }
+    polygon.setMap(null);
+    setPendingForbiddenPolygon(coords);
+    setForbiddenDialog(true);
+    setDrawingForbiddenMode(false);
+  }, []);
+
+  const handleSaveForbiddenZone = async () => {
+    if (!forbiddenZoneName.trim() || !pendingForbiddenPolygon) return;
+    setSavingForbidden(true);
+    try {
+      await addDoc(collection(db, 'forbidden_zones'), {
+        name: forbiddenZoneName.trim(),
+        description: forbiddenZoneDesc.trim(),
+        coordinates: pendingForbiddenPolygon,
+        isActive: true,
+        createdAt: Timestamp.now()
+      });
+      setSuccess('Zona prohibida guardada');
+      setForbiddenDialog(false);
+      setForbiddenZoneName('');
+      setForbiddenZoneDesc('');
+      setPendingForbiddenPolygon(null);
+      await fetchForbiddenZones();
+    } catch (e: any) {
+      setError('Error al guardar: ' + e.message);
+    } finally {
+      setSavingForbidden(false);
+    }
+  };
+
+  const handleDeleteForbiddenZone = async (zone: ForbiddenZone) => {
+    try {
+      await deleteDoc(doc(db, 'forbidden_zones', zone.id));
+      setSuccess('Zona prohibida eliminada');
+      setDeleteForbiddenDialog(null);
+      await fetchForbiddenZones();
+    } catch (e: any) {
+      setError('Error al eliminar: ' + e.message);
     }
   };
 
@@ -408,10 +490,10 @@ const ZonasVendedores: React.FC = () => {
             <MapIcon />
             <Box>
               <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                Zonas de Vendedores
+                Gestión de Zonas
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                {activeZones.length} zonas activas
+                {activeZones.length} venta · {forbiddenZones.length} prohibidas
               </Typography>
             </Box>
           </Stack>
@@ -422,9 +504,14 @@ const ZonasVendedores: React.FC = () => {
           value={selectedTab}
           onChange={(_, v) => setSelectedTab(v)}
           sx={{ borderBottom: 1, borderColor: 'divider' }}
+          variant="fullWidth"
         >
           <Tab label="Crear Zona" />
           <Tab label={`Mis Zonas (${zones.length})`} />
+          <Tab
+            label={`🚫 Prohibidas${forbiddenZones.length > 0 ? ` (${forbiddenZones.length})` : ''}`}
+            sx={{ color: selectedTab === 2 ? 'error.main' : undefined }}
+          />
         </Tabs>
 
         {/* Tab: Crear Zona */}
@@ -696,6 +783,88 @@ const ZonasVendedores: React.FC = () => {
             )}
           </Box>
         )}
+
+        {/* ── Tab 2: Zonas Prohibidas ── */}
+        {selectedTab === 2 && (
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+            {error && (
+              <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
+
+            <Button
+              variant={drawingForbiddenMode ? 'contained' : 'outlined'}
+              color="error"
+              fullWidth
+              startIcon={<BlockIcon />}
+              onClick={() => {
+                setDrawingForbiddenMode(prev => !prev);
+                setDrawingMode('none'); // desactivar dibujo de zonas de venta
+              }}
+              sx={{ mb: 1.5 }}
+            >
+              {drawingForbiddenMode ? 'Cancelar dibujo' : '+ Dibujar zona prohibida'}
+            </Button>
+
+            {drawingForbiddenMode && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Haz clic en el mapa para definir los vértices. Doble clic para terminar.
+              </Alert>
+            )}
+
+            <Divider sx={{ mb: 1.5 }} />
+
+            <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+              Zonas prohibidas registradas ({forbiddenZones.length})
+            </Typography>
+
+            {forbiddenZones.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <BlockIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  No hay zonas prohibidas registradas.
+                </Typography>
+              </Box>
+            ) : (
+              <List dense disablePadding>
+                {forbiddenZones.map(zone => (
+                  <ListItem key={zone.id} disablePadding>
+                    <Box sx={{ py: 0.75, width: '100%' }}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <BlockIcon sx={{ color: 'error.main', fontSize: 18, flexShrink: 0 }} />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={600} noWrap>
+                            {zone.name}
+                          </Typography>
+                          {zone.description && (
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {zone.description}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Tooltip title="Eliminar zona prohibida">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setDeleteForbiddenDialog(zone)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        )}
       </Paper>
 
       {/* Mapa */}
@@ -711,6 +880,62 @@ const ZonasVendedores: React.FC = () => {
             fullscreenControl: true
           }}
         >
+          {/* Drawing Manager para zonas prohibidas */}
+          {drawingForbiddenMode && (
+            <DrawingManager
+              onPolygonComplete={handleForbiddenPolygonComplete}
+              options={{
+                drawingMode: google.maps.drawing.OverlayType.POLYGON,
+                drawingControl: false,
+                polygonOptions: {
+                  fillColor: '#FF0000',
+                  fillOpacity: 0.2,
+                  strokeColor: '#CC0000',
+                  strokeWeight: 2,
+                  editable: true
+                }
+              }}
+            />
+          )}
+
+          {/* Zonas prohibidas (siempre visibles en el mapa) */}
+          {forbiddenZones
+            .filter(z => z.coordinates && z.coordinates.length >= 3)
+            .map(zone => (
+              <Polygon
+                key={`fp-${zone.id}`}
+                paths={zone.coordinates}
+                options={{
+                  fillColor: '#FF0000',
+                  fillOpacity: 0.2,
+                  strokeColor: '#CC0000',
+                  strokeWeight: 2,
+                  clickable: true
+                }}
+                onClick={() => setSelectedForbiddenZone(zone)}
+              />
+            ))
+          }
+
+          {/* InfoWindow zona prohibida seleccionada */}
+          {selectedForbiddenZone && selectedForbiddenZone.coordinates.length > 0 && (
+            <InfoWindow
+              position={selectedForbiddenZone.coordinates[0]}
+              onCloseClick={() => setSelectedForbiddenZone(null)}
+            >
+              <Box sx={{ p: 1, minWidth: 180 }}>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom sx={{ color: '#CC0000' }}>
+                  🚫 {selectedForbiddenZone.name}
+                </Typography>
+                {selectedForbiddenZone.description && (
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedForbiddenZone.description}
+                  </Typography>
+                )}
+              </Box>
+            </InfoWindow>
+          )}
+
           {/* Drawing Manager para polígonos */}
           {drawingMode === 'polygon' && (
             <DrawingManager
@@ -939,6 +1164,82 @@ const ZonasVendedores: React.FC = () => {
             variant="contained"
             color="error"
             onClick={() => deleteDialog && handleDeleteZone(deleteDialog)}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* ── Dialog: Guardar zona prohibida ── */}
+      <Dialog
+        open={forbiddenDialog}
+        onClose={() => { setForbiddenDialog(false); setPendingForbiddenPolygon(null); }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <BlockIcon color="error" />
+            <Typography variant="h6" fontWeight={700}>Nueva zona prohibida</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {pendingForbiddenPolygon && (
+              <Alert severity="success">
+                Polígono capturado con {pendingForbiddenPolygon.length} vértices
+              </Alert>
+            )}
+            <TextField
+              label="Nombre *"
+              fullWidth
+              value={forbiddenZoneName}
+              onChange={e => setForbiddenZoneName(e.target.value)}
+              placeholder="Ej: Zona peligrosa norte"
+              autoFocus
+            />
+            <TextField
+              label="Descripción (opcional)"
+              fullWidth
+              multiline
+              rows={2}
+              value={forbiddenZoneDesc}
+              onChange={e => setForbiddenZoneDesc(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => { setForbiddenDialog(false); setPendingForbiddenPolygon(null); }}
+            startIcon={<CancelIcon />}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleSaveForbiddenZone}
+            disabled={savingForbidden || !forbiddenZoneName.trim()}
+            startIcon={savingForbidden ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+          >
+            {savingForbidden ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Dialog: Confirmar eliminación zona prohibida ── */}
+      <Dialog open={!!deleteForbiddenDialog} onClose={() => setDeleteForbiddenDialog(null)}>
+        <DialogTitle>Eliminar zona prohibida</DialogTitle>
+        <DialogContent>
+          <Typography>
+            ¿Estás seguro de eliminar la zona <strong>"{deleteForbiddenDialog?.name}"</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteForbiddenDialog(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => deleteForbiddenDialog && handleDeleteForbiddenZone(deleteForbiddenDialog)}
           >
             Eliminar
           </Button>

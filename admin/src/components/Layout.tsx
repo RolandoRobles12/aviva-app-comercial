@@ -46,7 +46,7 @@ const menuItems = [
   { text: 'Productos', icon: <CategoryIcon />, path: '/productos', category: 'main' },
   { text: 'Mapa en Vivo', icon: <MapIcon />, path: '/mapa', category: 'main' },
   { text: 'Rutas Promotores', icon: <RouteIcon />, path: '/rutas', category: 'main' },
-  { text: 'Zonas de Venta', icon: <LayersIcon />, path: '/zonas', category: 'main' },
+  { text: 'Zonas', icon: <LayersIcon />, path: '/zonas', category: 'main' },
   { text: 'Metas', icon: <TrendingUpIcon />, path: '/metas', category: 'gamification' },
   { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas', category: 'gamification' },
   { text: 'Properties HubSpot', icon: <StorageIcon />, path: '/hubspot-properties', category: 'gamification' },
