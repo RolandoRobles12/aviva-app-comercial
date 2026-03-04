@@ -37,6 +37,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     // Views
     private lateinit var activeUsersText: TextView
     private lateinit var totalVisitsText: TextView
+    private lateinit var productSpinner: Spinner
     private lateinit var userSpinner: Spinner
     private lateinit var showAllUsersSwitch: SwitchMaterial
     private lateinit var realtimeSwitch: SwitchMaterial
@@ -104,6 +105,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private fun initViews(view: View) {
         activeUsersText = view.findViewById(R.id.activeUsersText)
         totalVisitsText = view.findViewById(R.id.totalVisitsText)
+        productSpinner = view.findViewById(R.id.productSpinner)
         userSpinner = view.findViewById(R.id.userSpinner)
         showAllUsersSwitch = view.findViewById(R.id.showAllUsersSwitch)
         realtimeSwitch = view.findViewById(R.id.realtimeSwitch)
@@ -128,7 +130,31 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         visitsRecyclerView.adapter = visitAdapter
     }
 
+    // Mapping legible → nombre del campo en Firestore (name del enum)
+    private val productLineOptions = listOf(
+        "Todos los productos" to null,
+        "Aviva Tu Negocio"   to "AVIVA_TU_NEGOCIO",
+        "Aviva Contigo"      to "AVIVA_CONTIGO",
+        "Aviva Tu Compra"    to "AVIVA_TU_COMPRA",
+        "Aviva Tu Casa"      to "AVIVA_TU_CASA",
+        "Construrama"        to "CONSTRURAMA"
+    )
+
     private fun setupSpinners() {
+        // Spinner de producto
+        val productLabels = productLineOptions.map { it.first }
+        val productAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, productLabels)
+        productAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        productSpinner.adapter = productAdapter
+
+        productSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedProductLine = productLineOptions[position].second
+                loadUsersByProductLine(selectedProductLine)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         // Spinner de filtro de fecha
         val dateFilters = arrayOf(
             "Hoy",
@@ -574,14 +600,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     // ============================================================================
 
     private fun loadUsers() {
-        // Si es gerente, solo cargar sus promotores asignados
-        if (isManagerUser && managerPromoters.isNotEmpty()) {
-            Log.d(TAG, "🔍 Gerente - Cargando solo promotores asignados: ${managerPromoters.size}")
-            loadManagerPromoters()
-        } else {
-            // Admin o gerente sin promotores - cargar todos los usuarios
-            loadAllUsers()
-        }
+        // Usar la función unificada que respeta tanto el filtro de producto como el de gerente
+        loadUsersByProductLine(null)
     }
 
     private fun loadManagerPromoters() {
@@ -668,6 +688,53 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error cargando usuarios", e)
+                Toast.makeText(context, "Error al cargar usuarios", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    /**
+     * Carga usuarios filtrados por línea de producto.
+     * Si [productLine] es null, carga todos los usuarios.
+     * Respeta además el filtro de promotores asignados para gerentes.
+     */
+    private fun loadUsersByProductLine(productLine: String?) {
+        Log.d(TAG, "🏷️ Cargando usuarios para producto: ${productLine ?: "todos"}")
+
+        allUsers.clear()
+        userIdMap.clear()
+
+        val label = if (productLine == null) "Todos los usuarios"
+                    else "Todos (${productLineOptions.first { it.second == productLine }.first})"
+        allUsers.add(label)
+
+        db.collection("users")
+            .get()
+            .addOnSuccessListener { documents ->
+                for (document in documents) {
+                    try {
+                        val docProductLine = document.getString("productLine")
+                        if (productLine != null && docProductLine != productLine) continue
+
+                        // Para gerentes solo mostrar sus promotores asignados
+                        if (isManagerUser && !managerPromoters.contains(document.id)) continue
+
+                        val userName = document.getString("name")
+                            ?: document.getString("displayName")
+                            ?: document.getString("email")?.substringBefore("@")
+                            ?: "Usuario ${document.id.take(8)}"
+
+                        allUsers.add(userName)
+                        userIdMap[userName] = document.id
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error procesando usuario: ${document.id}", e)
+                    }
+                }
+
+                updateUserSpinner()
+                Log.d(TAG, "✅ Usuarios cargados para producto '$productLine': ${allUsers.size - 1}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Error cargando usuarios por producto", e)
                 Toast.makeText(context, "Error al cargar usuarios", Toast.LENGTH_SHORT).show()
             }
     }
@@ -1265,8 +1332,10 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                     )
                 }
 
-                // Marcadores de paradas largas
-                addLongStopMarkers(documents, map, userName)
+                // Marcadores de paradas largas + reporte estadístico
+                val stops = computeLongStops(documents)
+                drawLongStopMarkersFromList(map, stops, userName)
+                showRouteStatsDialog(userName, points, stops, documents)
 
                 // Ajustar cámara
                 try {
@@ -1333,47 +1402,131 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    private fun addLongStopMarkers(documents: QuerySnapshot, map: GoogleMap, userName: String) {
+    // Parada larga: posición en mapa, etiqueta snippet, hora de inicio, duración en minutos
+    private data class LongStop(
+        val position: LatLng,
+        val snippet: String,
+        val startTime: String,
+        val durationMin: Long
+    )
+
+    /** Detecta paradas largas (>15 min dentro de radio de 100 m). */
+    private fun computeLongStops(documents: QuerySnapshot): List<LongStop> {
         val docs = documents.documents
-        val longStops = mutableListOf<Pair<LatLng, String>>()
+        val result = mutableListOf<LongStop>()
+        val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
         for (i in 0 until docs.size - 1) {
-            val currentDoc = docs[i]
-            val nextDoc = docs[i + 1]
+            val cur = docs[i]; val nxt = docs[i + 1]
+            val curGeo = cur.getGeoPoint("location") ?: continue
+            val nxtGeo = nxt.getGeoPoint("location") ?: continue
+            val curTs  = cur.getTimestamp("timestamp")  ?: continue
+            val nxtTs  = nxt.getTimestamp("timestamp")  ?: continue
 
-            val currentGeoPoint = currentDoc.getGeoPoint("location")
-            val nextGeoPoint = nextDoc.getGeoPoint("location")
-            val currentTime = currentDoc.getTimestamp("timestamp")
-            val nextTime = nextDoc.getTimestamp("timestamp")
+            val curLatLng = LatLng(curGeo.latitude, curGeo.longitude)
+            val nxtLatLng = LatLng(nxtGeo.latitude, nxtGeo.longitude)
+            val distance  = calculateDistance(curLatLng, nxtLatLng)
+            val timeDiff  = (nxtTs.seconds - curTs.seconds) / 60L
 
-            if (currentGeoPoint != null && nextGeoPoint != null && currentTime != null && nextTime != null) {
-                val currentLatLng = LatLng(currentGeoPoint.latitude, currentGeoPoint.longitude)
-                val nextLatLng = LatLng(nextGeoPoint.latitude, nextGeoPoint.longitude)
-
-                // Calcular distancia (aproximada)
-                val distance = calculateDistance(currentLatLng, nextLatLng)
-                val timeDiff = (nextTime.seconds - currentTime.seconds) / 60 // minutos
-
-                // Si estuvo más de 15 minutos en un radio de 100 metros
-                if (distance < 100 && timeDiff > 15) {
-                    val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(currentTime.toDate())
-                    longStops.add(Pair(currentLatLng, "⏰ Parada larga\n$timeStr - ${timeDiff}min"))
-                }
+            if (distance < 100 && timeDiff > 15) {
+                val startStr = timeFmt.format(curTs.toDate())
+                result.add(LongStop(
+                    position   = curLatLng,
+                    snippet    = "⏰ $startStr — ${timeDiff} min",
+                    startTime  = startStr,
+                    durationMin = timeDiff
+                ))
             }
         }
+        return result
+    }
 
-        // Agregar marcadores de paradas largas
-        longStops.forEach { (position, snippet) ->
+    private fun drawLongStopMarkersFromList(map: GoogleMap, stops: List<LongStop>, userName: String) {
+        stops.forEach { stop ->
             map.addMarker(
                 MarkerOptions()
-                    .position(position)
+                    .position(stop.position)
                     .title("🛑 $userName")
-                    .snippet(snippet)
+                    .snippet(stop.snippet)
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))
             )
         }
+        Log.d(TAG, "🛑 Paradas largas detectadas para $userName: ${stops.size}")
+    }
 
-        Log.d(TAG, "🛑 Paradas largas detectadas para $userName: ${longStops.size}")
+    /** Muestra el resumen estadístico de la ruta en un diálogo visualmente rico. */
+    private fun showRouteStatsDialog(
+        userName: String,
+        points: List<LatLng>,
+        stops: List<LongStop>,
+        documents: QuerySnapshot
+    ) {
+        val docs = documents.documents
+        if (docs.isEmpty()) return
+
+        val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        // Tiempo total en campo
+        val firstTs = docs.first().getTimestamp("timestamp")
+        val lastTs  = docs.last().getTimestamp("timestamp")
+        val totalMinField = if (firstTs != null && lastTs != null)
+            (lastTs.seconds - firstTs.seconds) / 60L else 0L
+        val startStr = firstTs?.let { timeFmt.format(it.toDate()) } ?: "—"
+        val endStr   = lastTs?.let  { timeFmt.format(it.toDate()) } ?: "—"
+
+        // Distancia total recorrida (suma de segmentos)
+        var totalDistM = 0.0
+        for (i in 0 until points.size - 1) {
+            totalDistM += calculateDistance(points[i], points[i + 1])
+        }
+        val distKm = totalDistM / 1000.0
+
+        // Tiempo detenido total (suma de paradas largas)
+        val stoppedMin = stops.sumOf { it.durationMin }
+        val movingMin  = totalMinField - stoppedMin
+        val pctMoving  = if (totalMinField > 0) (movingMin * 100.0 / totalMinField).toInt() else 0
+        val pctStopped = 100 - pctMoving
+
+        // Construir mensaje
+        val sb = StringBuilder()
+        sb.appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        sb.appendLine("👤  $userName")
+        sb.appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        sb.appendLine()
+        sb.appendLine("🕐  Horario en campo")
+        sb.appendLine("    Inicio: $startStr   Fin: $endStr")
+        sb.appendLine("    Duración total: ${totalMinField / 60}h ${totalMinField % 60}min")
+        sb.appendLine()
+        sb.appendLine("📍  Actividad")
+        sb.appendLine("    Puntos GPS registrados: ${points.size}")
+        sb.appendLine("    Distancia recorrida: ${"%.2f".format(distKm)} km")
+        sb.appendLine()
+        sb.appendLine("⏱️  Tiempo")
+        sb.appendLine("    En movimiento: ${movingMin}min  ($pctMoving%)")
+        sb.appendLine("    Detenido:       ${stoppedMin}min  ($pctStopped%)")
+        sb.appendLine()
+
+        if (stops.isEmpty()) {
+            sb.appendLine("🟢  Sin paradas largas detectadas")
+        } else {
+            sb.appendLine("🛑  Paradas largas (>15 min / radio <100 m): ${stops.size}")
+            stops.forEachIndexed { idx, stop ->
+                sb.appendLine("    ${idx + 1}. ${stop.startTime} — ${stop.durationMin} min")
+            }
+        }
+        sb.appendLine()
+        sb.appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Alerta de baja movilidad
+        if (pctStopped > 40) {
+            sb.appendLine("⚠️  Atención: más del 40% del tiempo detenido")
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("📊 Resumen de ruta")
+            .setMessage(sb.toString())
+            .setPositiveButton("Cerrar", null)
+            .show()
     }
 
     private fun calculateDistance(point1: LatLng, point2: LatLng): Double {
