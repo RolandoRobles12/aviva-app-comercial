@@ -68,6 +68,13 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private val userIdMap = mutableMapOf<String, String>()
     private lateinit var visitAdapter: VisitsAdapter
 
+    /**
+     * IDs de los usuarios que pertenecen al producto seleccionado en el spinner.
+     * Se usa para filtrar visitas por línea de producto sin requerir selección de usuario.
+     * Lista vacía = no hay filtro de producto activo (mostrar todos).
+     */
+    private var productFilterUserIds: List<String> = emptyList()
+
     // Date Range Variables
     private var startDate: Calendar = Calendar.getInstance()
     private var endDate: Calendar = Calendar.getInstance()
@@ -702,6 +709,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         allUsers.clear()
         userIdMap.clear()
+        productFilterUserIds = emptyList() // Limpiar filtro mientras se carga
 
         val label = if (productLine == null) "Todos los usuarios"
                     else "Todos (${productLineOptions.first { it.second == productLine }.first})"
@@ -729,6 +737,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                         Log.e(TAG, "Error procesando usuario: ${document.id}", e)
                     }
                 }
+
+                // Guardar los IDs de usuarios del producto seleccionado para filtrar visitas
+                productFilterUserIds = userIdMap.values.toList()
 
                 updateUserSpinner()
                 Log.d(TAG, "✅ Usuarios cargados para producto '$productLine': ${allUsers.size - 1}")
@@ -787,14 +798,24 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 return
             }
         } else {
-            // FILTRADO NORMAL PARA ADMINS (código original)
+            // FILTRADO NORMAL PARA ADMINS
             if (!showAllUsersSwitch.isChecked && userSpinner.selectedItemPosition > 0 && allUsers.isNotEmpty()) {
+                // Usuario específico seleccionado → filtrar solo por ese usuario
                 val selectedUserName = allUsers[userSpinner.selectedItemPosition]
                 val selectedUserId = userIdMap[selectedUserName]
-
                 if (selectedUserId != null) {
                     query = query.whereEqualTo("userId", selectedUserId)
                     Log.d(TAG, "🔍 Admin - Filtrando por usuario: $selectedUserName ($selectedUserId)")
+                }
+            } else if (productSpinner.selectedItemPosition > 0 && productFilterUserIds.isNotEmpty()) {
+                // Producto seleccionado sin usuario específico → filtrar por todos los usuarios del producto
+                // Firestore whereIn acepta hasta 10 elementos; para listas más grandes se filtra en cliente
+                if (productFilterUserIds.size <= 10) {
+                    query = query.whereIn("userId", productFilterUserIds)
+                    Log.d(TAG, "🏷️ Filtrando por producto - ${productFilterUserIds.size} usuarios")
+                } else {
+                    // Más de 10 usuarios: se carga todo y se filtra en cliente (ver callback)
+                    Log.d(TAG, "🏷️ Filtro cliente por producto - ${productFilterUserIds.size} usuarios")
                 }
             }
         }
@@ -808,13 +829,23 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             }
 
             visits.clear()
+
+            // Determinar si aplica filtro de producto en cliente (lista > 10 usuarios)
+            val applyProductFilterClient = !isManagerUser
+                && productSpinner.selectedItemPosition > 0
+                && productFilterUserIds.size > 10
+
             snapshots?.documents?.forEach { document ->
                 try {
                     val visit = document.toObject(Visit::class.java)
                     visit?.let {
                         // Verificación adicional para gerentes
                         if (isManagerUser && !managerPromoters.contains(it.userId)) {
-                            return@forEach // Saltar visitas de promotores no asignados
+                            return@forEach
+                        }
+                        // Filtro cliente por producto cuando la lista supera el límite de whereIn
+                        if (applyProductFilterClient && !productFilterUserIds.contains(it.userId)) {
+                            return@forEach
                         }
 
                         val visitWithId = it.copy(id = document.id)

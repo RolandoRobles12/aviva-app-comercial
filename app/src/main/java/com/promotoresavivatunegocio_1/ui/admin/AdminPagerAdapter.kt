@@ -19,7 +19,7 @@ class AdminPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapt
         "👥 Usuarios",
         "📦 Productos",
         "🏙️ Ciudades",
-        "🏪 Kioscos"
+        "🚫 Zonas"
     )
 
     override fun getItemCount(): Int = fragments.size
