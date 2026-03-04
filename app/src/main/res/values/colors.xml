@@ -68,6 +68,9 @@
     <color name="gradient_light_start">#b0f5cd</color>
     <color name="gradient_light_end">#16b877</color>
 
+    <!-- Module accent colors (home cards) -->
+    <color name="card_registro_bg">#E8F8F2</color>
+
     <!-- Legacy Support -->
     <color name="light_green_background">#b0f5cd</color>
     <color name="light_red_background">#FEF2F2</color>

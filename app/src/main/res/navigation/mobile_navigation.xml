@@ -103,4 +103,11 @@
         android:label="Trámites"
         tools:layout="@layout/fragment_tramites" />
 
+    <!-- Camino de aprendizaje (LMS embed) -->
+    <fragment
+        android:id="@+id/navigation_lms"
+        android:name="com.promotoresavivatunegocio_1.ui.lms.LmsFragment"
+        android:label="Mi camino de aprendizaje"
+        tools:layout="@layout/fragment_lms" />
+
 </navigation>
