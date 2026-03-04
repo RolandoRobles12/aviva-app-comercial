@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
         private const val BACKGROUND_LOCATION_REQUEST_CODE = 1002
+        private const val NOTIF_PERMISSION_REQUEST_CODE = 1003
         private const val INSTITUTIONAL_DOMAIN = "@avivacredito.com"
     }
 
@@ -465,8 +466,8 @@ class MainActivity : AppCompatActivity() {
             // Configurar toolbar y botón de logout
             setupToolbar()
 
-            // Programar notificaciones de recordatorio de entrada (9 AM) y salida (6 PM)
-            AttendanceAlarmScheduler.scheduleAll(this)
+            // Solicitar permisos de notificación y alarma exacta, luego programar alarmas
+            requestNotificationPermissions()
 
             // Bottom navigation eliminada - navegación a través de Home screen
             Log.d(TAG, "📱 Navegación configurada a través de Home screen")
@@ -509,6 +510,44 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error configurando toolbar: ${e.message}", e)
         }
+    }
+
+    /**
+     * Solicita POST_NOTIFICATIONS (Android 13+) y verifica SCHEDULE_EXACT_ALARM
+     * (Android 12+) antes de programar las alarmas de asistencia.
+     */
+    private fun requestNotificationPermissions() {
+        // 1. POST_NOTIFICATIONS – runtime en API 33+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIF_PERMISSION_REQUEST_CODE
+                )
+                return // Las alarmas se programan en onRequestPermissionsResult
+            }
+        }
+        scheduleAlarmsAfterPermissions()
+    }
+
+    private fun scheduleAlarmsAfterPermissions() {
+        // 2. SCHEDULE_EXACT_ALARM – en Android 12+ hay que verificar permiso especial
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(android.app.AlarmManager::class.java)
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Log.w(TAG, "Sin permiso de alarma exacta; redirigiendo a Ajustes")
+                val intent = android.content.Intent(
+                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM
+                )
+                startActivity(intent)
+                // scheduleAll usa fallback inexacto si sigue sin permiso
+            }
+        }
+        AttendanceAlarmScheduler.scheduleAll(this)
+        Log.d(TAG, "✅ Alarmas de asistencia programadas (9 AM / 6 PM)")
     }
 
     /**
@@ -817,6 +856,10 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "📍 Resultado de permisos: requestCode=$requestCode, results=${grantResults.contentToString()}")
 
         when (requestCode) {
+            NOTIF_PERMISSION_REQUEST_CODE -> {
+                // POST_NOTIFICATIONS respondido – programar alarmas independientemente del resultado
+                scheduleAlarmsAfterPermissions()
+            }
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                     Log.d(TAG, "✅ Permisos básicos de ubicación concedidos")
