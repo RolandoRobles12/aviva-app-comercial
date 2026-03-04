@@ -14,6 +14,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.promotoresavivatunegocio_1.MainActivity
 import com.promotoresavivatunegocio_1.R
 import models.User
 import java.text.SimpleDateFormat
@@ -86,6 +87,11 @@ class HomeFragment : Fragment() {
                 else            -> parts[0].take(2).uppercase()
             }
             view.findViewById<TextView>(R.id.textUserInitials).text = initials
+        }
+
+        // Avatar tap → logout
+        view.findViewById<MaterialCardView>(R.id.cardUserAvatar).setOnClickListener {
+            (requireActivity() as? MainActivity)?.showLogoutConfirmationDialog()
         }
     }
 

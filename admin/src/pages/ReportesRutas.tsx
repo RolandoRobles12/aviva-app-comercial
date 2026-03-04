@@ -40,7 +40,8 @@ import {
   query,
   where,
   getDocs,
-  Timestamp
+  Timestamp,
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -182,8 +183,16 @@ const MiniBarChart: React.FC<{ data: DailyActivity[]; color: string; metric: 'km
   );
 };
 
+interface Product {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+
 const ReportesRutas: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('thisWeek');
   const [startDate, setStartDate] = useState('');
@@ -240,17 +249,26 @@ const ReportesRutas: React.FC = () => {
   }, [quickFilter]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      const snap = await getDocs(collection(db, 'users'));
-      const data: User[] = snap.docs.map(d => ({
+    const fetchData = async () => {
+      const [usersSnap, productsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(query(collection(db, 'products'), orderBy('name', 'asc')))
+      ]);
+      const data: User[] = usersSnap.docs.map(d => ({
         id: d.id,
         displayName: d.data().displayName || 'Sin nombre',
         email: d.data().email || '',
         productLine: d.data().productLine
       }));
       setUsers(data.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      setProducts(productsSnap.docs.map(d => ({
+        id: d.id,
+        name: d.data().name,
+        code: d.data().code,
+        isActive: d.data().isActive ?? true
+      })));
     };
-    fetchUsers();
+    fetchData();
   }, []);
 
   const handleLoadReports = async () => {
@@ -278,7 +296,9 @@ const ReportesRutas: React.FC = () => {
 
         const locSnap = await getDocs(query(
           collection(db, 'locations'),
-          where('userId', '==', userId)
+          where('userId', '==', userId),
+          where('timestamp', '>=', startTs),
+          where('timestamp', '<=', endTs)
         ));
 
         const points: LocationPoint[] = locSnap.docs
@@ -287,15 +307,12 @@ const ReportesRutas: React.FC = () => {
             return {
               userId,
               timestamp: data.timestamp,
-              location: data.location,
+              location: data.location ?? { latitude: data.latitude, longitude: data.longitude },
               accuracy: data.accuracy,
               speed: data.speed
             } as LocationPoint;
           })
-          .filter(p => {
-            const t = p.timestamp.toMillis();
-            return t >= startTs.toMillis() && t <= endTs.toMillis();
-          })
+          .filter(p => p.timestamp && p.location?.latitude != null)
           .sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
 
         // Calcular estadísticas
@@ -418,11 +435,21 @@ const ReportesRutas: React.FC = () => {
     return `${s.avgSpeedKmh} km/h`;
   };
 
-  const uniqueProductLines = [...new Set(users.map(u => u.productLine).filter(Boolean))];
+  // Compara product.code (ej: "aviva_contigo") con user.productLine (ej: "AVIVA_CONTIGO")
+  const matchesProduct = (userProductLine: string | undefined, code: string) =>
+    userProductLine?.toLowerCase() === code.toLowerCase();
 
   const filteredUsers = productFilter === 'all'
     ? users
-    : users.filter(u => u.productLine === productFilter);
+    : users.filter(u => matchesProduct(u.productLine, productFilter));
+
+  const handleProductFilterChange = (value: string) => {
+    setProductFilter(value);
+    const next = value === 'all'
+      ? users
+      : users.filter(u => matchesProduct(u.productLine, value));
+    setSelectedUserIds(next.map(u => u.id));
+  };
 
   return (
     <Box sx={{ p: 0 }}>
@@ -481,37 +508,51 @@ const ReportesRutas: React.FC = () => {
               <Select
                 value={productFilter}
                 label="Producto"
-                onChange={e => setProductFilter(e.target.value)}
+                onChange={e => handleProductFilterChange(e.target.value)}
               >
                 <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="AVIVA_TU_NEGOCIO">Aviva Tu Negocio</MenuItem>
-                <MenuItem value="CONSTRURAMA">Construrama</MenuItem>
-                {uniqueProductLines
-                  .filter(p => p !== 'AVIVA_TU_NEGOCIO' && p !== 'CONSTRURAMA')
-                  .map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)
-                }
+                {products.map(p => (
+                  <MenuItem key={p.code} value={p.code}>{p.name}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
 
           <Grid item xs={12} md={3}>
-            <Autocomplete
-              multiple
-              options={filteredUsers}
-              value={filteredUsers.filter(u => selectedUserIds.includes(u.id))}
-              onChange={(_, v) => setSelectedUserIds(v.map(u => u.id))}
-              getOptionLabel={u => u.displayName}
-              renderTags={(val, getProps) => val.map((u, i) => (
-                <Chip
-                  {...getProps({ index: i })}
-                  label={u.displayName.split(' ')[0]}
+            <Stack spacing={1}>
+              <Autocomplete
+                multiple
+                options={filteredUsers}
+                value={filteredUsers.filter(u => selectedUserIds.includes(u.id))}
+                onChange={(_, v) => setSelectedUserIds(v.map(u => u.id))}
+                getOptionLabel={u => u.displayName}
+                renderTags={(val, getProps) => val.map((u, i) => (
+                  <Chip
+                    {...getProps({ index: i })}
+                    label={u.displayName.split(' ')[0]}
+                    size="small"
+                  />
+                ))}
+                renderInput={(params) => (
+                  <TextField {...params} label="Vendedores" size="small" />
+                )}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
                   size="small"
-                />
-              ))}
-              renderInput={(params) => (
-                <TextField {...params} label="Vendedores" size="small" />
-              )}
-            />
+                  variant="outlined"
+                  onClick={() => setSelectedUserIds(filteredUsers.map(u => u.id))}
+                  disabled={filteredUsers.length === 0}
+                >
+                  Seleccionar todos ({filteredUsers.length})
+                </Button>
+                {selectedUserIds.length > 0 && (
+                  <Button size="small" onClick={() => setSelectedUserIds([])}>
+                    Limpiar
+                  </Button>
+                )}
+              </Stack>
+            </Stack>
           </Grid>
 
           <Grid item xs={12} md={12}>
@@ -776,8 +817,7 @@ const ReportesRutas: React.FC = () => {
             Reportes de rendimiento en campo
           </Typography>
           <Typography color="text.secondary">
-            Selecciona vendedores y un periodo para generar el reporte con km recorridos,
-            tiempo en campo, velocidad y comparativas estilo Strava.
+            Selecciona el periodo, filtra por producto y elige los vendedores. Luego presiona "Generar Reporte".
           </Typography>
         </Paper>
       )}

@@ -1,5 +1,6 @@
 package com.promotoresavivatunegocio_1
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -24,6 +25,23 @@ class AttendanceReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val type = intent.getStringExtra(EXTRA_REMINDER_TYPE) ?: return
         Log.d(TAG, "Alarma recibida: $type")
+
+        // Crear el canal si no existe (Android 8.0+ lo requiere)
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            && nm.getNotificationChannel(CHANNEL_ID) == null
+        ) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Recordatorios de asistencia",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Recordatorios de entrada y salida"
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(channel)
+            Log.d(TAG, "Canal $CHANNEL_ID creado")
+        }
 
         val (title, message, notifId) = when (type) {
             TYPE_ENTRY -> Triple(
@@ -57,7 +75,6 @@ class AttendanceReminderReceiver : BroadcastReceiver() {
             .setContentIntent(tapIntent)
             .build()
 
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(notifId, notification)
 
         // Reprogramar la alarma para el día siguiente
