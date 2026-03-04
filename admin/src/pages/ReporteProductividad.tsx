@@ -23,13 +23,6 @@ import {
   Collapse,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControlLabel,
-  Switch,
-  Divider,
   FormControl,
   InputLabel,
   Select,
@@ -38,7 +31,6 @@ import {
 import {
   KeyboardArrowDown as ExpandIcon,
   KeyboardArrowUp as CollapseIcon,
-  Schedule as ScheduleIcon,
   PlayArrow as PlayIcon,
   Assessment as ReportIcon,
   CheckCircle as CheckIcon,
@@ -56,49 +48,19 @@ import {
   query,
   where,
   getDocs,
-  doc,
-  getDoc,
-  setDoc,
   Timestamp,
   orderBy,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
+import { WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Local constants ──────────────────────────────────────────────────────────
 
-interface WorkDayConfig {
-  start: string;  // 'HH:mm'
-  end: string;    // 'HH:mm'
-  active: boolean;
-}
-
-type WorkSchedule = {
-  domingo:   WorkDayConfig;
-  lunes:     WorkDayConfig;
-  martes:    WorkDayConfig;
-  miercoles: WorkDayConfig;
-  jueves:    WorkDayConfig;
-  viernes:   WorkDayConfig;
-  sabado:    WorkDayConfig;
-};
-
-const DAY_KEYS: (keyof WorkSchedule)[] = [
-  'domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado',
-];
-const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const DAY_FULL_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DAY_LABELS   = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const DEFAULT_SCHEDULE: WorkSchedule = {
-  domingo:   { start: '09:00', end: '18:00', active: false },
-  lunes:     { start: '09:00', end: '18:00', active: true },
-  martes:    { start: '09:00', end: '18:00', active: true },
-  miercoles: { start: '09:00', end: '18:00', active: true },
-  jueves:    { start: '09:00', end: '18:00', active: true },
-  viernes:   { start: '09:00', end: '18:00', active: true },
-  sabado:    { start: '10:00', end: '14:00', active: true },
-};
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface AdminUser {
   id: string;
@@ -112,6 +74,7 @@ interface Product {
   id: string;
   name: string;
   code: string;
+  workSchedule?: WorkSchedule;
 }
 
 interface CheckInRecord {
@@ -135,19 +98,15 @@ interface HubspotDeal {
 interface DayReport {
   date: string;      // 'YYYY-MM-DD'
   dayLabel: string;  // 'Lun 3 Mar'
-  // Check-in
   checkInTime: string | null;
   checkInOnTime: boolean | null;
   checkOutTime: string | null;
   checkOutOnTime: boolean | null;
-  // GPS
   km: number;
   longStops: number;
   stopMinutes: number;
   hasGps: boolean;
-  // Location alerts
   outOfZoneMinutes: number;
-  // HubSpot
   deals: number;
 }
 
@@ -158,7 +117,6 @@ interface SellerReport {
   productLine?: string;
   hubspotOwnerId?: string;
   color: string;
-  // Aggregated KPIs
   workDaysCount: number;
   checkInDays: number;
   checkOutDays: number;
@@ -168,9 +126,7 @@ interface SellerReport {
   totalOutOfZoneMinutes: number;
   totalDeals: number;
   gpsDays: number;
-  // Per-day breakdown
   days: DayReport[];
-  // Flags
   checkInsError: boolean;
   hubspotError: boolean;
 }
@@ -250,7 +206,7 @@ const getDateRange = (filter: QuickFilter, customStart: string, customEnd: strin
   }
 };
 
-// ── Fetch HubSpot deals per owner + date range ────────────────────────────
+// ── Fetch HubSpot deals ───────────────────────────────────────────────────
 
 const fetchHubspotDeals = async (
   ownerId: string,
@@ -296,7 +252,6 @@ const buildDayReports = (
   checkIns: CheckInRecord[],
   hubspotDeals: HubspotDeal[],
 ): DayReport[] => {
-  // Group locations by date
   const locByDate: Record<string, { ts: Timestamp; lat: number; lng: number }[]> = {};
   locationDocs.forEach((d) => {
     const data = d.data();
@@ -309,7 +264,6 @@ const buildDayReports = (
     locByDate[date].push({ ts, lat, lng });
   });
 
-  // Group alert minutes by date
   const alertMinByDate: Record<string, number> = {};
   alertDocs.forEach((d) => {
     const data = d.data();
@@ -323,7 +277,6 @@ const buildDayReports = (
     alertMinByDate[date] = (alertMinByDate[date] || 0) + durationMs / 60000;
   });
 
-  // Group check-ins by date
   const ciByDate: Record<string, CheckInRecord[]> = {};
   checkIns.forEach((ci) => {
     const d = ci.timestamp?.toDate?.();
@@ -333,7 +286,6 @@ const buildDayReports = (
     ciByDate[date].push(ci);
   });
 
-  // Group HubSpot deals by date
   const dealsByDate: Record<string, number> = {};
   hubspotDeals.forEach((deal) => {
     if (!deal.createdDate) return;
@@ -359,16 +311,16 @@ const buildDayReports = (
 
     const dayCIs = ciByDate[date] || [];
     const entrada = dayCIs.find((c) => c.type === 'entrada') || null;
-    const salida = dayCIs.find((c) => c.type === 'salida') || null;
+    const salida  = dayCIs.find((c) => c.type === 'salida')  || null;
 
     const d = new Date(date + 'T12:00:00');
     return {
       date,
       dayLabel: `${DAY_LABELS[d.getDay()]} ${d.getDate()} ${MONTH_LABELS[d.getMonth()]}`,
-      checkInTime: formatTime(entrada?.timestamp ?? null),
-      checkInOnTime: entrada ? (entrada.validationResults?.locationValid ?? null) : null,
-      checkOutTime: formatTime(salida?.timestamp ?? null),
-      checkOutOnTime: salida ? (salida.validationResults?.locationValid ?? null) : null,
+      checkInTime:    formatTime(entrada?.timestamp ?? null),
+      checkInOnTime:  entrada ? (entrada.validationResults?.locationValid ?? null) : null,
+      checkOutTime:   formatTime(salida?.timestamp ?? null),
+      checkOutOnTime: salida  ? (salida.validationResults?.locationValid  ?? null) : null,
       km: Math.round(km * 10) / 10,
       longStops,
       stopMinutes: Math.round(stopMinutes),
@@ -381,20 +333,18 @@ const buildDayReports = (
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-// Chip para check-in status
 const CheckInChip: React.FC<{ time: string | null; onTime: boolean | null }> = ({ time, onTime }) => {
   if (!time) return <Typography variant="caption" color="text.disabled">—</Typography>;
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      {onTime === true && <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />}
+      {onTime === true  && <CheckIcon  sx={{ fontSize: 14, color: 'success.main' }} />}
       {onTime === false && <CancelIcon sx={{ fontSize: 14, color: 'warning.main' }} />}
-      {onTime === null && <HelpIcon sx={{ fontSize: 14, color: 'text.disabled' }} />}
+      {onTime === null  && <HelpIcon   sx={{ fontSize: 14, color: 'text.disabled' }} />}
       <Typography variant="body2" fontWeight={600}>{time}</Typography>
     </Stack>
   );
 };
 
-// Porcentaje con color
 const PctCell: React.FC<{ value: number; total: number; error?: boolean }> = ({ value, total, error }) => {
   if (error) return (
     <Tooltip title="Datos no disponibles. Ver instrucciones de configuración.">
@@ -412,7 +362,6 @@ const PctCell: React.FC<{ value: number; total: number; error?: boolean }> = ({ 
   );
 };
 
-// Fila expandida con desglose por día
 const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
   <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
     <TableContainer component={Paper} variant="outlined">
@@ -478,122 +427,27 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
   </Box>
 );
 
-// Modal de configuración de jornada
-const JornadaModal: React.FC<{
-  open: boolean;
-  schedule: WorkSchedule;
-  onClose: () => void;
-  onSave: (s: WorkSchedule) => Promise<void>;
-}> = ({ open, schedule, onClose, onSave }) => {
-  const [local, setLocal] = useState<WorkSchedule>(schedule);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { setLocal(schedule); }, [schedule, open]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    await onSave(local);
-    setSaving(false);
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Configurar Jornada Laboral</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {DAY_KEYS.map((key, i) => {
-            const cfg = local[key];
-            return (
-              <Box key={key}>
-                <Stack direction="row" alignItems="center" spacing={2}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={cfg.active}
-                        onChange={(e) =>
-                          setLocal((prev) => ({
-                            ...prev,
-                            [key]: { ...prev[key], active: e.target.checked },
-                          }))
-                        }
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label={
-                      <Typography variant="body2" fontWeight={600} sx={{ minWidth: 80 }}>
-                        {DAY_FULL_LABELS[i]}
-                      </Typography>
-                    }
-                    sx={{ m: 0, mr: 1 }}
-                  />
-                  <TextField
-                    type="time"
-                    size="small"
-                    label="Inicio"
-                    value={cfg.start}
-                    disabled={!cfg.active}
-                    onChange={(e) =>
-                      setLocal((prev) => ({
-                        ...prev,
-                        [key]: { ...prev[key], start: e.target.value },
-                      }))
-                    }
-                    sx={{ width: 130 }}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                  <TextField
-                    type="time"
-                    size="small"
-                    label="Fin"
-                    value={cfg.end}
-                    disabled={!cfg.active}
-                    onChange={(e) =>
-                      setLocal((prev) => ({
-                        ...prev,
-                        [key]: { ...prev[key], end: e.target.value },
-                      }))
-                    }
-                    sx={{ width: 130 }}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Stack>
-                {i < DAY_KEYS.length - 1 && <Divider sx={{ mt: 1.5 }} />}
-              </Box>
-            );
-          })}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>Cancelar</Button>
-        <Button variant="contained" onClick={handleSave} disabled={saving}
-          startIcon={saving ? <CircularProgress size={16} /> : undefined}>
-          {saving ? 'Guardando…' : 'Guardar'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 const ReporteProductividad: React.FC = () => {
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [users, setUsers]       = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule>(DEFAULT_SCHEDULE);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  // Initial load state
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [initError, setInitError]           = useState<string | null>(null);
 
   // Filters
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('thisWeek');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-  const [productFilter, setProductFilter] = useState<string>('all');
+  const [quickFilter, setQuickFilter]       = useState<QuickFilter>('thisWeek');
+  const [customStart, setCustomStart]       = useState('');
+  const [customEnd, setCustomEnd]           = useState('');
+  const [productFilter, setProductFilter]   = useState<string>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // Report state
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
   const [reportData, setReportData] = useState<SellerReport[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -609,29 +463,35 @@ const ReporteProductividad: React.FC = () => {
     setCustomEnd(fmt(sun));
 
     const loadInitial = async () => {
-      const [usersSnap, productsSnap, scheduleSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(query(collection(db, 'products'), orderBy('name', 'asc'))),
-        getDoc(doc(db, 'config', 'workSchedule')),
-      ]);
+      try {
+        setInitialLoading(true);
+        setInitError(null);
 
-      const usersData: AdminUser[] = usersSnap.docs.map((d) => ({
-        id: d.id,
-        displayName: d.data().displayName || 'Sin nombre',
-        email: d.data().email || '',
-        productLine: d.data().productLine,
-        hubspotOwnerId: d.data().hubspotOwnerId,
-      }));
-      setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+        const [usersSnap, productsSnap] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(query(collection(db, 'products'), orderBy('name', 'asc'))),
+        ]);
 
-      setProducts(productsSnap.docs.map((d) => ({
-        id: d.id,
-        name: d.data().name,
-        code: d.data().code,
-      })));
+        const usersData: AdminUser[] = usersSnap.docs.map((d) => ({
+          id: d.id,
+          displayName: d.data().displayName || 'Sin nombre',
+          email: d.data().email || '',
+          productLine: d.data().productLine,
+          hubspotOwnerId: d.data().hubspotOwnerId,
+        }));
+        setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
-      if (scheduleSnap.exists()) {
-        setWorkSchedule(scheduleSnap.data() as WorkSchedule);
+        setProducts(productsSnap.docs.map((d) => ({
+          id: d.id,
+          name: d.data().name,
+          code: d.data().code,
+          workSchedule: d.data().workSchedule as WorkSchedule | undefined,
+        })));
+      } catch (err) {
+        console.error('Error al cargar datos iniciales:', err);
+        setInitError('Error al cargar datos. Verifica los permisos de Firestore y la conexión.');
+      } finally {
+        setInitialLoading(false);
       }
     };
 
@@ -647,10 +507,15 @@ const ReporteProductividad: React.FC = () => {
     }
   }, [quickFilter]);
 
-  const handleSaveSchedule = async (s: WorkSchedule) => {
-    await setDoc(doc(db, 'config', 'workSchedule'), s);
-    setWorkSchedule(s);
-  };
+  // Derive workSchedule from the selected product
+  useEffect(() => {
+    if (productFilter === 'all') {
+      setWorkSchedule(DEFAULT_SCHEDULE);
+    } else {
+      const product = products.find((p) => p.code === productFilter);
+      setWorkSchedule(product?.workSchedule || DEFAULT_SCHEDULE);
+    }
+  }, [productFilter, products]);
 
   const filteredUsers = users.filter((u) => {
     if (productFilter === 'all') return true;
@@ -676,8 +541,8 @@ const ReporteProductividad: React.FC = () => {
     setReportData([]);
 
     const { start, end } = getDateRange(quickFilter, customStart, customEnd);
-    const startTs = Timestamp.fromDate(new Date(start + 'T00:00:00'));
-    const endTs = Timestamp.fromDate(new Date(end + 'T23:59:59'));
+    const startTs  = Timestamp.fromDate(new Date(start + 'T00:00:00'));
+    const endTs    = Timestamp.fromDate(new Date(end + 'T23:59:59'));
     const workDays = getWorkDaysInRange(start, end, workSchedule);
 
     const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
@@ -695,8 +560,7 @@ const ReporteProductividad: React.FC = () => {
             where('timestamp', '<=', endTs),
           ));
 
-          // 2. Location alerts (fuera de zona)
-          // Nota: requiere índice compuesto en Firestore: locationAlerts (userId + detectedAt)
+          // 2. Location alerts (requiere índice compuesto: locationAlerts userId + detectedAt)
           let alertDocs: any[] = [];
           try {
             const alertsSnap = await getDocs(query(
@@ -710,11 +574,10 @@ const ReporteProductividad: React.FC = () => {
             // Índice compuesto aún no creado — se ignora fuera de zona
           }
 
-          // 3. Check-ins desde registro-aviva (match por email)
+          // 3. Check-ins desde registro-aviva
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
           try {
-            // Buscar userId en proyecto registro por email
             const regUsersSnap = await getDocs(query(
               collection(dbRegistro, 'users'),
               where('email', '==', user.email),
@@ -757,15 +620,14 @@ const ReporteProductividad: React.FC = () => {
           );
 
           // 6. Aggregate
-          const gpsDays = days.filter((d) => d.hasGps).length;
-          // "en sucursal" = check-in donde locationValid === true
-          const checkInDays = days.filter((d) => d.checkInOnTime === true).length;
-          const checkOutDays = days.filter((d) => d.checkOutOnTime === true).length;
-          const totalKm = days.reduce((s, d) => s + d.km, 0);
-          const totalLongStops = days.reduce((s, d) => s + d.longStops, 0);
-          const totalStopMinutes = days.reduce((s, d) => s + d.stopMinutes, 0);
+          const gpsDays           = days.filter((d) => d.hasGps).length;
+          const checkInDays       = days.filter((d) => d.checkInOnTime === true).length;
+          const checkOutDays      = days.filter((d) => d.checkOutOnTime === true).length;
+          const totalKm           = days.reduce((s, d) => s + d.km, 0);
+          const totalLongStops    = days.reduce((s, d) => s + d.longStops, 0);
+          const totalStopMinutes  = days.reduce((s, d) => s + d.stopMinutes, 0);
           const totalOutOfZoneMinutes = days.reduce((s, d) => s + d.outOfZoneMinutes, 0);
-          const totalDeals = days.reduce((s, d) => s + d.deals, 0);
+          const totalDeals        = days.reduce((s, d) => s + d.deals, 0);
 
           return {
             userId: user.id,
@@ -801,9 +663,9 @@ const ReporteProductividad: React.FC = () => {
 
   // ── Summary KPIs ─────────────────────────────────────────────────────────
   const teamAvgs = reportData.length > 0 ? {
-    avgCheckIn: reportData.reduce((s, r) => s + (r.workDaysCount > 0 ? r.checkInDays / r.workDaysCount : 0), 0) / reportData.length,
-    avgKm: reportData.reduce((s, r) => s + r.avgKmPerDay, 0) / reportData.length,
-    avgDeals: reportData.reduce((s, r) => s + r.totalDeals, 0) / reportData.length,
+    avgCheckIn:  reportData.reduce((s, r) => s + (r.workDaysCount > 0 ? r.checkInDays / r.workDaysCount : 0), 0) / reportData.length,
+    avgKm:       reportData.reduce((s, r) => s + r.avgKmPerDay, 0) / reportData.length,
+    avgDeals:    reportData.reduce((s, r) => s + r.totalDeals, 0) / reportData.length,
     avgTracking: reportData.reduce((s, r) => s + (r.workDaysCount > 0 ? r.gpsDays / r.workDaysCount : 0), 0) / reportData.length,
   } : null;
 
@@ -811,389 +673,368 @@ const ReporteProductividad: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={3}>
-        <Box>
-          <Typography variant="h4">Reporte de Productividad</Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Check-ins, rutas, solicitudes HubSpot y trackeo activo por vendedor
-          </Typography>
+      <Box mb={3}>
+        <Typography variant="h4">Reporte de Productividad</Typography>
+        <Typography variant="body2" color="text.secondary" mt={0.5}>
+          Check-ins, rutas, solicitudes HubSpot y trackeo activo por vendedor
+        </Typography>
+      </Box>
+
+      {/* Initial load states */}
+      {initialLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress />
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<ScheduleIcon />}
-          onClick={() => setScheduleOpen(true)}
-          size="small"
-        >
-          Configurar Jornada
-        </Button>
-      </Stack>
+      )}
+      {initError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setInitError(null)}>
+          {initError}
+        </Alert>
+      )}
 
-      {/* Filters */}
-      <Paper sx={{ p: 2.5, mb: 3 }}>
-        <Stack spacing={2}>
-          {/* Period */}
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ minWidth: 60 }}>
-              Periodo:
-            </Typography>
-            <ToggleButtonGroup
-              value={quickFilter}
-              exclusive
-              onChange={(_, v) => v && setQuickFilter(v)}
-              size="small"
-            >
-              {([
-                ['today', 'Hoy'],
-                ['thisWeek', 'Esta semana'],
-                ['thisMonth', 'Este mes'],
-                ['lastMonth', 'Mes anterior'],
-                ['custom', 'Personalizado'],
-              ] as [QuickFilter, string][]).map(([k, label]) => (
-                <ToggleButton key={k} value={k}>{label}</ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-            {quickFilter === 'custom' && (
-              <>
-                <TextField
-                  type="date"
+      {!initialLoading && (
+        <>
+          {/* Filters */}
+          <Paper sx={{ p: 2.5, mb: 3 }}>
+            <Stack spacing={2}>
+              {/* Period */}
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ minWidth: 60 }}>
+                  Periodo:
+                </Typography>
+                <ToggleButtonGroup
+                  value={quickFilter}
+                  exclusive
+                  onChange={(_, v) => v && setQuickFilter(v)}
                   size="small"
-                  label="Desde"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ width: 160 }}
-                />
-                <TextField
-                  type="date"
+                >
+                  {([
+                    ['today',     'Hoy'],
+                    ['thisWeek',  'Esta semana'],
+                    ['thisMonth', 'Este mes'],
+                    ['lastMonth', 'Mes anterior'],
+                    ['custom',    'Personalizado'],
+                  ] as [QuickFilter, string][]).map(([k, label]) => (
+                    <ToggleButton key={k} value={k}>{label}</ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+                {quickFilter === 'custom' && (
+                  <>
+                    <TextField
+                      type="date"
+                      size="small"
+                      label="Desde"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: 160 }}
+                    />
+                    <TextField
+                      type="date"
+                      size="small"
+                      label="Hasta"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: 160 }}
+                    />
+                  </>
+                )}
+              </Stack>
+
+              {/* Product + Sellers */}
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>Producto</InputLabel>
+                  <Select
+                    value={productFilter}
+                    label="Producto"
+                    onChange={(e) => {
+                      setProductFilter(e.target.value);
+                      setSelectedUserIds([]);
+                    }}
+                  >
+                    <MenuItem value="all">Todos los productos</MenuItem>
+                    {products.map((p) => (
+                      <MenuItem key={p.id} value={p.code}>{p.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <Autocomplete
+                  multiple
                   size="small"
-                  label="Hasta"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ width: 160 }}
+                  options={filteredUsers}
+                  getOptionLabel={(u) => u.displayName}
+                  isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                  value={filteredUsers.filter((u) => selectedUserIds.includes(u.id))}
+                  onChange={(_, val) => setSelectedUserIds(val.map((u) => u.id))}
+                  noOptionsText={users.length === 0 ? 'Sin vendedores cargados' : 'Sin coincidencias'}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Vendedores" placeholder="Selecciona…" />
+                  )}
+                  renderTags={(val, getProps) =>
+                    val.map((u, i) => (
+                      <Chip label={u.displayName} size="small" {...getProps({ index: i })} />
+                    ))
+                  }
+                  sx={{ flex: 1, minWidth: 300 }}
                 />
-              </>
-            )}
-          </Stack>
 
-          {/* Product + Sellers */}
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Producto</InputLabel>
-              <Select
-                value={productFilter}
-                label="Producto"
-                onChange={(e) => {
-                  setProductFilter(e.target.value);
-                  setSelectedUserIds([]);
-                }}
-              >
-                <MenuItem value="all">Todos los productos</MenuItem>
-                {products.map((p) => (
-                  <MenuItem key={p.id} value={p.code}>{p.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                <Button
+                  variant="contained"
+                  startIcon={loading ? <CircularProgress size={18} /> : <PlayIcon />}
+                  onClick={handleGenerateReport}
+                  disabled={loading || selectedUserIds.length === 0}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  {loading ? 'Generando…' : 'Generar Reporte'}
+                </Button>
+              </Stack>
 
-            <Autocomplete
-              multiple
-              size="small"
-              options={filteredUsers}
-              getOptionLabel={(u) => u.displayName}
-              value={filteredUsers.filter((u) => selectedUserIds.includes(u.id))}
-              onChange={(_, val) => setSelectedUserIds(val.map((u) => u.id))}
-              renderInput={(params) => (
-                <TextField {...params} label="Vendedores" placeholder="Selecciona…" />
+              {productFilter !== 'all' && (
+                <Typography variant="caption" color="text.secondary">
+                  La jornada laboral usada es la configurada para este producto en la sección de Productos.
+                </Typography>
               )}
-              renderTags={(val, getProps) =>
-                val.map((u, i) => (
-                  <Chip label={u.displayName} size="small" {...getProps({ index: i })} />
-                ))
-              }
-              sx={{ flex: 1, minWidth: 300 }}
-            />
+            </Stack>
+          </Paper>
 
-            <Button
-              variant="contained"
-              startIcon={loading ? <CircularProgress size={18} /> : <PlayIcon />}
-              onClick={handleGenerateReport}
-              disabled={loading || selectedUserIds.length === 0}
-              sx={{ whiteSpace: 'nowrap' }}
-            >
-              {loading ? 'Generando…' : 'Generar Reporte'}
-            </Button>
-          </Stack>
-        </Stack>
-      </Paper>
+          {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-
-      {/* Team KPI Summary */}
-      {teamAvgs && (
-        <Grid container spacing={2} mb={3}>
-          {[
-            { label: 'Check-in promedio', value: `${Math.round(teamAvgs.avgCheckIn * 100)}%`, icon: <CheckIcon />, color: '#16b877' },
-            { label: 'Km/día promedio', value: `${Math.round(teamAvgs.avgKm * 10) / 10} km`, icon: <WalkIcon />, color: '#2196F3' },
-            { label: 'Solicitudes promedio', value: Math.round(teamAvgs.avgDeals).toString(), icon: <HubSpotIcon />, color: '#FF9800' },
-            { label: 'Trackeo activo', value: `${Math.round(teamAvgs.avgTracking * 100)}%`, icon: <GpsIcon />, color: '#9C27B0' },
-          ].map((kpi) => (
-            <Grid item xs={6} md={3} key={kpi.label}>
-              <Paper sx={{ p: 2 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Box sx={{ bgcolor: `${kpi.color}18`, borderRadius: 2, p: 1, color: kpi.color, display: 'flex' }}>
-                    {kpi.icon}
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600}
-                      sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {kpi.label}
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color={kpi.color}>{kpi.value}</Typography>
-                  </Box>
-                </Stack>
-              </Paper>
+          {/* Team KPI Summary */}
+          {teamAvgs && (
+            <Grid container spacing={2} mb={3}>
+              {[
+                { label: 'Check-in promedio',   value: `${Math.round(teamAvgs.avgCheckIn * 100)}%`, icon: <CheckIcon />, color: '#16b877' },
+                { label: 'Km/día promedio',      value: `${Math.round(teamAvgs.avgKm * 10) / 10} km`, icon: <WalkIcon />, color: '#2196F3' },
+                { label: 'Solicitudes promedio', value: Math.round(teamAvgs.avgDeals).toString(), icon: <HubSpotIcon />, color: '#FF9800' },
+                { label: 'Trackeo activo',       value: `${Math.round(teamAvgs.avgTracking * 100)}%`, icon: <GpsIcon />, color: '#9C27B0' },
+              ].map((kpi) => (
+                <Grid item xs={6} md={3} key={kpi.label}>
+                  <Paper sx={{ p: 2 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box sx={{ bgcolor: `${kpi.color}18`, borderRadius: 2, p: 1, color: kpi.color, display: 'flex' }}>
+                        {kpi.icon}
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}
+                          sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {kpi.label}
+                        </Typography>
+                        <Typography variant="h5" fontWeight={800} color={kpi.color}>{kpi.value}</Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
-      )}
+          )}
 
-      {/* Warnings */}
-      {reportData.some((r) => r.checkInsError) && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          <strong>Check-ins no disponibles</strong> — El proyecto <em>registro-aviva</em> en Firestore debe
-          permitir lecturas en las colecciones <code>users</code> y <code>checkins</code>.
-          Actualiza las reglas de seguridad de ese proyecto para habilitarlo.
-        </Alert>
-      )}
-      {reportData.some((r) => r.hubspotError) && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          <strong>Solicitudes HubSpot no disponibles</strong> — Configura la variable{' '}
-          <code>VITE_HUBSPOT_API_KEY</code> en tu archivo <code>.env.local</code>.
-        </Alert>
-      )}
+          {/* Warnings */}
+          {reportData.some((r) => r.checkInsError) && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <strong>Check-ins no disponibles</strong> — El proyecto <em>registro-aviva</em> en Firestore debe
+              permitir lecturas en las colecciones <code>users</code> y <code>checkins</code>.
+            </Alert>
+          )}
+          {reportData.some((r) => r.hubspotError) && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <strong>Solicitudes HubSpot no disponibles</strong> — Configura la variable{' '}
+              <code>VITE_HUBSPOT_API_KEY</code> en tu archivo <code>.env.local</code>.
+            </Alert>
+          )}
 
-      {/* Main Table */}
-      {reportData.length > 0 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ width: 40 }} />
-                <TableCell><strong>Vendedor</strong></TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Días con entrada registrada EN sucursal (locationValid = true) / días laborables">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                      <CheckIcon sx={{ fontSize: 14 }} />
-                      <span>Inicio sucursal</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title="Promedio de kilómetros recorridos por día con GPS activo">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-                      <WalkIcon sx={{ fontSize: 14 }} />
-                      <span>Km/día</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title="Horas de paradas largas (>30 min) por día activo en campo">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-                      <TimerIcon sx={{ fontSize: 14 }} />
-                      <span>Hrs parado/día</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Total de pausas de más de 30 minutos en el periodo">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                      <PauseIcon sx={{ fontSize: 14 }} />
-                      <span>Paradas &gt;30m</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Días con salida registrada EN sucursal (locationValid = true) / días laborables">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                      <CheckIcon sx={{ fontSize: 14 }} />
-                      <span>Fin sucursal</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Total de minutos fuera de zona asignada en el periodo (requiere zona configurada)">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                      <ZoneIcon sx={{ fontSize: 14 }} />
-                      <span>Fuera de zona</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Deals creados en HubSpot durante el periodo, asignados a este owner">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                      <HubSpotIcon sx={{ fontSize: 14 }} />
-                      <span>Solicitudes</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Días con datos de GPS / días laborables en el periodo">
-                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                      <GpsIcon sx={{ fontSize: 14 }} />
-                      <span>Trackeo activo</span>
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {reportData.map((seller) => {
-                const isExpanded = expandedRows.has(seller.userId);
-                return (
-                  <React.Fragment key={seller.userId}>
-                    <TableRow
-                      hover
-                      onClick={() => toggleRow(seller.userId)}
-                      sx={{ cursor: 'pointer', '& td': { borderBottom: isExpanded ? 0 : undefined } }}
-                    >
-                      <TableCell padding="checkbox">
-                        <IconButton size="small">
-                          {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
-                        </IconButton>
-                      </TableCell>
-
-                      {/* Vendedor */}
-                      <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: seller.color, fontSize: 13 }}>
-                            {seller.displayName.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>{seller.displayName}</Typography>
-                            <Typography variant="caption" color="text.secondary">{seller.email}</Typography>
-                          </Box>
+          {/* Main Table */}
+          {reportData.length > 0 && (
+            <TableContainer component={Paper}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ width: 40 }} />
+                    <TableCell><strong>Vendedor</strong></TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Días con entrada registrada EN sucursal (locationValid = true) / días laborables">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <CheckIcon sx={{ fontSize: 14 }} /><span>Inicio sucursal</span>
                         </Stack>
-                      </TableCell>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Promedio de kilómetros recorridos por día con GPS activo">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+                          <WalkIcon sx={{ fontSize: 14 }} /><span>Km/día</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Horas de paradas largas (>30 min) por día activo en campo">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+                          <TimerIcon sx={{ fontSize: 14 }} /><span>Hrs parado/día</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Total de pausas de más de 30 minutos en el periodo">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <PauseIcon sx={{ fontSize: 14 }} /><span>Paradas &gt;30m</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Días con salida registrada EN sucursal (locationValid = true) / días laborables">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <CheckIcon sx={{ fontSize: 14 }} /><span>Fin sucursal</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Total de minutos fuera de zona asignada">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <ZoneIcon sx={{ fontSize: 14 }} /><span>Fuera de zona</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Deals creados en HubSpot durante el periodo">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <HubSpotIcon sx={{ fontSize: 14 }} /><span>Solicitudes</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Días con datos de GPS / días laborables en el periodo">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <GpsIcon sx={{ fontSize: 14 }} /><span>Trackeo activo</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {reportData.map((seller) => {
+                    const isExpanded = expandedRows.has(seller.userId);
+                    return (
+                      <React.Fragment key={seller.userId}>
+                        <TableRow
+                          hover
+                          onClick={() => toggleRow(seller.userId)}
+                          sx={{ cursor: 'pointer', '& td': { borderBottom: isExpanded ? 0 : undefined } }}
+                        >
+                          <TableCell padding="checkbox">
+                            <IconButton size="small">
+                              {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
+                            </IconButton>
+                          </TableCell>
 
-                      {/* Inicio sucursal */}
-                      <TableCell align="center">
-                        <PctCell
-                          value={seller.checkInDays}
-                          total={seller.workDaysCount}
-                          error={seller.checkInsError}
-                        />
-                      </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <Avatar sx={{ width: 32, height: 32, bgcolor: seller.color, fontSize: 13 }}>
+                                {seller.displayName.charAt(0)}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>{seller.displayName}</Typography>
+                                <Typography variant="caption" color="text.secondary">{seller.email}</Typography>
+                              </Box>
+                            </Stack>
+                          </TableCell>
 
-                      {/* Km/día */}
-                      <TableCell align="right">
-                        {seller.avgKmPerDay > 0
-                          ? <Typography variant="body2" fontWeight={600}>{seller.avgKmPerDay} km</Typography>
-                          : <Typography variant="caption" color="text.disabled">—</Typography>
-                        }
-                      </TableCell>
+                          <TableCell align="center">
+                            <PctCell value={seller.checkInDays} total={seller.workDaysCount} error={seller.checkInsError} />
+                          </TableCell>
 
-                      {/* Hrs parado/día */}
-                      <TableCell align="right">
-                        {seller.avgStopHoursPerDay > 0
-                          ? <Typography variant="body2">{seller.avgStopHoursPerDay}h</Typography>
-                          : <Typography variant="caption" color="text.disabled">—</Typography>
-                        }
-                      </TableCell>
+                          <TableCell align="right">
+                            {seller.avgKmPerDay > 0
+                              ? <Typography variant="body2" fontWeight={600}>{seller.avgKmPerDay} km</Typography>
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
 
-                      {/* Paradas >30m */}
-                      <TableCell align="center">
-                        {seller.totalLongStops > 0
-                          ? (
-                            <Chip
-                              label={seller.totalLongStops}
-                              size="small"
-                              color={seller.totalLongStops > 10 ? 'error' : seller.totalLongStops > 5 ? 'warning' : 'default'}
-                              variant="outlined"
-                            />
-                          )
-                          : <Typography variant="caption" color="text.disabled">—</Typography>
-                        }
-                      </TableCell>
+                          <TableCell align="right">
+                            {seller.avgStopHoursPerDay > 0
+                              ? <Typography variant="body2">{seller.avgStopHoursPerDay}h</Typography>
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
 
-                      {/* Fin sucursal */}
-                      <TableCell align="center">
-                        <PctCell
-                          value={seller.checkOutDays}
-                          total={seller.workDaysCount}
-                          error={seller.checkInsError}
-                        />
-                      </TableCell>
+                          <TableCell align="center">
+                            {seller.totalLongStops > 0
+                              ? (
+                                <Chip
+                                  label={seller.totalLongStops}
+                                  size="small"
+                                  color={seller.totalLongStops > 10 ? 'error' : seller.totalLongStops > 5 ? 'warning' : 'default'}
+                                  variant="outlined"
+                                />
+                              )
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
 
-                      {/* Fuera de zona */}
-                      <TableCell align="center">
-                        {seller.totalOutOfZoneMinutes > 0
-                          ? (
-                            <Typography
-                              variant="body2"
-                              color={seller.totalOutOfZoneMinutes > 120 ? 'error.main' : 'warning.main'}
-                              fontWeight={600}
-                            >
-                              {formatDuration(seller.totalOutOfZoneMinutes)}
-                            </Typography>
-                          )
-                          : <Typography variant="caption" color="text.disabled">—</Typography>
-                        }
-                      </TableCell>
+                          <TableCell align="center">
+                            <PctCell value={seller.checkOutDays} total={seller.workDaysCount} error={seller.checkInsError} />
+                          </TableCell>
 
-                      {/* Solicitudes HubSpot */}
-                      <TableCell align="center">
-                        {seller.hubspotError
-                          ? <Tooltip title="Configura VITE_HUBSPOT_API_KEY">
-                              <Typography variant="caption" color="text.disabled">N/D</Typography>
-                            </Tooltip>
-                          : seller.totalDeals > 0
-                            ? <Chip label={seller.totalDeals} size="small" color="primary" />
-                            : <Typography variant="caption" color="text.disabled">0</Typography>
-                        }
-                      </TableCell>
+                          <TableCell align="center">
+                            {seller.totalOutOfZoneMinutes > 0
+                              ? (
+                                <Typography
+                                  variant="body2"
+                                  color={seller.totalOutOfZoneMinutes > 120 ? 'error.main' : 'warning.main'}
+                                  fontWeight={600}
+                                >
+                                  {formatDuration(seller.totalOutOfZoneMinutes)}
+                                </Typography>
+                              )
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
 
-                      {/* Trackeo activo */}
-                      <TableCell align="center">
-                        <PctCell value={seller.gpsDays} total={seller.workDaysCount} />
-                      </TableCell>
-                    </TableRow>
+                          <TableCell align="center">
+                            {seller.hubspotError
+                              ? <Tooltip title="Configura VITE_HUBSPOT_API_KEY">
+                                  <Typography variant="caption" color="text.disabled">N/D</Typography>
+                                </Tooltip>
+                              : seller.totalDeals > 0
+                                ? <Chip label={seller.totalDeals} size="small" color="primary" />
+                                : <Typography variant="caption" color="text.disabled">0</Typography>
+                            }
+                          </TableCell>
 
-                    {/* Expanded day breakdown */}
-                    <TableRow>
-                      <TableCell colSpan={10} sx={{ p: 0, border: 0 }}>
-                        <Collapse in={isExpanded} unmountOnExit>
-                          <ExpandedDays days={seller.days} />
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                          <TableCell align="center">
+                            <PctCell value={seller.gpsDays} total={seller.workDaysCount} />
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell colSpan={10} sx={{ p: 0, border: 0 }}>
+                            <Collapse in={isExpanded} unmountOnExit>
+                              <ExpandedDays days={seller.days} />
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {/* Empty state */}
+          {!loading && reportData.length === 0 && (
+            <Paper sx={{ p: 6, textAlign: 'center' }}>
+              <ReportIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary">
+                Selecciona vendedores y genera el reporte
+              </Typography>
+              <Typography variant="body2" color="text.disabled" mt={1}>
+                El reporte incluye check-ins, km recorridos, paradas, alertas de zona y solicitudes HubSpot
+              </Typography>
+            </Paper>
+          )}
+        </>
       )}
-
-      {/* Empty state */}
-      {!loading && reportData.length === 0 && (
-        <Paper sx={{ p: 6, textAlign: 'center' }}>
-          <ReportIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">
-            Selecciona vendedores y genera el reporte
-          </Typography>
-          <Typography variant="body2" color="text.disabled" mt={1}>
-            El reporte incluye check-ins, km recorridos, paradas, alertas de zona y solicitudes HubSpot
-          </Typography>
-        </Paper>
-      )}
-
-      {/* Jornada config modal */}
-      <JornadaModal
-        open={scheduleOpen}
-        schedule={workSchedule}
-        onClose={() => setScheduleOpen(false)}
-        onSave={handleSaveSchedule}
-      />
     </Box>
   );
 };

@@ -47,7 +47,7 @@ const menuItems = [
   { text: 'Productos', icon: <CategoryIcon />, path: '/productos', category: 'main' },
   { text: 'Mapa en Vivo', icon: <MapIcon />, path: '/mapa', category: 'main' },
   { text: 'Rutas Promotores', icon: <RouteIcon />, path: '/rutas', category: 'main' },
-  { text: 'Productividad', icon: <InsightsIcon />, path: '/productividad', category: 'main' },
+  { text: 'Productividad', icon: <InsightsIcon />, path: '/productividad', category: 'reporteria' },
   { text: 'Zonas', icon: <LayersIcon />, path: '/zonas', category: 'main' },
   { text: 'Metas', icon: <TrendingUpIcon />, path: '/metas', category: 'gamification' },
   { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas', category: 'gamification' },
@@ -169,6 +169,13 @@ const Layout: React.FC = () => {
           </Typography>
         </Box>
         {menuItems.filter(item => item.category === 'main').map(renderMenuItem)}
+
+        <Box sx={{ px: 2, py: 1, mt: 3 }}>
+          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.7rem' }}>
+            Reportería
+          </Typography>
+        </Box>
+        {menuItems.filter(item => item.category === 'reporteria').map(renderMenuItem)}
 
         <Box sx={{ px: 2, py: 1, mt: 3 }}>
           <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.7rem' }}>
