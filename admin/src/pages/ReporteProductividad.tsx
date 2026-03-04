@@ -907,7 +907,7 @@ const ReporteProductividad: React.FC = () => {
               )}
               renderTags={(val, getProps) =>
                 val.map((u, i) => (
-                  <Chip key={u.id} label={u.displayName} size="small" {...getProps({ index: i })} />
+                  <Chip label={u.displayName} size="small" {...getProps({ index: i })} />
                 ))
               }
               sx={{ flex: 1, minWidth: 300 }}
