@@ -15,7 +15,7 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Header moderno con gradiente -->
+        <!-- Header con gradiente -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -71,7 +71,7 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Card 1: Mis metas comerciales -->
+        <!-- Card 1: Mis metas -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardMetasComerciales"
             android:layout_width="match_parent"
@@ -89,17 +89,17 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
+                android:orientation="horizontal"
                 android:padding="24dp"
-                android:gravity="center">
+                android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    app:cardCornerRadius="28dp"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    app:cardCornerRadius="30dp"
                     app:cardElevation="4dp"
                     app:cardBackgroundColor="@color/primary_container"
-                    android:layout_marginBottom="12dp">
+                    android:layout_marginEnd="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -110,26 +110,113 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:id="@+id/textMetasComerciales"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Mis metas comerciales"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:fontFamily="sans-serif-medium" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/textMetasComerciales"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mis metas"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Avance y objetivos comerciales"
+                        android:textSize="13sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif-light" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Card 2: Mi carrera -->
+        <!-- Card 2: Registro (va directo a asistencia) -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardMiCarrera"
+            android:id="@+id/cardRegistro"
             android:layout_width="match_parent"
             android:layout_height="140dp"
             android:layout_marginBottom="16dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@color/surface"
+            app:strokeColor="@color/primary_light"
+            app:strokeWidth="2dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:padding="24dp"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    app:cardCornerRadius="30dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/primary_light"
+                    android:layout_marginEnd="20dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="⏰"
+                        android:textSize="28sp"
+                        android:gravity="center" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Registro"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Entradas, comidas y salidas"
+                        android:textSize="13sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif-light" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Card 3: Prospectos (solo AVIVA_TU_NEGOCIO) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardProspectos"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
             app:cardCornerRadius="20dp"
             app:cardElevation="8dp"
             app:cardBackgroundColor="@color/surface"
@@ -142,118 +229,71 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
+                android:orientation="horizontal"
                 android:padding="24dp"
-                android:gravity="center">
+                android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    app:cardCornerRadius="28dp"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    app:cardCornerRadius="30dp"
                     app:cardElevation="4dp"
                     app:cardBackgroundColor="@color/secondary_container"
-                    android:layout_marginBottom="12dp">
+                    android:layout_marginEnd="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="🚀"
+                        android:text="🔍"
                         android:textSize="28sp"
                         android:gravity="center" />
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Mi carrera"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_text"
-                    android:fontFamily="sans-serif-medium" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Prospectos"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Buscar y levantar solicitudes"
+                        android:textSize="13sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif-light" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Fila 3: Registro y Mi camino de aprendizaje -->
+        <!-- Fila: Aprendizaje y Asistente -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginBottom="16dp">
 
-            <!-- Card 3: Registro -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardRegistro"
-                android:layout_width="0dp"
-                android:layout_height="160dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="8dp"
-                app:cardBackgroundColor="@color/surface"
-                app:strokeColor="@color/primary_light"
-                app:strokeWidth="2dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:padding="20dp"
-                    android:gravity="center">
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="4dp"
-                        app:cardBackgroundColor="@color/primary_light"
-                        android:layout_marginBottom="12dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text="📝"
-                            android:textSize="24sp"
-                            android:gravity="center" />
-
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Registro"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text"
-                        android:gravity="center"
-                        android:fontFamily="sans-serif-medium" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Turnos + Rutas"
-                        android:textSize="12sp"
-                        android:textColor="@color/secondary_text"
-                        android:gravity="center"
-                        android:layout_marginTop="4dp"
-                        android:fontFamily="sans-serif-light" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Card 4: Mi camino de aprendizaje -->
+            <!-- Card 4: Mi camino de aprendizaje (LMS) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardAprendizaje"
                 android:layout_width="0dp"
                 android:layout_height="160dp"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="8dp"
                 app:cardBackgroundColor="@color/surface"
@@ -291,7 +331,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Mi camino de"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary_text"
                         android:gravity="center"
@@ -301,7 +341,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="aprendizaje"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary_text"
                         android:gravity="center"
@@ -311,24 +351,15 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-        </LinearLayout>
-
-        <!-- Fila 4: Ayuda y Trámites -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
-
-            <!-- Card 5: Asistente de Ayuda (Chatbot) -->
+            <!-- Card 5: Asistente -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardAyuda"
                 android:layout_width="0dp"
-                android:layout_height="140dp"
+                android:layout_height="160dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="6dp"
+                app:cardElevation="8dp"
                 app:cardBackgroundColor="@color/surface"
                 app:strokeColor="@color/primary"
                 app:strokeWidth="2dp"
@@ -344,18 +375,18 @@
                     android:gravity="center">
 
                     <com.google.android.material.card.MaterialCardView
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        app:cardCornerRadius="22dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:cardCornerRadius="24dp"
                         app:cardElevation="4dp"
                         app:cardBackgroundColor="@color/primary_container"
-                        android:layout_marginBottom="10dp">
+                        android:layout_marginBottom="12dp">
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:text="💬"
-                            android:textSize="22sp"
+                            android:textSize="24sp"
                             android:gravity="center" />
 
                     </com.google.android.material.card.MaterialCardView>
@@ -364,7 +395,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Asistente"
-                        android:textSize="18sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary_text"
                         android:gravity="center"
@@ -374,45 +405,52 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Card 6: Trámites -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardTramites"
-                android:layout_width="0dp"
-                android:layout_height="140dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="6dp"
-                app:cardBackgroundColor="@color/surface"
-                app:strokeColor="@color/divider"
-                app:strokeWidth="2dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground">
+        </LinearLayout>
+
+        <!-- Card 6: Trámites (full width) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardTramites"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="6dp"
+            app:cardBackgroundColor="@color/surface"
+            app:strokeColor="@color/divider"
+            app:strokeWidth="2dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/accent_light"
+                    android:layout_marginEnd="20dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="📄"
+                        android:textSize="26sp"
+                        android:gravity="center" />
+
+                </com.google.android.material.card.MaterialCardView>
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:padding="20dp"
-                    android:gravity="center">
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        app:cardCornerRadius="22dp"
-                        app:cardElevation="4dp"
-                        app:cardBackgroundColor="@color/accent_light"
-                        android:layout_marginBottom="10dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text="📄"
-                            android:textSize="22sp"
-                            android:gravity="center" />
-
-                    </com.google.android.material.card.MaterialCardView>
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -421,7 +459,6 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary_text"
-                        android:gravity="center"
                         android:fontFamily="sans-serif-medium" />
 
                     <TextView
@@ -430,15 +467,14 @@
                         android:text="Vacaciones, Aviva days e incapacidad"
                         android:textSize="12sp"
                         android:textColor="@color/secondary_text"
-                        android:gravity="center"
                         android:layout_marginTop="4dp"
                         android:fontFamily="sans-serif-light" />
 
                 </LinearLayout>
 
-            </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
 
-        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 

@@ -16,9 +16,13 @@ import models.User
 
 /**
  * HomeFragment - Pantalla principal de inicio
- * Muestra un menú de navegación adaptado según el producto del vendedor:
- * - Aviva Tu Negocio: branding y textos de Aviva Tu Negocio Promotores
- * - Construrama: branding y textos de Construrama
+ * Módulos visibles:
+ *   - Metas (todos)
+ *   - Registro → Asistencia directa (todos)
+ *   - Prospectos → Aviva Tu Negocio (solo AVIVA_TU_NEGOCIO)
+ *   - Camino de aprendizaje → LMS embed (todos)
+ *   - Asistente (todos)
+ *   - Trámites (todos)
  */
 class HomeFragment : Fragment() {
 
@@ -61,10 +65,6 @@ class HomeFragment : Fragment() {
         }
     }
 
-    /**
-     * Carga el perfil del usuario desde Firestore y adapta el layout
-     * según su producto (Aviva Tu Negocio o Construrama).
-     */
     private fun loadUserAndAdaptLayout(view: View) {
         val uid = auth.currentUser?.uid ?: return
 
@@ -79,119 +79,71 @@ class HomeFragment : Fragment() {
                 }
             }
             .addOnFailureListener {
-                // Silently fail - use default Aviva Tu Negocio layout
+                // Silently fail - prospectos card permanece oculta por defecto
             }
     }
 
-    /**
-     * Aplica los textos y el layout correspondiente al producto del usuario.
-     */
     private fun applyProductLayout(view: View, user: User) {
         val productNameText = view.findViewById<TextView>(R.id.productNameText)
         val productSubtitleText = view.findViewById<TextView>(R.id.productSubtitleText)
         val textMetasComerciales = view.findViewById<TextView>(R.id.textMetasComerciales)
+        val cardProspectos = view.findViewById<MaterialCardView>(R.id.cardProspectos)
+
+        // Mostrar prospectos solo para línea Aviva Tu Negocio
+        if (user.productLine == User.ProductLine.AVIVA_TU_NEGOCIO) {
+            cardProspectos.visibility = View.VISIBLE
+        } else {
+            cardProspectos.visibility = View.GONE
+        }
 
         when (user.productLine) {
-            User.ProductLine.CONSTRURAMA -> applyConstructamaLayout(
-                productNameText, productSubtitleText, textMetasComerciales
-            )
-            else -> applyAvivaTuNegocioLayout(
-                productNameText, productSubtitleText, textMetasComerciales
-            )
+            User.ProductLine.CONSTRURAMA -> {
+                productNameText.text = "Construrama"
+                productSubtitleText.text = "Promotores"
+                textMetasComerciales.text = "Mis metas"
+            }
+            else -> {
+                productNameText.text = "Aviva Tu Negocio"
+                productSubtitleText.text = "Promotores"
+                textMetasComerciales.text = "Mis metas comerciales"
+            }
         }
-    }
-
-    private fun applyAvivaTuNegocioLayout(
-        productNameText: TextView,
-        productSubtitleText: TextView,
-        textMetasComerciales: TextView
-    ) {
-        productNameText.text = "Aviva Tu Negocio"
-        productSubtitleText.text = "Promotores"
-        textMetasComerciales.text = "Mis metas comerciales"
-    }
-
-    private fun applyConstructamaLayout(
-        productNameText: TextView,
-        productSubtitleText: TextView,
-        textMetasComerciales: TextView
-    ) {
-        productNameText.text = "Construrama"
-        productSubtitleText.text = "Promotores"
-        textMetasComerciales.text = "Mis metas"
     }
 
     private fun setupCardListeners(view: View) {
         view.findViewById<MaterialCardView>(R.id.cardMetasComerciales).setOnClickListener {
-            navigateToCommercialGoals()
+            navigate(R.id.navigation_commercial_goals)
         }
 
-        view.findViewById<MaterialCardView>(R.id.cardMiCarrera).setOnClickListener {
-            navigateToProfile()
-        }
-
+        // Registro va directo a Asistencia (entradas, comidas y salidas)
         view.findViewById<MaterialCardView>(R.id.cardRegistro).setOnClickListener {
-            navigateToRegistro()
+            navigate(R.id.navigation_attendance)
         }
 
+        // Prospectos: visible solo para AVIVA_TU_NEGOCIO (controlado en applyProductLayout)
+        view.findViewById<MaterialCardView>(R.id.cardProspectos).setOnClickListener {
+            navigate(R.id.navigation_aviva_tu_negocio)
+        }
+
+        // Camino de aprendizaje: LMS embed
         view.findViewById<MaterialCardView>(R.id.cardAprendizaje).setOnClickListener {
-            showComingSoon("Mi camino de aprendizaje")
+            navigate(R.id.navigation_lms)
         }
 
         view.findViewById<MaterialCardView>(R.id.cardAyuda).setOnClickListener {
-            navigateToHelpAssistant()
+            navigate(R.id.navigation_help_assistant)
         }
 
         view.findViewById<MaterialCardView>(R.id.cardTramites).setOnClickListener {
-            navigateToTramites()
+            navigate(R.id.navigation_tramites)
         }
     }
 
-    private fun navigateToCommercialGoals() {
+    private fun navigate(destinationId: Int) {
         try {
-            findNavController().navigate(R.id.navigation_commercial_goals)
+            findNavController().navigate(destinationId)
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun navigateToProfile() {
-        try {
-            findNavController().navigate(R.id.navigation_mi_carrera)
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun navigateToRegistro() {
-        try {
-            findNavController().navigate(R.id.navigation_registro)
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun navigateToHelpAssistant() {
-        try {
-            findNavController().navigate(R.id.navigation_help_assistant)
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Error al navegar al asistente", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun navigateToTramites() {
-        try {
-            findNavController().navigate(R.id.navigation_tramites)
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Error al navegar a trámites", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun showComingSoon(feature: String) {
-        Toast.makeText(
-            requireContext(),
-            "$feature - Próximamente disponible",
-            Toast.LENGTH_SHORT
-        ).show()
     }
 }
