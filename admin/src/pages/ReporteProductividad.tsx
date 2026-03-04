@@ -121,6 +121,7 @@ interface CheckInRecord {
   userId: string;
   validationResults?: {
     isOnTime: boolean;
+    locationValid: boolean;
     minutesLate: number;
     minutesEarly: number;
   };
@@ -365,9 +366,9 @@ const buildDayReports = (
       date,
       dayLabel: `${DAY_LABELS[d.getDay()]} ${d.getDate()} ${MONTH_LABELS[d.getMonth()]}`,
       checkInTime: formatTime(entrada?.timestamp ?? null),
-      checkInOnTime: entrada?.validationResults?.isOnTime ?? null,
+      checkInOnTime: entrada ? (entrada.validationResults?.locationValid ?? null) : null,
       checkOutTime: formatTime(salida?.timestamp ?? null),
-      checkOutOnTime: salida?.validationResults?.isOnTime ?? null,
+      checkOutOnTime: salida ? (salida.validationResults?.locationValid ?? null) : null,
       km: Math.round(km * 10) / 10,
       longStops,
       stopMinutes: Math.round(stopMinutes),
@@ -721,7 +722,7 @@ const ReporteProductividad: React.FC = () => {
             const registroUserId = regUsersSnap.docs[0]?.id ?? user.id;
 
             const ciSnap = await getDocs(query(
-              collection(dbRegistro, 'check-ins'),
+              collection(dbRegistro, 'checkins'),
               where('userId', '==', registroUserId),
               where('timestamp', '>=', startTs),
               where('timestamp', '<=', endTs),
@@ -757,8 +758,9 @@ const ReporteProductividad: React.FC = () => {
 
           // 6. Aggregate
           const gpsDays = days.filter((d) => d.hasGps).length;
-          const checkInDays = days.filter((d) => d.checkInTime !== null).length;
-          const checkOutDays = days.filter((d) => d.checkOutTime !== null).length;
+          // "en sucursal" = check-in donde locationValid === true
+          const checkInDays = days.filter((d) => d.checkInOnTime === true).length;
+          const checkOutDays = days.filter((d) => d.checkOutOnTime === true).length;
           const totalKm = days.reduce((s, d) => s + d.km, 0);
           const totalLongStops = days.reduce((s, d) => s + d.longStops, 0);
           const totalStopMinutes = days.reduce((s, d) => s + d.stopMinutes, 0);
@@ -959,7 +961,7 @@ const ReporteProductividad: React.FC = () => {
       {reportData.some((r) => r.checkInsError) && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           <strong>Check-ins no disponibles</strong> — El proyecto <em>registro-aviva</em> en Firestore debe
-          permitir lecturas en las colecciones <code>users</code> y <code>check-ins</code>.
+          permitir lecturas en las colecciones <code>users</code> y <code>checkins</code>.
           Actualiza las reglas de seguridad de ese proyecto para habilitarlo.
         </Alert>
       )}
@@ -979,7 +981,7 @@ const ReporteProductividad: React.FC = () => {
                 <TableCell sx={{ width: 40 }} />
                 <TableCell><strong>Vendedor</strong></TableCell>
                 <TableCell align="center">
-                  <Tooltip title="Días con check-in de entrada / días laborables en el periodo">
+                  <Tooltip title="Días con entrada registrada EN sucursal (locationValid = true) / días laborables">
                     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                       <CheckIcon sx={{ fontSize: 14 }} />
                       <span>Inicio sucursal</span>
@@ -1011,7 +1013,7 @@ const ReporteProductividad: React.FC = () => {
                   </Tooltip>
                 </TableCell>
                 <TableCell align="center">
-                  <Tooltip title="Días con check-out de salida / días laborables">
+                  <Tooltip title="Días con salida registrada EN sucursal (locationValid = true) / días laborables">
                     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                       <CheckIcon sx={{ fontSize: 14 }} />
                       <span>Fin sucursal</span>
