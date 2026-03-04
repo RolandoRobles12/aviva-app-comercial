@@ -25,6 +25,7 @@ import {
   Tab
 } from '@mui/material';
 import ReportesRutas from './ReportesRutas';
+import ReporteProductividad from './ReporteProductividad';
 import {
   Route as RouteIcon,
   Place as PlaceIcon,
@@ -456,6 +457,7 @@ const RutasPromotores: React.FC = () => {
         <Tabs value={mainTab} onChange={(_, v) => setMainTab(v)}>
           <Tab label="Mapa de Rutas" />
           <Tab label="Reportes" />
+          <Tab label="Productividad" />
         </Tabs>
       </Box>
 
@@ -463,6 +465,13 @@ const RutasPromotores: React.FC = () => {
       {mainTab === 1 && (
         <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
           <ReportesRutas />
+        </Box>
+      )}
+
+      {/* Tab Productividad */}
+      {mainTab === 2 && (
+        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+          <ReporteProductividad />
         </Box>
       )}
 

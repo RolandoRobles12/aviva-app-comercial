@@ -552,26 +552,33 @@ const ReporteProductividad: React.FC = () => {
         selectedUsers.map(async (user, idx): Promise<SellerReport> => {
           const color = SELLER_COLORS[idx % SELLER_COLORS.length];
 
-          // 1. GPS Locations
+          // 1. GPS Locations (filter by date in memory to avoid requiring composite index)
           const locSnap = await getDocs(query(
             collection(db, 'locations'),
             where('userId', '==', user.id),
-            where('timestamp', '>=', startTs),
-            where('timestamp', '<=', endTs),
           ));
+          const filteredLocDocs = locSnap.docs.filter((d) => {
+            const ts: Timestamp | undefined = d.data().timestamp;
+            if (!ts) return false;
+            const ms = ts.toMillis();
+            return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+          });
 
-          // 2. Location alerts (requiere índice compuesto: locationAlerts userId + detectedAt)
+          // 2. Location alerts (filter in memory to avoid requiring composite index)
           let alertDocs: any[] = [];
           try {
             const alertsSnap = await getDocs(query(
               collection(db, 'locationAlerts'),
               where('userId', '==', user.id),
-              where('detectedAt', '>=', startTs),
-              where('detectedAt', '<=', endTs),
             ));
-            alertDocs = alertsSnap.docs;
+            alertDocs = alertsSnap.docs.filter((d) => {
+              const ts: Timestamp | undefined = d.data().detectedAt;
+              if (!ts) return false;
+              const ms = ts.toMillis();
+              return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+            });
           } catch {
-            // Índice compuesto aún no creado — se ignora fuera de zona
+            // Se ignora fuera de zona si no hay datos
           }
 
           // 3. Check-ins desde registro-aviva
@@ -587,10 +594,15 @@ const ReporteProductividad: React.FC = () => {
             const ciSnap = await getDocs(query(
               collection(dbRegistro, 'checkins'),
               where('userId', '==', registroUserId),
-              where('timestamp', '>=', startTs),
-              where('timestamp', '<=', endTs),
             ));
-            checkIns = ciSnap.docs.map((d) => ({ ...d.data() } as CheckInRecord));
+            checkIns = ciSnap.docs
+              .filter((d) => {
+                const ts: Timestamp | undefined = d.data().timestamp;
+                if (!ts) return false;
+                const ms = ts.toMillis();
+                return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+              })
+              .map((d) => ({ ...d.data() } as CheckInRecord));
           } catch {
             checkInsError = true;
           }
@@ -613,7 +625,7 @@ const ReporteProductividad: React.FC = () => {
           // 5. Build day reports
           const days = buildDayReports(
             workDays,
-            locSnap.docs,
+            filteredLocDocs,
             alertDocs,
             checkIns,
             hubspotDeals,
