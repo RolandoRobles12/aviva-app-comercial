@@ -27,6 +27,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CategoryIcon from '@mui/icons-material/Category';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import JornadaModal, { WorkSchedule, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 import {
   collection,
   getDocs,
@@ -46,6 +48,7 @@ interface Product {
   code: string; // Código interno (ej: "aviva_tu_negocio")
   category: string; // Categoría del producto
   isActive: boolean;
+  workSchedule?: WorkSchedule;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -70,6 +73,9 @@ const Productos: React.FC = () => {
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Schedule dialog state
+  const [scheduleProduct, setScheduleProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     code: '',
@@ -216,6 +222,17 @@ const Productos: React.FC = () => {
     }
   };
 
+  const handleSaveSchedule = async (schedule: WorkSchedule): Promise<void> => {
+    if (!scheduleProduct) return;
+    await updateDoc(doc(db, 'products', scheduleProduct.id), {
+      workSchedule: schedule,
+      updatedAt: Timestamp.now(),
+    });
+    setProducts((prev) =>
+      prev.map((p) => p.id === scheduleProduct.id ? { ...p, workSchedule: schedule } : p)
+    );
+  };
+
   const getCategoryColor = (category: string): 'primary' | 'success' | 'error' | 'warning' | 'info' | 'default' => {
     switch (category) {
       case 'Productos Aviva':
@@ -322,6 +339,14 @@ const Productos: React.FC = () => {
                   <TableCell align="right">
                     <IconButton
                       size="small"
+                      title="Configurar Jornada"
+                      onClick={() => setScheduleProduct(product)}
+                      color="default"
+                    >
+                      <ScheduleIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
                       onClick={() => handleOpenDialog(product)}
                       color="primary"
                     >
@@ -341,6 +366,15 @@ const Productos: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Dialog de jornada laboral por producto */}
+      <JornadaModal
+        open={scheduleProduct !== null}
+        schedule={scheduleProduct?.workSchedule || DEFAULT_SCHEDULE}
+        title={`Jornada: ${scheduleProduct?.name || ''}`}
+        onClose={() => setScheduleProduct(null)}
+        onSave={handleSaveSchedule}
+      />
 
       {/* Dialog para crear/editar producto */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
