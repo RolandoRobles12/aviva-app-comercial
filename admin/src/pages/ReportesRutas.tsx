@@ -13,7 +13,6 @@ import {
   Autocomplete,
   ToggleButtonGroup,
   ToggleButton,
-  Divider,
   Avatar,
   Table,
   TableBody,
@@ -30,7 +29,6 @@ import {
 import {
   DirectionsRun as RunIcon,
   AccessTime as TimeIcon,
-  Map as MapIcon,
   Speed as SpeedIcon,
   TrendingUp as TrendingUpIcon,
   EmojiEvents as TrophyIcon,
@@ -505,9 +503,8 @@ const ReportesRutas: React.FC = () => {
               getOptionLabel={u => u.displayName}
               renderTags={(val, getProps) => val.map((u, i) => (
                 <Chip
-                  key={u.id}
-                  label={u.displayName.split(' ')[0]}
                   {...getProps({ index: i })}
+                  label={u.displayName.split(' ')[0]}
                   size="small"
                 />
               ))}
