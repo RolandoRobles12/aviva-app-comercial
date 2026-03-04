@@ -51,10 +51,7 @@ const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry" | "drawing")[] = ['places', 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 };
 
-const ZONE_COLORS = [
-  '#2196F3', '#F44336', '#4CAF50', '#FF9800', '#9C27B0',
-  '#00BCD4', '#FF5722', '#795548', '#607D8B', '#E91E63'
-];
+const ZONE_COLOR = '#4CAF50'; // Verde fijo para zonas de venta
 
 interface User {
   id: string;
@@ -131,7 +128,6 @@ const ZonasVendedores: React.FC = () => {
   const [pendingPolygon, setPendingPolygon] = useState<ZoneCoord[] | null>(null);
   const [newZoneDescription, setNewZoneDescription] = useState('');
   const [newZoneSeller, setNewZoneSeller] = useState<User | null>(null);
-  const [newZoneColor, setNewZoneColor] = useState(ZONE_COLORS[0]);
   const [newZoneMunicipality, setNewZoneMunicipality] = useState('');
   const [newZoneState, setNewZoneState] = useState('');
   const [newZoneColonia, setNewZoneColonia] = useState('');
@@ -330,7 +326,7 @@ const ZonasVendedores: React.FC = () => {
         assignedSellerId: newZoneSeller.id,
         assignedSellerName: newZoneSeller.displayName,
         coordinates,
-        color: newZoneColor,
+        color: ZONE_COLOR,
         isActive: true,
         startDate: newZoneStartDate,
         endDate: newZoneEndDate,
@@ -410,7 +406,7 @@ const ZonasVendedores: React.FC = () => {
     setNewZoneDialog(false);
     setNewZoneDescription('');
     setNewZoneSeller(null);
-    setNewZoneColor(ZONE_COLORS[0]);
+
     setNewZoneMunicipality('');
     setNewZoneState('');
     setNewZoneColonia('');
@@ -945,9 +941,9 @@ const ZonasVendedores: React.FC = () => {
                 drawingMode: google.maps.drawing.OverlayType.POLYGON,
                 drawingControl: false,
                 polygonOptions: {
-                  fillColor: newZoneColor,
+                  fillColor: ZONE_COLOR,
                   fillOpacity: 0.25,
-                  strokeColor: newZoneColor,
+                  strokeColor: ZONE_COLOR,
                   strokeWeight: 2,
                   editable: true
                 }
@@ -1099,27 +1095,6 @@ const ZonasVendedores: React.FC = () => {
               )}
             />
 
-            <Box>
-              <Typography variant="body2" gutterBottom>Color de la zona:</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {ZONE_COLORS.map(color => (
-                  <Box
-                    key={color}
-                    onClick={() => setNewZoneColor(color)}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      bgcolor: color,
-                      cursor: 'pointer',
-                      border: newZoneColor === color ? '3px solid #333' : '2px solid transparent',
-                      transition: 'transform 0.1s',
-                      '&:hover': { transform: 'scale(1.2)' }
-                    }}
-                  />
-                ))}
-              </Stack>
-            </Box>
 
             {newZoneType === 'polygon' && pendingPolygon && (
               <Alert severity="success">
