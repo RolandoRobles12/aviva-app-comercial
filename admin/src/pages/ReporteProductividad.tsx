@@ -53,7 +53,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
-import { WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
+import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 
 // ── Local constants ──────────────────────────────────────────────────────────
 

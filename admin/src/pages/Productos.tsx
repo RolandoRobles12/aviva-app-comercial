@@ -28,7 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CategoryIcon from '@mui/icons-material/Category';
 import ScheduleIcon from '@mui/icons-material/Schedule';
-import JornadaModal, { WorkSchedule, DEFAULT_SCHEDULE } from '../components/JornadaModal';
+import JornadaModal, { type WorkSchedule, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 import {
   collection,
   getDocs,
