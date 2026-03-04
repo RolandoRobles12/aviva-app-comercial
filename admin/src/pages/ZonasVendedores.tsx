@@ -12,31 +12,21 @@ import {
   Divider,
   List,
   ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Autocomplete,
   Tabs,
   Tab,
-  Tooltip,
-  Badge
+  Tooltip
 } from '@mui/material';
 import {
   Map as MapIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon,
   Add as AddIcon,
   Draw as DrawIcon,
-  LocationOn as LocationOnIcon,
   Apartment as ApartmentIcon,
   Home as HomeIcon,
   Visibility as VisibilityIcon,
@@ -50,12 +40,9 @@ import {
   collection,
   getDocs,
   addDoc,
-  updateDoc,
   deleteDoc,
   doc,
-  Timestamp,
-  query,
-  where
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -100,13 +87,6 @@ interface Zone {
   updatedAt?: Timestamp;
 }
 
-interface MexicoLocation {
-  name: string;
-  state: string;
-  municipality?: string;
-  postalCode?: string;
-}
-
 // Estados de México para el selector
 const MEXICO_STATES = [
   'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche',
@@ -129,7 +109,6 @@ const ZonasVendedores: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [drawingMode, setDrawingMode] = useState<'none' | 'polygon'>('none');
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
@@ -731,7 +710,6 @@ const ZonasVendedores: React.FC = () => {
             streetViewControl: false,
             fullscreenControl: true
           }}
-          onLoad={setMapRef}
         >
           {/* Drawing Manager para polígonos */}
           {drawingMode === 'polygon' && (
