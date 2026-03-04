@@ -120,6 +120,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Receptor para notificaciones de recordatorio de asistencia -->
+        <receiver
+            android:name="com.promotoresavivatunegocio_1.AttendanceReminderReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- Proveedor de archivos -->
         <provider
             android:name="androidx.core.content.FileProvider"

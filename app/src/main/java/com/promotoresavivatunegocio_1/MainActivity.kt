@@ -213,6 +213,9 @@ class MainActivity : AppCompatActivity() {
                             // Crear navigation manager
                             navigationManager = com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager.create(currentUser!!)
 
+                            // Actualizar título del toolbar con la línea de producto real
+                            binding.toolbar.title = currentUser!!.getProductLineDisplayName()
+
                             // Configurar navegación según el rol
                             setupRoleBasedNavigation()
 
@@ -462,6 +465,9 @@ class MainActivity : AppCompatActivity() {
             // Configurar toolbar y botón de logout
             setupToolbar()
 
+            // Programar notificaciones de recordatorio de entrada (9 AM) y salida (6 PM)
+            AttendanceAlarmScheduler.scheduleAll(this)
+
             // Bottom navigation eliminada - navegación a través de Home screen
             Log.d(TAG, "📱 Navegación configurada a través de Home screen")
 
@@ -486,8 +492,13 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupToolbar() {
         try {
-            // Configurar título del toolbar
-            binding.toolbar.title = getString(R.string.app_name)
+            // Registrar como ActionBar para evitar el doble toolbar del sistema
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.setDisplayShowTitleEnabled(true)
+
+            // Título según la línea de producto del usuario
+            binding.toolbar.title = currentUser?.getProductLineDisplayName()
+                ?: getString(R.string.app_name)
 
             // Configurar botón de logout
             binding.btnToolbarLogout.setOnClickListener {
@@ -648,6 +659,9 @@ class MainActivity : AppCompatActivity() {
     private fun signOut() {
         try {
             Log.d(TAG, "🚪 Cerrando sesión...")
+
+            // Cancelar alarmas de recordatorio al cerrar sesión
+            AttendanceAlarmScheduler.cancelAll(this)
 
             auth.signOut()
             googleSignInClient.signOut().addOnCompleteListener(this) {

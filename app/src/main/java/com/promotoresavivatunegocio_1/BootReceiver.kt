@@ -30,6 +30,10 @@ class BootReceiver : BroadcastReceiver() {
                 } else {
                     context.startService(serviceIntent)
                 }
+
+                // Reprogramar alarmas de recordatorio de asistencia
+                AttendanceAlarmScheduler.scheduleAll(context)
+                Log.d(TAG, "Alarmas de recordatorio reprogramadas")
             } else {
                 Log.d(TAG, "No hay usuario autenticado, no se inicia el servicio")
             }
