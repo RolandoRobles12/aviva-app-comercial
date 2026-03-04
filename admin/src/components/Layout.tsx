@@ -32,6 +32,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import StoreIcon from '@mui/icons-material/Store';
 import MapIcon from '@mui/icons-material/Map';
 import RouteIcon from '@mui/icons-material/Route';
+import InsightsIcon from '@mui/icons-material/Insights';
 import LayersIcon from '@mui/icons-material/Layers';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +47,7 @@ const menuItems = [
   { text: 'Productos', icon: <CategoryIcon />, path: '/productos', category: 'main' },
   { text: 'Mapa en Vivo', icon: <MapIcon />, path: '/mapa', category: 'main' },
   { text: 'Rutas Promotores', icon: <RouteIcon />, path: '/rutas', category: 'main' },
+  { text: 'Productividad', icon: <InsightsIcon />, path: '/productividad', category: 'main' },
   { text: 'Zonas', icon: <LayersIcon />, path: '/zonas', category: 'main' },
   { text: 'Metas', icon: <TrendingUpIcon />, path: '/metas', category: 'gamification' },
   { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas', category: 'gamification' },
