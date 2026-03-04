@@ -457,7 +457,7 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "🏠 Mostrando contenido principal...")
 
             binding.loginContainer.visibility = View.GONE
-            binding.toolbar.visibility = View.VISIBLE
+            // toolbar remains GONE – HomeFragment has its own header
 
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.VISIBLE
@@ -514,7 +514,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * Muestra diálogo de confirmación para cerrar sesión
      */
-    private fun showLogoutConfirmationDialog() {
+    fun showLogoutConfirmationDialog() {
         try {
             android.app.AlertDialog.Builder(this)
                 .setTitle("Cerrar Sesión")

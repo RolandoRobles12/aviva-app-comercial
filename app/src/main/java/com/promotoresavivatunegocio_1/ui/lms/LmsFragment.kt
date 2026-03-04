@@ -1,65 +1,51 @@
 package com.promotoresavivatunegocio_1.ui.lms
 
-import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.ProgressBar
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.promotoresavivatunegocio_1.R
 
 /**
  * LmsFragment - Camino de aprendizaje
- * Carga el LMS inhouse via WebView.
+ *
+ * Abre el LMS en Chrome Custom Tabs para evitar el error 403
+ * disallowed_useragent que bloquea el login OAuth en WebViews.
  */
 class LmsFragment : Fragment() {
 
-    private lateinit var webView: WebView
-    private lateinit var progressBar: ProgressBar
+    companion object {
+        private const val LMS_URL =
+            "https://onboarding-challenge--aviva-onb-app.us-central1.hosted.app/"
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_lms, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.fragment_lms, container, false)
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        webView = view.findViewById(R.id.lmsWebView)
-        progressBar = view.findViewById(R.id.lmsProgressBar)
-
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
-        }
-
-        webView.webViewClient = WebViewClient()
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                if (newProgress < 100) {
-                    progressBar.visibility = View.VISIBLE
-                    progressBar.progress = newProgress
-                } else {
-                    progressBar.visibility = View.GONE
-                }
-            }
-        }
-
-        webView.loadUrl("https://onboarding-challenge--aviva-onb-app.us-central1.hosted.app/")
+        openInChromeCustomTabs()
     }
 
-    override fun onDestroyView() {
-        webView.destroy()
-        super.onDestroyView()
+    private fun openInChromeCustomTabs() {
+        val colorSchemeParams = CustomTabColorSchemeParams.Builder()
+            .setToolbarColor(ContextCompat.getColor(requireContext(), R.color.primary))
+            .build()
+
+        val intent = CustomTabsIntent.Builder()
+            .setDefaultColorSchemeParams(colorSchemeParams)
+            .setShowTitle(true)
+            .setUrlBarHidingEnabled(true)
+            .build()
+
+        intent.launchUrl(requireContext(), Uri.parse(LMS_URL))
     }
 }

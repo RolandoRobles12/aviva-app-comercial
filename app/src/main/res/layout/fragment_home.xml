@@ -66,13 +66,16 @@
 
             </LinearLayout>
 
-            <!-- Avatar con iniciales -->
+            <!-- Avatar con iniciales – clic para cerrar sesión -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardUserAvatar"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="3dp"
-                app:cardBackgroundColor="@color/primary">
+                app:cardBackgroundColor="@color/primary"
+                android:clickable="true"
+                android:focusable="true">
 
                 <TextView
                     android:id="@+id/textUserInitials"
