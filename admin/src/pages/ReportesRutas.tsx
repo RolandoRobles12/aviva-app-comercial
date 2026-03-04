@@ -278,7 +278,9 @@ const ReportesRutas: React.FC = () => {
 
         const locSnap = await getDocs(query(
           collection(db, 'locations'),
-          where('userId', '==', userId)
+          where('userId', '==', userId),
+          where('timestamp', '>=', startTs),
+          where('timestamp', '<=', endTs)
         ));
 
         const points: LocationPoint[] = locSnap.docs
@@ -287,15 +289,12 @@ const ReportesRutas: React.FC = () => {
             return {
               userId,
               timestamp: data.timestamp,
-              location: data.location,
+              location: data.location ?? { latitude: data.latitude, longitude: data.longitude },
               accuracy: data.accuracy,
               speed: data.speed
             } as LocationPoint;
           })
-          .filter(p => {
-            const t = p.timestamp.toMillis();
-            return t >= startTs.toMillis() && t <= endTs.toMillis();
-          })
+          .filter(p => p.timestamp && p.location?.latitude != null)
           .sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
 
         // Calcular estadísticas
@@ -424,6 +423,12 @@ const ReportesRutas: React.FC = () => {
     ? users
     : users.filter(u => u.productLine === productFilter);
 
+  const handleProductFilterChange = (value: string) => {
+    setProductFilter(value);
+    const next = value === 'all' ? users : users.filter(u => u.productLine === value);
+    setSelectedUserIds(next.map(u => u.id));
+  };
+
   return (
     <Box sx={{ p: 0 }}>
       {/* Filtros */}
@@ -481,7 +486,7 @@ const ReportesRutas: React.FC = () => {
               <Select
                 value={productFilter}
                 label="Producto"
-                onChange={e => setProductFilter(e.target.value)}
+                onChange={e => handleProductFilterChange(e.target.value)}
               >
                 <MenuItem value="all">Todos</MenuItem>
                 <MenuItem value="AVIVA_TU_NEGOCIO">Aviva Tu Negocio</MenuItem>
@@ -495,23 +500,40 @@ const ReportesRutas: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} md={3}>
-            <Autocomplete
-              multiple
-              options={filteredUsers}
-              value={filteredUsers.filter(u => selectedUserIds.includes(u.id))}
-              onChange={(_, v) => setSelectedUserIds(v.map(u => u.id))}
-              getOptionLabel={u => u.displayName}
-              renderTags={(val, getProps) => val.map((u, i) => (
-                <Chip
-                  {...getProps({ index: i })}
-                  label={u.displayName.split(' ')[0]}
+            <Stack spacing={1}>
+              <Autocomplete
+                multiple
+                options={filteredUsers}
+                value={filteredUsers.filter(u => selectedUserIds.includes(u.id))}
+                onChange={(_, v) => setSelectedUserIds(v.map(u => u.id))}
+                getOptionLabel={u => u.displayName}
+                renderTags={(val, getProps) => val.map((u, i) => (
+                  <Chip
+                    {...getProps({ index: i })}
+                    label={u.displayName.split(' ')[0]}
+                    size="small"
+                  />
+                ))}
+                renderInput={(params) => (
+                  <TextField {...params} label="Vendedores" size="small" />
+                )}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
                   size="small"
-                />
-              ))}
-              renderInput={(params) => (
-                <TextField {...params} label="Vendedores" size="small" />
-              )}
-            />
+                  variant="outlined"
+                  onClick={() => setSelectedUserIds(filteredUsers.map(u => u.id))}
+                  disabled={filteredUsers.length === 0}
+                >
+                  Seleccionar todos ({filteredUsers.length})
+                </Button>
+                {selectedUserIds.length > 0 && (
+                  <Button size="small" onClick={() => setSelectedUserIds([])}>
+                    Limpiar
+                  </Button>
+                )}
+              </Stack>
+            </Stack>
           </Grid>
 
           <Grid item xs={12} md={12}>
@@ -776,8 +798,7 @@ const ReportesRutas: React.FC = () => {
             Reportes de rendimiento en campo
           </Typography>
           <Typography color="text.secondary">
-            Selecciona vendedores y un periodo para generar el reporte con km recorridos,
-            tiempo en campo, velocidad y comparativas estilo Strava.
+            Selecciona el periodo, filtra por producto y elige los vendedores. Luego presiona "Generar Reporte".
           </Typography>
         </Paper>
       )}
