@@ -70,10 +70,6 @@
 
     <!-- Module accent colors (home cards) -->
     <color name="card_registro_bg">#E8F8F2</color>
-    <color name="card_prospectos_bg">#F3F0FF</color>
-    <color name="card_prospectos_icon">#7C3AED</color>
-    <color name="card_aprendizaje_bg">#FFFBEB</color>
-    <color name="card_asistente_bg">#E8F6EC</color>
 
     <!-- Legacy Support -->
     <color name="light_green_background">#b0f5cd</color>

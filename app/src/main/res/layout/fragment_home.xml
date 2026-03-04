@@ -13,17 +13,96 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp"
-        android:paddingBottom="24dp">
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="28dp">
 
-        <!-- ══ HEADER ══════════════════════════════════════════════ -->
-        <com.google.android.material.card.MaterialCardView
+        <!-- ══════════════════════════════════════════════════════════
+             HEADER: saludo + fecha + avatar con iniciales
+             ══════════════════════════════════════════════════════════ -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/welcomeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="¡Bienvenido!"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_text"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/productNameText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Aviva Tu Negocio"
+                    android:textSize="13sp"
+                    android:textColor="@color/secondary_text"
+                    android:layout_marginTop="2dp"
+                    android:fontFamily="sans-serif-light" />
+
+                <TextView
+                    android:id="@+id/textDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Hoy"
+                    android:textSize="12sp"
+                    android:textColor="@color/tertiary_text"
+                    android:layout_marginTop="1dp"
+                    android:fontFamily="sans-serif-light" />
+
+            </LinearLayout>
+
+            <!-- Avatar con iniciales -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/primary">
+
+                <TextView
+                    android:id="@+id/textUserInitials"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="??"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:gravity="center"
+                    android:fontFamily="sans-serif-medium" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+        <!-- ══════════════════════════════════════════════════════════
+             REGISTRO: hero card con gradiente + estado del día
+             ══════════════════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardRegistro"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
             app:cardCornerRadius="24dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/primary">
+            app:cardElevation="5dp"
+            app:cardBackgroundColor="@color/primary"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -40,198 +119,86 @@
                     android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/welcomeText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="¡Bienvenido!"
-                        android:textSize="26sp"
+                        android:text="Registro del día"
+                        android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="@color/white"
-                        android:fontFamily="sans-serif-medium" />
-
-                    <TextView
-                        android:id="@+id/productNameText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Aviva Tu Negocio"
-                        android:textSize="14sp"
-                        android:textColor="@color/white"
-                        android:layout_marginTop="3dp"
-                        android:alpha="0.90"
-                        android:fontFamily="sans-serif-light" />
-
-                    <TextView
-                        android:id="@+id/productSubtitleText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Promotores"
-                        android:textSize="13sp"
-                        android:textColor="@color/white"
-                        android:alpha="0.75"
-                        android:fontFamily="sans-serif-light" />
-
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="👋"
-                    android:textSize="40sp"
-                    android:layout_marginStart="8dp" />
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- ══ FILA 1: Registro + Metas ════════════════════════════ -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="12dp">
-
-            <!-- Registro -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardRegistro"
-                android:layout_width="0dp"
-                android:layout_height="168dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="6dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="3dp"
-                app:cardBackgroundColor="@color/card_registro_bg"
-                app:strokeColor="@color/aviva_green"
-                app:strokeWidth="1.5dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:padding="18dp"
-                    android:gravity="center">
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        app:cardCornerRadius="26dp"
-                        app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/aviva_green">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text="⏰"
-                            android:textSize="26sp"
-                            android:gravity="center" />
-
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Registro"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text"
-                        android:gravity="center"
-                        android:layout_marginTop="12dp"
                         android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Entrada · Comida · Salida"
-                        android:textSize="11sp"
-                        android:textColor="@color/secondary_text"
-                        android:gravity="center"
+                        android:textSize="13sp"
+                        android:textColor="@color/white"
+                        android:alpha="0.85"
                         android:layout_marginTop="4dp"
                         android:fontFamily="sans-serif-light" />
 
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Metas -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardMetasComerciales"
-                android:layout_width="0dp"
-                android:layout_height="168dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="3dp"
-                app:cardBackgroundColor="@color/surface"
-                app:strokeColor="@color/primary"
-                app:strokeWidth="1.5dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:padding="18dp"
-                    android:gravity="center">
-
+                    <!-- Badge de estado (actualizado desde código) -->
                     <com.google.android.material.card.MaterialCardView
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        app:cardCornerRadius="26dp"
+                        android:id="@+id/cardRegistroStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/primary_container">
+                        app:cardBackgroundColor="@color/warning_color">
 
                         <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text="🎯"
-                            android:textSize="26sp"
-                            android:gravity="center" />
+                            android:id="@+id/textRegistroStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="● Sin registro hoy"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:paddingStart="14dp"
+                            android:paddingEnd="14dp"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:fontFamily="sans-serif-medium" />
 
                     </com.google.android.material.card.MaterialCardView>
 
-                    <TextView
-                        android:id="@+id/textMetasComerciales"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Mis metas"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text"
-                        android:gravity="center"
-                        android:layout_marginTop="12dp"
-                        android:fontFamily="sans-serif-medium" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Avance comercial"
-                        android:textSize="11sp"
-                        android:textColor="@color/secondary_text"
-                        android:gravity="center"
-                        android:layout_marginTop="4dp"
-                        android:fontFamily="sans-serif-light" />
-
                 </LinearLayout>
 
-            </com.google.android.material.card.MaterialCardView>
+                <!-- Ícono decorativo -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:layout_marginStart="16dp"
+                    app:cardCornerRadius="32dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/primary_light">
 
-        </LinearLayout>
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="⏰"
+                        android:textSize="30sp"
+                        android:gravity="center" />
 
-        <!-- ══ PROSPECTOS (solo AVIVA_TU_NEGOCIO) ══════════════════ -->
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ══════════════════════════════════════════════════════════
+             METAS: card blanca con chevron
+             ══════════════════════════════════════════════════════════ -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardProspectos"
+            android:id="@+id/cardMetasComerciales"
             android:layout_width="match_parent"
             android:layout_height="88dp"
             android:layout_marginBottom="12dp"
-            android:visibility="gone"
             app:cardCornerRadius="20dp"
             app:cardElevation="3dp"
-            app:cardBackgroundColor="@color/card_prospectos_bg"
-            app:strokeColor="@color/card_prospectos_icon"
+            app:cardBackgroundColor="@color/surface"
+            app:strokeColor="@color/primary_container"
             app:strokeWidth="1.5dp"
             android:clickable="true"
             android:focusable="true"
@@ -241,16 +208,99 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="horizontal"
-                android:padding="16dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="16dp"
                 android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="52dp"
                     android:layout_height="52dp"
+                    android:layout_marginEnd="16dp"
                     app:cardCornerRadius="26dp"
                     app:cardElevation="0dp"
-                    app:cardBackgroundColor="@color/card_prospectos_icon"
-                    android:layout_marginEnd="16dp">
+                    app:cardBackgroundColor="@color/primary_container">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="🎯"
+                        android:textSize="26sp"
+                        android:gravity="center" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/textMetasComerciales"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mis metas comerciales"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_text"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Avance y objetivos comerciales"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text"
+                        android:layout_marginTop="3dp"
+                        android:fontFamily="sans-serif-light" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textSize="28sp"
+                    android:textColor="@color/primary"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ══════════════════════════════════════════════════════════
+             PROSPECTOS: solo AVIVA_TU_NEGOCIO (oculto por defecto)
+             ══════════════════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardProspectos"
+            android:layout_width="match_parent"
+            android:layout_height="88dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="3dp"
+            app:cardBackgroundColor="@color/aviva_green_light"
+            app:strokeColor="@color/aviva_green"
+            app:strokeWidth="1.5dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:paddingStart="20dp"
+                android:paddingEnd="16dp"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginEnd="16dp"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/aviva_green">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -292,31 +342,33 @@
                     android:layout_height="wrap_content"
                     android:text="›"
                     android:textSize="28sp"
-                    android:textColor="@color/card_prospectos_icon"
+                    android:textColor="@color/aviva_green"
                     android:layout_marginStart="8dp" />
 
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ══ FILA 2: Aprendizaje + Asistente ═════════════════════ -->
+        <!-- ══════════════════════════════════════════════════════════
+             FILA: Aprendizaje + Asistente (grid 2×2)
+             ══════════════════════════════════════════════════════════ -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginBottom="12dp">
 
-            <!-- Camino de aprendizaje -->
+            <!-- Aprendizaje: fondo mint, ícono verde oscuro -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardAprendizaje"
                 android:layout_width="0dp"
-                android:layout_height="158dp"
+                android:layout_height="152dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="3dp"
-                app:cardBackgroundColor="@color/card_aprendizaje_bg"
-                app:strokeColor="@color/warning_color"
+                app:cardBackgroundColor="@color/primary_container"
+                app:strokeColor="@color/secondary"
                 app:strokeWidth="1.5dp"
                 android:clickable="true"
                 android:focusable="true"
@@ -334,7 +386,8 @@
                         android:layout_height="52dp"
                         app:cardCornerRadius="26dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/warning_color">
+                        app:cardBackgroundColor="@color/secondary"
+                        android:layout_marginBottom="10dp">
 
                         <TextView
                             android:layout_width="match_parent"
@@ -348,38 +401,37 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Camino de"
+                        android:text="Aprendizaje"
                         android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary_text"
                         android:gravity="center"
-                        android:layout_marginTop="12dp"
                         android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="aprendizaje"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text"
+                        android:text="Onboarding y formación"
+                        android:textSize="11sp"
+                        android:textColor="@color/secondary_text"
                         android:gravity="center"
-                        android:fontFamily="sans-serif-medium" />
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif-light" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Asistente -->
+            <!-- Asistente: fondo blanco, ícono verde -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardAyuda"
                 android:layout_width="0dp"
-                android:layout_height="158dp"
+                android:layout_height="152dp"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="3dp"
-                app:cardBackgroundColor="@color/card_asistente_bg"
+                app:cardBackgroundColor="@color/surface"
                 app:strokeColor="@color/aviva_green"
                 app:strokeWidth="1.5dp"
                 android:clickable="true"
@@ -398,7 +450,8 @@
                         android:layout_height="52dp"
                         app:cardCornerRadius="26dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/aviva_green">
+                        app:cardBackgroundColor="@color/aviva_green"
+                        android:layout_marginBottom="10dp">
 
                         <TextView
                             android:layout_width="match_parent"
@@ -417,13 +470,12 @@
                         android:textStyle="bold"
                         android:textColor="@color/primary_text"
                         android:gravity="center"
-                        android:layout_marginTop="12dp"
                         android:fontFamily="sans-serif-medium" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="IA disponible"
+                        android:text="IA · Preguntas y apoyo"
                         android:textSize="11sp"
                         android:textColor="@color/secondary_text"
                         android:gravity="center"
@@ -436,14 +488,16 @@
 
         </LinearLayout>
 
-        <!-- ══ TRÁMITES (full width, sutil) ════════════════════════ -->
+        <!-- ══════════════════════════════════════════════════════════
+             TRÁMITES: card sutil full-width al fondo
+             ══════════════════════════════════════════════════════════ -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardTramites"
             android:layout_width="match_parent"
             android:layout_height="80dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="2dp"
-            app:cardBackgroundColor="@color/surface"
+            app:cardBackgroundColor="@color/surface_variant"
             app:strokeColor="@color/divider"
             app:strokeWidth="1.5dp"
             android:clickable="true"
@@ -454,16 +508,17 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="horizontal"
-                android:padding="16dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="16dp"
                 android:gravity="center_vertical">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="44dp"
                     android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
                     app:cardCornerRadius="22dp"
                     app:cardElevation="0dp"
-                    app:cardBackgroundColor="@color/accent_light"
-                    android:layout_marginEnd="14dp">
+                    app:cardBackgroundColor="@color/accent_light">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -505,7 +560,7 @@
                     android:layout_height="wrap_content"
                     android:text="›"
                     android:textSize="26sp"
-                    android:textColor="@color/aviva_green"
+                    android:textColor="@color/primary"
                     android:layout_marginStart="8dp" />
 
             </LinearLayout>
