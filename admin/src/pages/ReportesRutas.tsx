@@ -40,7 +40,8 @@ import {
   query,
   where,
   getDocs,
-  Timestamp
+  Timestamp,
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -182,8 +183,16 @@ const MiniBarChart: React.FC<{ data: DailyActivity[]; color: string; metric: 'km
   );
 };
 
+interface Product {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+
 const ReportesRutas: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('thisWeek');
   const [startDate, setStartDate] = useState('');
@@ -240,17 +249,26 @@ const ReportesRutas: React.FC = () => {
   }, [quickFilter]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      const snap = await getDocs(collection(db, 'users'));
-      const data: User[] = snap.docs.map(d => ({
+    const fetchData = async () => {
+      const [usersSnap, productsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(query(collection(db, 'products'), orderBy('name', 'asc')))
+      ]);
+      const data: User[] = usersSnap.docs.map(d => ({
         id: d.id,
         displayName: d.data().displayName || 'Sin nombre',
         email: d.data().email || '',
         productLine: d.data().productLine
       }));
       setUsers(data.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      setProducts(productsSnap.docs.map(d => ({
+        id: d.id,
+        name: d.data().name,
+        code: d.data().code,
+        isActive: d.data().isActive ?? true
+      })));
     };
-    fetchUsers();
+    fetchData();
   }, []);
 
   const handleLoadReports = async () => {
@@ -417,15 +435,19 @@ const ReportesRutas: React.FC = () => {
     return `${s.avgSpeedKmh} km/h`;
   };
 
-  const uniqueProductLines = [...new Set(users.map(u => u.productLine).filter(Boolean))];
+  // Compara product.code (ej: "aviva_contigo") con user.productLine (ej: "AVIVA_CONTIGO")
+  const matchesProduct = (userProductLine: string | undefined, code: string) =>
+    userProductLine?.toLowerCase() === code.toLowerCase();
 
   const filteredUsers = productFilter === 'all'
     ? users
-    : users.filter(u => u.productLine === productFilter);
+    : users.filter(u => matchesProduct(u.productLine, productFilter));
 
   const handleProductFilterChange = (value: string) => {
     setProductFilter(value);
-    const next = value === 'all' ? users : users.filter(u => u.productLine === value);
+    const next = value === 'all'
+      ? users
+      : users.filter(u => matchesProduct(u.productLine, value));
     setSelectedUserIds(next.map(u => u.id));
   };
 
@@ -489,12 +511,9 @@ const ReportesRutas: React.FC = () => {
                 onChange={e => handleProductFilterChange(e.target.value)}
               >
                 <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="AVIVA_TU_NEGOCIO">Aviva Tu Negocio</MenuItem>
-                <MenuItem value="CONSTRURAMA">Construrama</MenuItem>
-                {uniqueProductLines
-                  .filter(p => p !== 'AVIVA_TU_NEGOCIO' && p !== 'CONSTRURAMA')
-                  .map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)
-                }
+                {products.map(p => (
+                  <MenuItem key={p.code} value={p.code}>{p.name}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
