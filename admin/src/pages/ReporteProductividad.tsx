@@ -616,6 +616,7 @@ const ReporteProductividad: React.FC = () => {
               collection(dbRegistro, 'users'),
               where('email', '==', user.email),
             ));
+            console.log(`[ReporteProductividad] registro-aviva.users query para ${user.email}: ${registroUserSnap.docs.length} docs, fromCache=${registroUserSnap.metadata.fromCache}`);
             const registroUserId = registroUserSnap.docs[0]?.id ?? null;
             if (!registroUserId) {
               console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
@@ -820,9 +821,10 @@ const ReporteProductividad: React.FC = () => {
                     <TextField {...params} label="Vendedores" placeholder="Selecciona…" />
                   )}
                   renderTags={(val, getProps) =>
-                    val.map((u, i) => (
-                      <Chip label={u.displayName} size="small" {...getProps({ index: i })} />
-                    ))
+                    val.map((u, i) => {
+                      const { key, ...chipProps } = getProps({ index: i });
+                      return <Chip key={key} label={u.displayName} size="small" {...chipProps} />;
+                    })
                   }
                   sx={{ flex: 1, minWidth: 300 }}
                 />
