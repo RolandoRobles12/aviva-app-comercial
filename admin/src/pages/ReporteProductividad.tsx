@@ -615,7 +615,7 @@ const ReporteProductividad: React.FC = () => {
               collection(dbRegistro, 'checkins'),
               where('userId', '==', user.id),
             ));
-            console.log(`[ReporteProductividad] checkins para ${user.email}: ${ciSnap.docs.length} docs (antes de filtrar por fecha)`);
+            console.log(`[ReporteProductividad] checkins para ${user.email} (userId="${user.id}"): ${ciSnap.docs.length} docs (antes de filtrar por fecha)`);
             checkIns = ciSnap.docs
               .filter((d) => {
                 const ts: Timestamp | undefined = d.data().timestamp;
