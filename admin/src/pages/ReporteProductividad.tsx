@@ -245,12 +245,19 @@ const fetchHubspotDeals = async (
 
 // ── Build per-day reports ─────────────────────────────────────────────────
 
+// Convierte 'HH:mm' a minutos desde medianoche
+const timeToMinutes = (t: string): number => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + (m || 0);
+};
+
 const buildDayReports = (
   workDays: string[],
   locationDocs: any[],
   alertDocs: any[],
   checkIns: CheckInRecord[],
   hubspotDeals: HubspotDeal[],
+  workSchedule: WorkSchedule,
 ): DayReport[] => {
   const locByDate: Record<string, { ts: Timestamp; lat: number; lng: number }[]> = {};
   locationDocs.forEach((d) => {
@@ -297,6 +304,12 @@ const buildDayReports = (
       (a, b) => a.ts.toDate().getTime() - b.ts.toDate().getTime()
     );
 
+    // Horario laboral del día según la jornada configurada
+    const dayKey = DAY_KEYS[new Date(date + 'T12:00:00').getDay()];
+    const dayConfig = workSchedule[dayKey];
+    const workStartMin = timeToMinutes(dayConfig?.start || '09:00');
+    const workEndMin   = timeToMinutes(dayConfig?.end   || '18:00');
+
     let km = 0;
     let longStops = 0;
     let stopMinutes = 0;
@@ -304,8 +317,16 @@ const buildDayReports = (
       km += calculateDistance(locs[i - 1].lat, locs[i - 1].lng, locs[i].lat, locs[i].lng);
       const gapMin = (locs[i].ts.toDate().getTime() - locs[i - 1].ts.toDate().getTime()) / 60000;
       if (gapMin > 30) {
-        longStops++;
-        stopMinutes += gapMin;
+        // Solo contar paradas si ambos extremos del gap están dentro de la jornada laboral.
+        // Esto excluye gaps nocturnos / fuera de horario que inflarían el tiempo parado.
+        const t1 = locs[i - 1].ts.toDate();
+        const t2 = locs[i].ts.toDate();
+        const m1 = t1.getHours() * 60 + t1.getMinutes();
+        const m2 = t2.getHours() * 60 + t2.getMinutes();
+        if (m1 >= workStartMin && m1 <= workEndMin && m2 >= workStartMin && m2 <= workEndMin) {
+          longStops++;
+          stopMinutes += gapMin;
+        }
       }
     }
 
@@ -519,7 +540,9 @@ const ReporteProductividad: React.FC = () => {
 
   const filteredUsers = users.filter((u) => {
     if (productFilter === 'all') return true;
-    return u.productLine === productFilter;
+    // Comparar case-insensitive: products.code es snake_case minúsculas,
+    // users.productLine es SNAKE_CASE mayúsculas (Android)
+    return u.productLine?.toLowerCase() === productFilter.toLowerCase();
   });
 
   const toggleRow = (userId: string) => {
@@ -582,18 +605,15 @@ const ReporteProductividad: React.FC = () => {
           }
 
           // 3. Check-ins desde registro-aviva
+          // El userId en registro-aviva.checkins ES el mismo Firebase Auth UID
+          // que el document ID en aviva-app.users (comparten el mismo auth project).
+          // No se necesita lookup por email — usar user.id directamente.
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
           try {
-            const regUsersSnap = await getDocs(query(
-              collection(dbRegistro, 'users'),
-              where('email', '==', user.email),
-            ));
-            const registroUserId = regUsersSnap.docs[0]?.id ?? user.id;
-
             const ciSnap = await getDocs(query(
               collection(dbRegistro, 'checkins'),
-              where('userId', '==', registroUserId),
+              where('userId', '==', user.id),
             ));
             checkIns = ciSnap.docs
               .filter((d) => {
@@ -629,6 +649,7 @@ const ReporteProductividad: React.FC = () => {
             alertDocs,
             checkIns,
             hubspotDeals,
+            workSchedule,
           );
 
           // 6. Aggregate
@@ -1007,9 +1028,13 @@ const ReporteProductividad: React.FC = () => {
                               ? <Tooltip title="Configura VITE_HUBSPOT_API_KEY">
                                   <Typography variant="caption" color="text.disabled">N/D</Typography>
                                 </Tooltip>
-                              : seller.totalDeals > 0
-                                ? <Chip label={seller.totalDeals} size="small" color="primary" />
-                                : <Typography variant="caption" color="text.disabled">0</Typography>
+                              : !seller.hubspotOwnerId
+                                ? <Tooltip title="Configura hubspotOwnerId en el perfil del vendedor">
+                                    <Typography variant="caption" color="text.disabled">—</Typography>
+                                  </Tooltip>
+                                : seller.totalDeals > 0
+                                  ? <Chip label={seller.totalDeals} size="small" color="primary" />
+                                  : <Typography variant="caption" color="text.disabled">0</Typography>
                             }
                           </TableCell>
 
