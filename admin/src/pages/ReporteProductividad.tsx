@@ -304,8 +304,14 @@ const buildDayReports = (
       km += calculateDistance(locs[i - 1].lat, locs[i - 1].lng, locs[i].lat, locs[i].lng);
       const gapMin = (locs[i].ts.toDate().getTime() - locs[i - 1].ts.toDate().getTime()) / 60000;
       if (gapMin > 30) {
-        longStops++;
-        stopMinutes += gapMin;
+        // Solo contar paradas dentro del horario laboral razonable (06:00–22:00).
+        // Gaps que cruzan la madrugada/noche no son tiempo "parado" en jornada.
+        const h1 = locs[i - 1].ts.toDate().getHours();
+        const h2 = locs[i].ts.toDate().getHours();
+        if (h1 >= 6 && h1 < 22 && h2 >= 6 && h2 < 22) {
+          longStops++;
+          stopMinutes += gapMin;
+        }
       }
     }
 
@@ -519,7 +525,9 @@ const ReporteProductividad: React.FC = () => {
 
   const filteredUsers = users.filter((u) => {
     if (productFilter === 'all') return true;
-    return u.productLine === productFilter;
+    // Comparar case-insensitive: products.code es snake_case minúsculas,
+    // users.productLine es SNAKE_CASE mayúsculas (Android)
+    return u.productLine?.toLowerCase() === productFilter.toLowerCase();
   });
 
   const toggleRow = (userId: string) => {
@@ -582,18 +590,15 @@ const ReporteProductividad: React.FC = () => {
           }
 
           // 3. Check-ins desde registro-aviva
+          // El userId en registro-aviva.checkins ES el mismo Firebase Auth UID
+          // que el document ID en aviva-app.users (comparten el mismo auth project).
+          // No se necesita lookup por email — usar user.id directamente.
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
           try {
-            const regUsersSnap = await getDocs(query(
-              collection(dbRegistro, 'users'),
-              where('email', '==', user.email),
-            ));
-            const registroUserId = regUsersSnap.docs[0]?.id ?? user.id;
-
             const ciSnap = await getDocs(query(
               collection(dbRegistro, 'checkins'),
-              where('userId', '==', registroUserId),
+              where('userId', '==', user.id),
             ));
             checkIns = ciSnap.docs
               .filter((d) => {
@@ -1007,9 +1012,13 @@ const ReporteProductividad: React.FC = () => {
                               ? <Tooltip title="Configura VITE_HUBSPOT_API_KEY">
                                   <Typography variant="caption" color="text.disabled">N/D</Typography>
                                 </Tooltip>
-                              : seller.totalDeals > 0
-                                ? <Chip label={seller.totalDeals} size="small" color="primary" />
-                                : <Typography variant="caption" color="text.disabled">0</Typography>
+                              : !seller.hubspotOwnerId
+                                ? <Tooltip title="Configura hubspotOwnerId en el perfil del vendedor">
+                                    <Typography variant="caption" color="text.disabled">—</Typography>
+                                  </Tooltip>
+                                : seller.totalDeals > 0
+                                  ? <Chip label={seller.totalDeals} size="small" color="primary" />
+                                  : <Typography variant="caption" color="text.disabled">0</Typography>
                             }
                           </TableCell>
 
