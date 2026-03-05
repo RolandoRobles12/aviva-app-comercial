@@ -48,6 +48,7 @@ import {
   query,
   where,
   getDocs,
+  getDocsFromServer,
   Timestamp,
   orderBy,
 } from 'firebase/firestore';
@@ -612,11 +613,18 @@ const ReporteProductividad: React.FC = () => {
           let checkInsError = false;
           try {
             // Buscar el documento del usuario en registro-aviva por email para obtener su UID correcto
-            const registroUserSnap = await getDocs(query(
+            let registroUserSnap = await getDocs(query(
               collection(dbRegistro, 'users'),
               where('email', '==', user.email),
             ));
-            console.log(`[ReporteProductividad] registro-aviva.users query para ${user.email}: ${registroUserSnap.docs.length} docs, fromCache=${registroUserSnap.metadata.fromCache}`);
+            // Si resolvió desde caché vacía (conexión aún no establecida), reintentar desde servidor
+            if (registroUserSnap.metadata.fromCache && registroUserSnap.docs.length === 0) {
+              await new Promise((r) => setTimeout(r, 500));
+              registroUserSnap = await getDocsFromServer(query(
+                collection(dbRegistro, 'users'),
+                where('email', '==', user.email),
+              ));
+            }
             const registroUserId = registroUserSnap.docs[0]?.id ?? null;
             if (!registroUserId) {
               console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
