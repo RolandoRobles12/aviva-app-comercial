@@ -245,12 +245,19 @@ const fetchHubspotDeals = async (
 
 // ── Build per-day reports ─────────────────────────────────────────────────
 
+// Convierte 'HH:mm' a minutos desde medianoche
+const timeToMinutes = (t: string): number => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + (m || 0);
+};
+
 const buildDayReports = (
   workDays: string[],
   locationDocs: any[],
   alertDocs: any[],
   checkIns: CheckInRecord[],
   hubspotDeals: HubspotDeal[],
+  workSchedule: WorkSchedule,
 ): DayReport[] => {
   const locByDate: Record<string, { ts: Timestamp; lat: number; lng: number }[]> = {};
   locationDocs.forEach((d) => {
@@ -297,6 +304,12 @@ const buildDayReports = (
       (a, b) => a.ts.toDate().getTime() - b.ts.toDate().getTime()
     );
 
+    // Horario laboral del día según la jornada configurada
+    const dayKey = DAY_KEYS[new Date(date + 'T12:00:00').getDay()];
+    const dayConfig = workSchedule[dayKey];
+    const workStartMin = timeToMinutes(dayConfig?.start || '09:00');
+    const workEndMin   = timeToMinutes(dayConfig?.end   || '18:00');
+
     let km = 0;
     let longStops = 0;
     let stopMinutes = 0;
@@ -304,11 +317,13 @@ const buildDayReports = (
       km += calculateDistance(locs[i - 1].lat, locs[i - 1].lng, locs[i].lat, locs[i].lng);
       const gapMin = (locs[i].ts.toDate().getTime() - locs[i - 1].ts.toDate().getTime()) / 60000;
       if (gapMin > 30) {
-        // Solo contar paradas dentro del horario laboral razonable (06:00–22:00).
-        // Gaps que cruzan la madrugada/noche no son tiempo "parado" en jornada.
-        const h1 = locs[i - 1].ts.toDate().getHours();
-        const h2 = locs[i].ts.toDate().getHours();
-        if (h1 >= 6 && h1 < 22 && h2 >= 6 && h2 < 22) {
+        // Solo contar paradas si ambos extremos del gap están dentro de la jornada laboral.
+        // Esto excluye gaps nocturnos / fuera de horario que inflarían el tiempo parado.
+        const t1 = locs[i - 1].ts.toDate();
+        const t2 = locs[i].ts.toDate();
+        const m1 = t1.getHours() * 60 + t1.getMinutes();
+        const m2 = t2.getHours() * 60 + t2.getMinutes();
+        if (m1 >= workStartMin && m1 <= workEndMin && m2 >= workStartMin && m2 <= workEndMin) {
           longStops++;
           stopMinutes += gapMin;
         }
@@ -634,6 +649,7 @@ const ReporteProductividad: React.FC = () => {
             alertDocs,
             checkIns,
             hubspotDeals,
+            workSchedule,
           );
 
           // 6. Aggregate
