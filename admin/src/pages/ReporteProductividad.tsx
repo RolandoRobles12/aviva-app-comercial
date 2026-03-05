@@ -48,7 +48,6 @@ import {
   query,
   where,
   getDocs,
-  getDocsFromServer,
   Timestamp,
   orderBy,
 } from 'firebase/firestore';
@@ -613,7 +612,7 @@ const ReporteProductividad: React.FC = () => {
           let checkInsError = false;
           try {
             // Buscar el documento del usuario en registro-aviva por email para obtener su UID correcto
-            const registroUserSnap = await getDocsFromServer(query(
+            const registroUserSnap = await getDocs(query(
               collection(dbRegistro, 'users'),
               where('email', '==', user.email),
             ));
@@ -621,7 +620,7 @@ const ReporteProductividad: React.FC = () => {
             if (!registroUserId) {
               console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
             } else {
-              const ciSnap = await getDocsFromServer(query(
+              const ciSnap = await getDocs(query(
                 collection(dbRegistro, 'checkins'),
                 where('userId', '==', registroUserId),
               ));
