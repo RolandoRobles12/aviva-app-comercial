@@ -48,13 +48,28 @@ import {
   query,
   where,
   getDocs,
-  getDocsFromServer,
+  onSnapshot,
+  type Query,
+  type DocumentData,
+  type QuerySnapshot,
   Timestamp,
   orderBy,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
+
+// Espera un snapshot real del servidor (ignora resultados de caché)
+function getDocsFromNetwork(q: Query<DocumentData>): Promise<QuerySnapshot<DocumentData>> {
+  return new Promise((resolve, reject) => {
+    const unsub = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+      if (!snap.metadata.fromCache) {
+        unsub();
+        resolve(snap);
+      }
+    }, (err) => { unsub(); reject(err); });
+  });
+}
 
 // ── Local constants ──────────────────────────────────────────────────────────
 
@@ -613,23 +628,15 @@ const ReporteProductividad: React.FC = () => {
           let checkInsError = false;
           try {
             // Buscar el documento del usuario en registro-aviva por email para obtener su UID correcto
-            let registroUserSnap = await getDocs(query(
+            const registroUserSnap = await getDocsFromNetwork(query(
               collection(dbRegistro, 'users'),
               where('email', '==', user.email),
             ));
-            // Si resolvió desde caché vacía (conexión aún no establecida), reintentar desde servidor
-            if (registroUserSnap.metadata.fromCache && registroUserSnap.docs.length === 0) {
-              await new Promise((r) => setTimeout(r, 500));
-              registroUserSnap = await getDocsFromServer(query(
-                collection(dbRegistro, 'users'),
-                where('email', '==', user.email),
-              ));
-            }
             const registroUserId = registroUserSnap.docs[0]?.id ?? null;
             if (!registroUserId) {
               console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
             } else {
-              const ciSnap = await getDocs(query(
+              const ciSnap = await getDocsFromNetwork(query(
                 collection(dbRegistro, 'checkins'),
                 where('userId', '==', registroUserId),
               ));
