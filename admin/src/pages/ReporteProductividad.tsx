@@ -615,6 +615,7 @@ const ReporteProductividad: React.FC = () => {
               collection(dbRegistro, 'checkins'),
               where('userId', '==', user.id),
             ));
+            console.log(`[ReporteProductividad] checkins para ${user.email}: ${ciSnap.docs.length} docs (antes de filtrar por fecha)`);
             checkIns = ciSnap.docs
               .filter((d) => {
                 const ts: Timestamp | undefined = d.data().timestamp;
@@ -623,7 +624,9 @@ const ReporteProductividad: React.FC = () => {
                 return ms >= startTs.toMillis() && ms <= endTs.toMillis();
               })
               .map((d) => ({ ...d.data() } as CheckInRecord));
-          } catch {
+            console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
+          } catch (e) {
+            console.error('[ReporteProductividad] Error al obtener checkins:', e);
             checkInsError = true;
           }
 
