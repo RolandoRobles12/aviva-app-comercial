@@ -605,26 +605,36 @@ const ReporteProductividad: React.FC = () => {
           }
 
           // 3. Check-ins desde registro-aviva
-          // El userId en registro-aviva.checkins ES el mismo Firebase Auth UID
-          // que el document ID en aviva-app.users (comparten el mismo auth project).
-          // No se necesita lookup por email — usar user.id directamente.
+          // Los proyectos aviva-app y registro-aviva tienen Firebase Auth separados,
+          // por lo que el mismo usuario tiene UIDs distintos en cada proyecto.
+          // Se busca en registro-aviva.users por email para obtener el userId correcto.
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
           try {
-            const ciSnap = await getDocs(query(
-              collection(dbRegistro, 'checkins'),
-              where('userId', '==', user.id),
+            // Buscar el documento del usuario en registro-aviva por email para obtener su UID correcto
+            const registroUserSnap = await getDocs(query(
+              collection(dbRegistro, 'users'),
+              where('email', '==', user.email),
             ));
-            console.log(`[ReporteProductividad] checkins para ${user.email} (userId="${user.id}"): ${ciSnap.docs.length} docs (antes de filtrar por fecha)`);
-            checkIns = ciSnap.docs
-              .filter((d) => {
-                const ts: Timestamp | undefined = d.data().timestamp;
-                if (!ts) return false;
-                const ms = ts.toMillis();
-                return ms >= startTs.toMillis() && ms <= endTs.toMillis();
-              })
-              .map((d) => ({ ...d.data() } as CheckInRecord));
-            console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
+            const registroUserId = registroUserSnap.docs[0]?.id ?? null;
+            if (!registroUserId) {
+              console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
+            } else {
+              const ciSnap = await getDocs(query(
+                collection(dbRegistro, 'checkins'),
+                where('userId', '==', registroUserId),
+              ));
+              console.log(`[ReporteProductividad] checkins para ${user.email} (registroUserId="${registroUserId}"): ${ciSnap.docs.length} docs`);
+              checkIns = ciSnap.docs
+                .filter((d) => {
+                  const ts: Timestamp | undefined = d.data().timestamp;
+                  if (!ts) return false;
+                  const ms = ts.toMillis();
+                  return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+                })
+                .map((d) => ({ ...d.data() } as CheckInRecord));
+              console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
+            }
           } catch (e) {
             console.error('[ReporteProductividad] Error al obtener checkins:', e);
             checkInsError = true;
