@@ -59,15 +59,40 @@ import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 
-// Espera un snapshot real del servidor (ignora resultados de caché)
+// Espera un snapshot real del servidor (ignora resultados de caché).
+// Si el servidor no responde en 15 segundos, resuelve con el último snapshot disponible.
 function getDocsFromNetwork(q: Query<DocumentData>): Promise<QuerySnapshot<DocumentData>> {
   return new Promise((resolve, reject) => {
-    const unsub = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
-      if (!snap.metadata.fromCache) {
+    let lastSnap: QuerySnapshot<DocumentData> | null = null;
+    let settled = false;
+
+    const finish = (snap: QuerySnapshot<DocumentData>) => {
+      if (settled) return;
+      settled = true;
+      unsub();
+      resolve(snap);
+    };
+
+    const timer = setTimeout(() => {
+      if (lastSnap) {
+        finish(lastSnap);
+      } else if (!settled) {
+        settled = true;
         unsub();
-        resolve(snap);
+        reject(new Error('Timeout: no se pudo conectar con el servidor de registro'));
       }
-    }, (err) => { unsub(); reject(err); });
+    }, 15000);
+
+    const unsub = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+      lastSnap = snap;
+      if (!snap.metadata.fromCache) {
+        clearTimeout(timer);
+        finish(snap);
+      }
+    }, (err) => {
+      clearTimeout(timer);
+      if (!settled) { settled = true; unsub(); reject(err); }
+    });
   });
 }
 
