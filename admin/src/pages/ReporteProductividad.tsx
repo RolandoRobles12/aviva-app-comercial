@@ -278,6 +278,7 @@ const fetchHubspotDeals = async (
 
   if (!res.ok) throw new Error(`HubSpot ${res.status}`);
   const data = await res.json();
+  console.log(`[HubSpot] ownerId=${ownerId} → total=${data.total ?? data.results?.length ?? 0}`, data);
   return (data.results || []).map((d: any) => ({
     id: d.id,
     createdDate: (d.properties.createdate || '').split('T')[0],
