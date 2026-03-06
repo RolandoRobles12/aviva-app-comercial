@@ -1365,3 +1365,42 @@ export const updateLeaguePoints = functions.https.onRequest(async (req, res) => 
     }
   });
 });
+
+/**
+ * Devuelve los deals de HubSpot para un owner específico en un rango de fechas.
+ * Proxy server-side para evitar bloqueos CORS del browser.
+ * Endpoint: /getOwnerDeals
+ */
+export const getOwnerDeals = functions.https.onRequest(async (req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      // Verificar autenticación
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+
+      const { ownerId, startMs, endMs } = req.body;
+      if (!ownerId || !startMs || !endMs) {
+        res.status(400).json({ error: "Missing params: ownerId, startMs, endMs" });
+        return;
+      }
+
+      const hubspotApiKey = functions.config().hubspot?.apikey;
+      if (!hubspotApiKey) {
+        res.status(500).json({ error: "HubSpot API key not configured" });
+        return;
+      }
+
+      const hubspotService = new HubSpotService(hubspotApiKey);
+      const deals = await hubspotService.getDealsByOwner(ownerId, Number(startMs), Number(endMs));
+
+      res.status(200).json({ results: deals });
+    } catch (error: any) {
+      functions.logger.error("Error in getOwnerDeals:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+});

@@ -84,6 +84,28 @@ export class HubSpotService {
   }
 
   /**
+   * Obtiene deals de HubSpot para un owner específico en un rango de fechas.
+   * Usado por el Reporte de Productividad para evitar CORS desde el browser.
+   */
+  async getDealsByOwner(ownerId: string, startMs: number, endMs: number): Promise<{ id: string; createdDate: string }[]> {
+    const response = await this.axiosInstance.post("/crm/v3/objects/deals/search", {
+      filterGroups: [{
+        filters: [
+          { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
+          { propertyName: "createdate", operator: "GTE", value: startMs.toString() },
+          { propertyName: "createdate", operator: "LTE", value: endMs.toString() },
+        ],
+      }],
+      properties: ["dealname", "createdate"],
+      limit: 200,
+    });
+    return (response.data.results || []).map((d: any) => ({
+      id: d.id,
+      createdDate: (d.properties.createdate || "").split("T")[0],
+    }));
+  }
+
+  /**
    * Obtiene métricas de deals (negocios/ventas)
    */
   async getDealsMetrics(startDate?: Date, endDate?: Date): Promise<any> {
