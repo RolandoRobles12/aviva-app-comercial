@@ -621,36 +621,25 @@ const ReporteProductividad: React.FC = () => {
           }
 
           // 3. Check-ins desde registro-aviva
-          // Los proyectos aviva-app y registro-aviva tienen Firebase Auth separados,
-          // por lo que el mismo usuario tiene UIDs distintos en cada proyecto.
-          // Se busca en registro-aviva.users por email para obtener el userId correcto.
+          // Los documentos de checkins tienen el campo `email` directamente,
+          // por lo que consultamos por email sin necesidad de buscar el userId.
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
           try {
-            // Buscar el documento del usuario en registro-aviva por email para obtener su UID correcto
-            const registroUserSnap = await getDocsFromNetwork(query(
-              collection(dbRegistro, 'users'),
+            const ciSnap = await getDocsFromNetwork(query(
+              collection(dbRegistro, 'checkins'),
               where('email', '==', user.email),
             ));
-            const registroUserId = registroUserSnap.docs[0]?.id ?? null;
-            if (!registroUserId) {
-              console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
-            } else {
-              const ciSnap = await getDocsFromNetwork(query(
-                collection(dbRegistro, 'checkins'),
-                where('userId', '==', registroUserId),
-              ));
-              console.log(`[ReporteProductividad] checkins para ${user.email} (registroUserId="${registroUserId}"): ${ciSnap.docs.length} docs`);
-              checkIns = ciSnap.docs
-                .filter((d) => {
-                  const ts: Timestamp | undefined = d.data().timestamp;
-                  if (!ts) return false;
-                  const ms = ts.toMillis();
-                  return ms >= startTs.toMillis() && ms <= endTs.toMillis();
-                })
-                .map((d) => ({ ...d.data() } as CheckInRecord));
-              console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
-            }
+            console.log(`[ReporteProductividad] checkins para ${user.email}: ${ciSnap.docs.length} docs`);
+            checkIns = ciSnap.docs
+              .filter((d) => {
+                const ts: Timestamp | undefined = d.data().timestamp;
+                if (!ts) return false;
+                const ms = ts.toMillis();
+                return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+              })
+              .map((d) => ({ ...d.data() } as CheckInRecord));
+            console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
           } catch (e) {
             console.error('[ReporteProductividad] Error al obtener checkins:', e);
             checkInsError = true;
@@ -898,7 +887,7 @@ const ReporteProductividad: React.FC = () => {
           {reportData.some((r) => r.checkInsError) && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               <strong>Check-ins no disponibles</strong> — El proyecto <em>registro-aviva</em> en Firestore debe
-              permitir lecturas en las colecciones <code>users</code> y <code>checkins</code>.
+              permitir lecturas en la colección <code>checkins</code>.
             </Alert>
           )}
           {reportData.some((r) => r.hubspotError) && (
