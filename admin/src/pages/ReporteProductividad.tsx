@@ -665,12 +665,19 @@ const ReporteProductividad: React.FC = () => {
           let hubspotError = false;
           if (user.hubspotOwnerId && idToken) {
             try {
+              const startMs = new Date(start + 'T00:00:00').getTime();
+              const endMs = new Date(end + 'T23:59:59').getTime();
+              console.log(`[HubSpot] ${user.name} (ownerId: ${user.hubspotOwnerId})`);
+              console.log(`[HubSpot] Rango: ${start} → ${end}`);
+              console.log(`[HubSpot] startMs: ${startMs} (${new Date(startMs).toISOString()})`);
+              console.log(`[HubSpot] endMs:   ${endMs} (${new Date(endMs).toISOString()})`);
               hubspotDeals = await fetchHubspotDeals(
                 user.hubspotOwnerId,
-                new Date(start + 'T00:00:00').getTime(),
-                new Date(end + 'T23:59:59').getTime(),
+                startMs,
+                endMs,
                 idToken,
               );
+              console.log(`[HubSpot] Deals encontrados: ${hubspotDeals.length}`, hubspotDeals);
             } catch {
               hubspotError = true;
             }
