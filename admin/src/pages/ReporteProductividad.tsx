@@ -58,6 +58,7 @@ import {
 import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
+import { useAuth } from '../contexts/AuthContext';
 
 // Espera un snapshot real del servidor (ignora resultados de caché).
 // Si el servidor no responde en 15 segundos, resuelve con el último snapshot disponible.
@@ -249,40 +250,26 @@ const getDateRange = (filter: QuickFilter, customStart: string, customEnd: strin
 
 // ── Fetch HubSpot deals ───────────────────────────────────────────────────
 
+const FUNCTIONS_BASE = 'https://us-central1-promotores-aviva-tu-negocio.cloudfunctions.net';
+
 const fetchHubspotDeals = async (
   ownerId: string,
   startMs: number,
   endMs: number,
+  idToken: string,
 ): Promise<HubspotDeal[]> => {
-  const apiKey = import.meta.env.VITE_HUBSPOT_API_KEY;
-  if (!apiKey) return [];
-
-  const res = await fetch('https://api.hubapi.com/crm/v3/objects/deals/search', {
+  const res = await fetch(`${FUNCTIONS_BASE}/getOwnerDeals`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${idToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      filterGroups: [{
-        filters: [
-          { propertyName: 'hubspot_owner_id', operator: 'EQ', value: ownerId },
-          { propertyName: 'createdate', operator: 'GTE', value: startMs.toString() },
-          { propertyName: 'createdate', operator: 'LTE', value: endMs.toString() },
-        ],
-      }],
-      properties: ['dealname', 'createdate'],
-      limit: 200,
-    }),
+    body: JSON.stringify({ ownerId, startMs, endMs }),
   });
 
-  if (!res.ok) throw new Error(`HubSpot ${res.status}`);
+  if (!res.ok) throw new Error(`HubSpot function ${res.status}`);
   const data = await res.json();
-  console.log(`[HubSpot] ownerId=${ownerId} → total=${data.total ?? data.results?.length ?? 0}`, data);
-  return (data.results || []).map((d: any) => ({
-    id: d.id,
-    createdDate: (d.properties.createdate || '').split('T')[0],
-  }));
+  return (data.results || []) as HubspotDeal[];
 };
 
 // ── Build per-day reports ─────────────────────────────────────────────────
@@ -493,6 +480,7 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 const ReporteProductividad: React.FC = () => {
+  const { user } = useAuth();
   const [users, setUsers]       = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule>(DEFAULT_SCHEDULE);
@@ -611,6 +599,7 @@ const ReporteProductividad: React.FC = () => {
     const workDays = getWorkDaysInRange(start, end, workSchedule);
 
     const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
+    const idToken = user ? await user.getIdToken() : null;
 
     try {
       const results = await Promise.all(
@@ -671,15 +660,16 @@ const ReporteProductividad: React.FC = () => {
             checkInsError = true;
           }
 
-          // 4. HubSpot deals
+          // 4. HubSpot deals (via Firebase Function para evitar CORS)
           let hubspotDeals: HubspotDeal[] = [];
           let hubspotError = false;
-          if (user.hubspotOwnerId) {
+          if (user.hubspotOwnerId && idToken) {
             try {
               hubspotDeals = await fetchHubspotDeals(
                 user.hubspotOwnerId,
                 new Date(start + 'T00:00:00').getTime(),
                 new Date(end + 'T23:59:59').getTime(),
+                idToken,
               );
             } catch {
               hubspotError = true;
@@ -736,7 +726,7 @@ const ReporteProductividad: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedUserIds, quickFilter, customStart, customEnd, workSchedule, users]);
+  }, [selectedUserIds, quickFilter, customStart, customEnd, workSchedule, users, user]);
 
   // ── Summary KPIs ─────────────────────────────────────────────────────────
   const teamAvgs = reportData.length > 0 ? {
