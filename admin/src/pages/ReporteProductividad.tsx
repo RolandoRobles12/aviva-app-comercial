@@ -48,13 +48,28 @@ import {
   query,
   where,
   getDocs,
-  getDocsFromServer,
+  onSnapshot,
+  type Query,
+  type DocumentData,
+  type QuerySnapshot,
   Timestamp,
   orderBy,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
+
+// Espera un snapshot real del servidor (ignora resultados de caché)
+function getDocsFromNetwork(q: Query<DocumentData>): Promise<QuerySnapshot<DocumentData>> {
+  return new Promise((resolve, reject) => {
+    const unsub = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+      if (!snap.metadata.fromCache) {
+        unsub();
+        resolve(snap);
+      }
+    }, (err) => { unsub(); reject(err); });
+  });
+}
 
 // ── Local constants ──────────────────────────────────────────────────────────
 
@@ -606,44 +621,25 @@ const ReporteProductividad: React.FC = () => {
           }
 
           // 3. Check-ins desde registro-aviva
-          // Los proyectos aviva-app y registro-aviva tienen Firebase Auth separados,
-          // por lo que el mismo usuario tiene UIDs distintos en cada proyecto.
-          // Se busca en registro-aviva.users por email para obtener el userId correcto.
+          // Los documentos de checkins tienen el campo `email` directamente,
+          // por lo que consultamos por email sin necesidad de buscar el userId.
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
           try {
-            // Buscar el documento del usuario en registro-aviva por email para obtener su UID correcto
-            let registroUserSnap = await getDocs(query(
-              collection(dbRegistro, 'users'),
+            const ciSnap = await getDocsFromNetwork(query(
+              collection(dbRegistro, 'checkins'),
               where('email', '==', user.email),
             ));
-            // Si resolvió desde caché vacía (conexión aún no establecida), reintentar desde servidor
-            if (registroUserSnap.metadata.fromCache && registroUserSnap.docs.length === 0) {
-              await new Promise((r) => setTimeout(r, 500));
-              registroUserSnap = await getDocsFromServer(query(
-                collection(dbRegistro, 'users'),
-                where('email', '==', user.email),
-              ));
-            }
-            const registroUserId = registroUserSnap.docs[0]?.id ?? null;
-            if (!registroUserId) {
-              console.warn(`[ReporteProductividad] Usuario ${user.email} no encontrado en registro-aviva.users`);
-            } else {
-              const ciSnap = await getDocs(query(
-                collection(dbRegistro, 'checkins'),
-                where('userId', '==', registroUserId),
-              ));
-              console.log(`[ReporteProductividad] checkins para ${user.email} (registroUserId="${registroUserId}"): ${ciSnap.docs.length} docs`);
-              checkIns = ciSnap.docs
-                .filter((d) => {
-                  const ts: Timestamp | undefined = d.data().timestamp;
-                  if (!ts) return false;
-                  const ms = ts.toMillis();
-                  return ms >= startTs.toMillis() && ms <= endTs.toMillis();
-                })
-                .map((d) => ({ ...d.data() } as CheckInRecord));
-              console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
-            }
+            console.log(`[ReporteProductividad] checkins para ${user.email}: ${ciSnap.docs.length} docs`);
+            checkIns = ciSnap.docs
+              .filter((d) => {
+                const ts: Timestamp | undefined = d.data().timestamp;
+                if (!ts) return false;
+                const ms = ts.toMillis();
+                return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+              })
+              .map((d) => ({ ...d.data() } as CheckInRecord));
+            console.log(`[ReporteProductividad] checkins en rango: ${checkIns.length}`);
           } catch (e) {
             console.error('[ReporteProductividad] Error al obtener checkins:', e);
             checkInsError = true;
@@ -891,7 +887,7 @@ const ReporteProductividad: React.FC = () => {
           {reportData.some((r) => r.checkInsError) && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               <strong>Check-ins no disponibles</strong> — El proyecto <em>registro-aviva</em> en Firestore debe
-              permitir lecturas en las colecciones <code>users</code> y <code>checkins</code>.
+              permitir lecturas en la colección <code>checkins</code>.
             </Alert>
           )}
           {reportData.some((r) => r.hubspotError) && (
