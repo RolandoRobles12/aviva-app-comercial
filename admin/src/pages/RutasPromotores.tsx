@@ -287,19 +287,20 @@ const RutasPromotores: React.FC = () => {
 
       allPoints.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
 
-      // Detectar paradas largas (misma lógica que la app Android)
+      // Detectar paradas largas (misma lógica que la app Android) y agrupar las cercanas
       const detectedLongStops = detectLongStops(allPoints);
+      const clusteredStops = clusterLongStops(detectedLongStops);
 
       setLocationPoints(allPoints);
       setKioskVisits(allVisits);
-      setLongStops(detectedLongStops);
+      setLongStops(clusteredStops);
 
       // Ajustar vista del mapa a las rutas cargadas
-      if (mapRef && (allPoints.length > 0 || allVisits.length > 0 || detectedLongStops.length > 0)) {
+      if (mapRef && (allPoints.length > 0 || allVisits.length > 0 || clusteredStops.length > 0)) {
         const bounds = new google.maps.LatLngBounds();
         allPoints.forEach(p => bounds.extend({ lat: p.location.latitude, lng: p.location.longitude }));
         allVisits.forEach(v => bounds.extend({ lat: v.checkInLocation.latitude, lng: v.checkInLocation.longitude }));
-        detectedLongStops.forEach(s => bounds.extend({ lat: s.location.latitude, lng: s.location.longitude }));
+        clusteredStops.forEach(s => bounds.extend({ lat: s.location.latitude, lng: s.location.longitude }));
 
         // Ajustar el mapa con padding para mejor visualización
         mapRef.fitBounds(bounds, {
@@ -368,6 +369,47 @@ const RutasPromotores: React.FC = () => {
     });
 
     return stops;
+  };
+
+  // Merge consecutive stops at the same location into a single aggregated stop
+  const clusterLongStops = (stops: LongStop[]): LongStop[] => {
+    if (stops.length === 0) return [];
+
+    // Sort by userId then by startTime so consecutive stops at same location are adjacent
+    const sorted = [...stops].sort((a, b) => {
+      if (a.userId !== b.userId) return a.userId.localeCompare(b.userId);
+      return a.startTime.toMillis() - b.startTime.toMillis();
+    });
+
+    const clustered: LongStop[] = [];
+    let current = { ...sorted[0] };
+
+    for (let i = 1; i < sorted.length; i++) {
+      const stop = sorted[i];
+      const dist = calculateDistance(
+        current.location.latitude, current.location.longitude,
+        stop.location.latitude, stop.location.longitude
+      );
+      const currentEndTime = current.startTime.toMillis() + current.durationMinutes * 60 * 1000;
+      const gapMs = stop.startTime.toMillis() - currentEndTime;
+
+      // Merge if same user, within 150 m, and the gap between end and next start is ≤ 10 min
+      if (stop.userId === current.userId && dist < 150 && gapMs <= 10 * 60 * 1000) {
+        const newEnd = Math.max(
+          currentEndTime,
+          stop.startTime.toMillis() + stop.durationMinutes * 60 * 1000
+        );
+        current = {
+          ...current,
+          durationMinutes: Math.round((newEnd - current.startTime.toMillis()) / 1000 / 60)
+        };
+      } else {
+        clustered.push(current);
+        current = { ...stop };
+      }
+    }
+    clustered.push(current);
+    return clustered;
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -608,11 +650,23 @@ const RutasPromotores: React.FC = () => {
                 onChange={(_, newFilter) => newFilter && setQuickFilter(newFilter)}
                 size="small"
                 fullWidth
-                sx={{ mb: 2 }}
+                sx={{ mb: 1 }}
               >
                 <ToggleButton value="today">Hoy</ToggleButton>
                 <ToggleButton value="yesterday">Ayer</ToggleButton>
                 <ToggleButton value="thisWeek">Semana</ToggleButton>
+              </ToggleButtonGroup>
+              <ToggleButtonGroup
+                value={quickFilter}
+                exclusive
+                onChange={(_, newFilter) => newFilter && setQuickFilter(newFilter)}
+                size="small"
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                <ToggleButton value="lastWeek">Sem. pasada</ToggleButton>
+                <ToggleButton value="thisMonth">Este mes</ToggleButton>
+                <ToggleButton value="custom">Personalizado</ToggleButton>
               </ToggleButtonGroup>
 
               <Stack spacing={2} sx={{ mb: 2 }}>
@@ -627,7 +681,7 @@ const RutasPromotores: React.FC = () => {
                     setQuickFilter('custom');
                   }}
                   InputLabelProps={{ shrink: true }}
-                  disabled={quickFilter !== 'custom'}
+                  sx={{ bgcolor: quickFilter === 'custom' ? 'action.hover' : undefined, borderRadius: 1 }}
                 />
 
                 <TextField
@@ -641,7 +695,7 @@ const RutasPromotores: React.FC = () => {
                     setQuickFilter('custom');
                   }}
                   InputLabelProps={{ shrink: true }}
-                  disabled={quickFilter !== 'custom'}
+                  sx={{ bgcolor: quickFilter === 'custom' ? 'action.hover' : undefined, borderRadius: 1 }}
                 />
 
                 <Autocomplete
