@@ -503,19 +503,15 @@ const RutasPromotores: React.FC = () => {
         </Tabs>
       </Box>
 
-      {/* Tab Reportes */}
-      {mainTab === 1 && (
-        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
-          <ReportesRutas />
-        </Box>
-      )}
+      {/* Tab Reportes — siempre montado para conservar estado */}
+      <Box sx={{ flex: 1, overflow: 'auto', p: 3, display: mainTab === 1 ? 'block' : 'none' }}>
+        <ReportesRutas />
+      </Box>
 
-      {/* Tab Productividad */}
-      {mainTab === 2 && (
-        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
-          <ReporteProductividad />
-        </Box>
-      )}
+      {/* Tab Productividad — siempre montado para conservar estado */}
+      <Box sx={{ flex: 1, overflow: 'auto', p: 3, display: mainTab === 2 ? 'block' : 'none' }}>
+        <ReporteProductividad />
+      </Box>
 
       {/* Tab Mapa de Rutas */}
       {mainTab === 0 && (
