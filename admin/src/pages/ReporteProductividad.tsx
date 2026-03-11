@@ -817,8 +817,16 @@ const ReporteProductividad: React.FC = () => {
                     value={productFilter}
                     label="Producto"
                     onChange={(e) => {
-                      setProductFilter(e.target.value);
-                      setSelectedUserIds([]);
+                      const newProduct = e.target.value;
+                      setProductFilter(newProduct);
+                      if (newProduct === 'all') {
+                        setSelectedUserIds([]);
+                      } else {
+                        const matchingUsers = users.filter(
+                          (u) => u.productLine?.toLowerCase() === newProduct.toLowerCase()
+                        );
+                        setSelectedUserIds(matchingUsers.map((u) => u.id));
+                      }
                     }}
                   >
                     <MenuItem value="all">Todos los productos</MenuItem>
