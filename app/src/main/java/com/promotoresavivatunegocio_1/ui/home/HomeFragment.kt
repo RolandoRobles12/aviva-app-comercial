@@ -195,9 +195,9 @@ class HomeFragment : Fragment() {
         view.findViewById<MaterialCardView>(R.id.cardRegistro).setOnClickListener {
             navigate(R.id.navigation_attendance)
         }
-        // Metas comerciales
+        // Metas comerciales → directo a Metas & Bono (ventas y solicitudes)
         view.findViewById<MaterialCardView>(R.id.cardMetasComerciales).setOnClickListener {
-            navigate(R.id.navigation_commercial_goals)
+            navigate(R.id.navigation_metas_bono)
         }
         // Prospectos (solo AVIVA_TU_NEGOCIO, visibilidad controlada en applyProductLayout)
         view.findViewById<MaterialCardView>(R.id.cardProspectos).setOnClickListener {
@@ -206,10 +206,6 @@ class HomeFragment : Fragment() {
         // LMS embed
         view.findViewById<MaterialCardView>(R.id.cardAprendizaje).setOnClickListener {
             navigate(R.id.navigation_lms)
-        }
-        // Asistente IA
-        view.findViewById<MaterialCardView>(R.id.cardAyuda).setOnClickListener {
-            navigate(R.id.navigation_help_assistant)
         }
         // Trámites
         view.findViewById<MaterialCardView>(R.id.cardTramites).setOnClickListener {

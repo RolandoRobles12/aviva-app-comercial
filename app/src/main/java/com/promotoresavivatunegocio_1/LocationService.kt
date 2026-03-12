@@ -39,6 +39,11 @@ class LocationService : Service() {
     private var workHoursRunnable: Runnable? = null
     private var serviceStartTime = 0L
 
+    // Variables para detección de parada prolongada (≥90 min en el mismo punto)
+    private var stationaryRefLocation: Location? = null
+    private var stationaryStartTime = 0L
+    private var stationaryNotificationSent = false
+
     // Configuración y datos del usuario
     private var currentUser: User? = null
     private var locationConfig: LocationConfig? = null
@@ -49,7 +54,9 @@ class LocationService : Service() {
     companion object {
         private const val TAG = "LocationService"
         private const val CHANNEL_ID = "LocationServiceChannel"
+        private const val CHANNEL_ID_STATIONARY = "StationaryAlertChannel"
         private const val NOTIFICATION_ID = 1001
+        private const val NOTIFICATION_ID_STATIONARY = 1002
 
         // CONFIGURACION: Cada 5 minutos
         private const val LOCATION_INTERVAL = 5 * 60 * 1000L  // 5 minutos
@@ -65,6 +72,10 @@ class LocationService : Service() {
 
         // ALERTAS: Intervalo mínimo entre alertas para evitar spam
         private const val ALERT_INTERVAL = 30 * 60 * 1000L // 30 minutos entre alertas
+
+        // ALERTA DE PARADA PROLONGADA
+        private const val STATIONARY_THRESHOLD_MS = 90 * 60 * 1000L // 90 minutos sin movimiento
+        private const val STATIONARY_MOVE_THRESHOLD_M = 100f         // 100m para considerar que se movió
 
         // ACCIONES DE CONTROL
         const val ACTION_START_TRACKING = "START_TRACKING"
@@ -274,12 +285,11 @@ class LocationService : Service() {
         Log.d(TAG, "   - Proveedor: ${location.provider}")
         Log.d(TAG, "   - Velocidad: ${if (location.hasSpeed()) "${location.speed} m/s" else "N/A"}")
 
-        // Actualizar notificación con estadísticas
-        val notification = createNotification(
-            "Ubicación #$totalLocationsRecorded registrada",
-            "Última: $timeStr • Precisión: ${location.accuracy.toInt()}m"
-        )
-        startForeground(NOTIFICATION_ID, notification)
+        // Mantener notificación foreground con texto neutro (sin datos de ubicación)
+        // La notificación de parada prolongada se gestiona en checkStationaryAlert()
+
+        // Verificar si lleva 90+ minutos en el mismo punto
+        checkStationaryAlert(location)
 
         // Guardar en Firestore
         saveLocationToFirestore(location)
@@ -400,6 +410,82 @@ class LocationService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error al actualizar usuario: ${e.message}", e)
         }
+    }
+
+    // ============================================================================
+    // DETECCIÓN DE PARADA PROLONGADA
+    // ============================================================================
+
+    /**
+     * Verifica si el usuario lleva ≥90 minutos sin moverse más de 100 metros.
+     * Si es así, envía una notificación. Se resetea cuando el usuario se mueve.
+     */
+    private fun checkStationaryAlert(location: Location) {
+        val ref = stationaryRefLocation
+        if (ref == null) {
+            // Primera ubicación: inicializar referencia
+            stationaryRefLocation = location
+            stationaryStartTime = System.currentTimeMillis()
+            stationaryNotificationSent = false
+            return
+        }
+
+        val distance = location.distanceTo(ref)
+        if (distance > STATIONARY_MOVE_THRESHOLD_M) {
+            // El usuario se movió significativamente — reiniciar
+            stationaryRefLocation = location
+            stationaryStartTime = System.currentTimeMillis()
+            stationaryNotificationSent = false
+            // Cancelar notificación previa si existe
+            val nm = getSystemService(NotificationManager::class.java)
+            nm?.cancel(NOTIFICATION_ID_STATIONARY)
+            Log.d(TAG, "📍 Usuario se movió ${distance.toInt()}m — reiniciando contador de parada")
+        } else {
+            val elapsedMs = System.currentTimeMillis() - stationaryStartTime
+            Log.d(TAG, "⏱️ Sin movimiento significativo: ${elapsedMs / 60000} min en el mismo punto")
+            if (elapsedMs >= STATIONARY_THRESHOLD_MS && !stationaryNotificationSent) {
+                sendStationaryNotification()
+                stationaryNotificationSent = true
+            }
+        }
+    }
+
+    private fun sendStationaryNotification() {
+        val nm = getSystemService(NotificationManager::class.java) ?: return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            && nm.getNotificationChannel(CHANNEL_ID_STATIONARY) == null
+        ) {
+            val channel = NotificationChannel(
+                CHANNEL_ID_STATIONARY,
+                "Alertas de parada prolongada",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Aviso cuando llevas más de 90 minutos en el mismo lugar"
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(channel)
+        }
+
+        val tapIntent = PendingIntent.getActivity(
+            this, NOTIFICATION_ID_STATIONARY,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID_STATIONARY)
+            .setSmallIcon(R.drawable.ic_notifications_24)
+            .setContentTitle("¿Sigues en campo?")
+            .setContentText("Llevas más de 90 minutos en el mismo punto")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(tapIntent)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_STATIONARY, notification)
+        Log.d(TAG, "🔔 Notificación de parada prolongada enviada")
     }
 
     private fun createNotificationChannel() {
