@@ -53,7 +53,8 @@ class LocationService : Service() {
 
     companion object {
         private const val TAG = "LocationService"
-        private const val CHANNEL_ID = "LocationServiceChannel"
+        // ID nuevo: permite cambiar la importancia (Android no deja bajarla en un canal ya creado)
+        private const val CHANNEL_ID = "location_service_silent_v2"
         private const val CHANNEL_ID_STATIONARY = "StationaryAlertChannel"
         private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_ID_STATIONARY = 1002
@@ -492,10 +493,10 @@ class LocationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Servicio de Ubicación",
-                NotificationManager.IMPORTANCE_LOW
+                "Aviva Tu Negocio",
+                NotificationManager.IMPORTANCE_MIN   // Sin icono en barra de estado
             ).apply {
-                description = "Servicio de seguimiento de ubicación en segundo plano"
+                description = "Servicio en segundo plano"
                 setShowBadge(false)
                 enableVibration(false)
                 enableLights(false)

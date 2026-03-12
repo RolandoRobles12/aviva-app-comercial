@@ -2,6 +2,7 @@ package com.promotoresavivatunegocio_1.ui.home
 
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,14 +10,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.card.MaterialCardView
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.promotoresavivatunegocio_1.MainActivity
 import com.promotoresavivatunegocio_1.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import models.User
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -27,10 +33,9 @@ import java.util.Locale
  *
  * Módulos visibles:
  *   - Registro  → Asistencia directa (todos)  ← Hero card con estado del día
- *   - Metas     → CommercialGoals (todos)
+ *   - Metas     → MetasBono (todos)
  *   - Prospectos→ AvivaTuNegocio (solo AVIVA_TU_NEGOCIO)
  *   - Aprendizaje → LMS embed (todos)
- *   - Asistente → HelpAssistant (todos)
  *   - Trámites  → Tramites (todos)
  */
 class HomeFragment : Fragment() {
@@ -97,40 +102,118 @@ class HomeFragment : Fragment() {
 
     // ──────────────────────────────────────────────────────────────────
     // Estado del día en la hero card de Registro
-    // Consulta la colección "checkins" para hoy y actualiza el badge
+    // Los check-ins están en el proyecto Firebase "registro-aviva".
+    // Se consulta via REST API (lectura pública) usando el email del usuario.
     // ──────────────────────────────────────────────────────────────────
 
     private fun loadTodayAttendanceStatus(view: View) {
-        val uid = auth.currentUser?.uid ?: return
+        val email = auth.currentUser?.email ?: return
 
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0);      cal.set(Calendar.MILLISECOND, 0)
-        val startOfDay = Timestamp(cal.time)
-
-        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59);      cal.set(Calendar.MILLISECOND, 999)
-        val endOfDay = Timestamp(cal.time)
-
-        db.collection("checkins")
-            .whereEqualTo("userId", uid)
-            .whereGreaterThanOrEqualTo("timestamp", startOfDay)
-            .whereLessThanOrEqualTo("timestamp", endOfDay)
-            .get()
-            .addOnSuccessListener { snap ->
-                val types = snap.documents.mapNotNull { it.getString("type") }.toSet()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val types = withContext(Dispatchers.IO) { fetchTodayCheckIns(email) }
                 if (isAdded) updateRegistroStatusBadge(view, types)
+            } catch (e: Exception) {
+                Log.e("HomeFragment", "Error cargando check-ins", e)
+                // Badge permanece en "Sin registro hoy"
             }
-            // En caso de fallo el badge permanece en "Sin registro hoy"
+        }
+    }
+
+    /**
+     * Consulta la colección "checkins" en el proyecto Firebase "registro-aviva"
+     * usando la REST API de Firestore (sin necesitar SDK ni credenciales).
+     * Retorna el conjunto de tipos de registro (entrada, comida, salida) del día de hoy.
+     */
+    private fun fetchTodayCheckIns(email: String): Set<String> {
+        // Rango del día de hoy en UTC
+        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+        val year  = cal.get(Calendar.YEAR)
+        val month = String.format("%02d", cal.get(Calendar.MONTH) + 1)
+        val day   = String.format("%02d", cal.get(Calendar.DAY_OF_MONTH))
+        val startTs = "${year}-${month}-${day}T00:00:00Z"
+        val endTs   = "${year}-${month}-${day}T23:59:59Z"
+
+        val endpoint = "https://firestore.googleapis.com/v1/projects/registro-aviva" +
+                "/databases/(default)/documents:runQuery"
+
+        // Escapar el email para JSON (por si contiene caracteres especiales)
+        val emailEscaped = email.replace("\"", "\\\"")
+
+        val body = """
+            {
+              "structuredQuery": {
+                "from": [{"collectionId": "checkins"}],
+                "where": {
+                  "compositeFilter": {
+                    "op": "AND",
+                    "filters": [
+                      {
+                        "fieldFilter": {
+                          "field": {"fieldPath": "email"},
+                          "op": "EQUAL",
+                          "value": {"stringValue": "$emailEscaped"}
+                        }
+                      },
+                      {
+                        "fieldFilter": {
+                          "field": {"fieldPath": "timestamp"},
+                          "op": "GREATER_THAN_OR_EQUAL",
+                          "value": {"timestampValue": "$startTs"}
+                        }
+                      },
+                      {
+                        "fieldFilter": {
+                          "field": {"fieldPath": "timestamp"},
+                          "op": "LESS_THAN_OR_EQUAL",
+                          "value": {"timestampValue": "$endTs"}
+                        }
+                      }
+                    ]
+                  }
+                },
+                "select": {
+                  "fields": [{"fieldPath": "type"}]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val conn = URL(endpoint).openConnection() as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.doOutput = true
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 10_000
+
+        try {
+            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            if (conn.responseCode != 200) {
+                Log.w("HomeFragment", "Firestore REST devolvió ${conn.responseCode}")
+                return emptySet()
+            }
+
+            val response = conn.inputStream.bufferedReader().readText()
+            Log.d("HomeFragment", "check-ins hoy: $response")
+
+            // Extraer valores del campo "type" de los documentos devueltos
+            // Formato: "type": { "stringValue": "entrada" }
+            val pattern = Regex(""""type"\s*:\s*\{\s*"stringValue"\s*:\s*"([^"]+)"""")
+            return pattern.findAll(response)
+                .map { it.groupValues[1].lowercase() }
+                .toSet()
+        } finally {
+            conn.disconnect()
+        }
     }
 
     private fun updateRegistroStatusBadge(view: View, types: Set<String>) {
         val textStatus = view.findViewById<TextView>(R.id.textRegistroStatus)
         val cardStatus = view.findViewById<MaterialCardView>(R.id.cardRegistroStatus)
 
-        val hasSalida  = types.contains("SALIDA")
-        val hasComida  = types.contains("COMIDA")
-        val hasEntrada = types.contains("ENTRADA")
+        val hasEntrada = types.contains("entrada")
+        val hasComida  = types.contains("comida")
+        val hasSalida  = types.contains("salida")
 
         val (label, colorRes) = when {
             hasEntrada && hasSalida ->
