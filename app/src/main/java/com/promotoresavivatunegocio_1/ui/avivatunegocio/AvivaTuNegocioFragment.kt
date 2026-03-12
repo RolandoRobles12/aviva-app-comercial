@@ -35,6 +35,9 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.Polygon
+import com.google.android.gms.maps.model.PolygonOptions
+import com.google.maps.android.PolyUtil
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
@@ -52,6 +55,7 @@ import com.promotoresavivatunegocio_1.services.ProspectosManager
 import com.promotoresavivatunegocio_1.ui.home.HomeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -92,6 +96,12 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
     private var busquedaEnProgreso: Boolean = false
 
     private var currentLocation: Location? = null
+
+    // Polígonos de zonas dibujados sobre el mapa
+    private val drawnPolygons = mutableListOf<Polygon>()
+    // Puntos de zonas asignadas (verde) y prohibidas (rojo) para containsLocation
+    private val assignedZonePoints = mutableListOf<List<LatLng>>()
+    private val forbiddenZonePoints = mutableListOf<List<LatLng>>()
     private var photoUri: Uri? = null
     private var tempPhotoFile: File? = null
 
@@ -2018,6 +2028,7 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun hasLocationPermissions(): Boolean {
+        if (!isAdded) return false
         return ContextCompat.checkSelfPermission(
             requireContext(),
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -2082,6 +2093,7 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
         currentLocation?.let {
             updateMapLocation(it)
         }
+        loadAndDrawZones()
 
         googleMap.setOnMarkerClickListener { marker ->
             val prospectoSeleccionado = prospectosAviva.find { prospecto ->
@@ -2125,6 +2137,125 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
         if (::googleMap.isInitialized) {
             val latLng = LatLng(location.latitude, location.longitude)
             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+        }
+        updateZonaBanner(location)
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Zonas: carga + dibujo de polígonos + banner de estado
+    // ──────────────────────────────────────────────────────────────────
+
+    private fun loadAndDrawZones() {
+        val uid = auth.currentUser?.uid ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val zonesSnap = withContext(Dispatchers.IO) {
+                    db.collection("zones")
+                        .whereEqualTo("assignedSellerId", uid)
+                        .whereEqualTo("isActive", true)
+                        .get().await()
+                }
+                val forbiddenSnap = withContext(Dispatchers.IO) {
+                    db.collection("forbidden_zones")
+                        .whereEqualTo("isActive", true)
+                        .get().await()
+                }
+
+                if (!isAdded || !::googleMap.isInitialized) return@launch
+
+                drawnPolygons.forEach { it.remove() }
+                drawnPolygons.clear()
+                assignedZonePoints.clear()
+                forbiddenZonePoints.clear()
+
+                // Zonas asignadas — verde
+                for (doc in zonesSnap.documents) {
+                    @Suppress("UNCHECKED_CAST")
+                    val raw = doc.get("coordinates") as? List<Map<String, Any>> ?: continue
+                    val pts = raw.mapNotNull { m ->
+                        val lat = (m["lat"] as? Double) ?: (m["lat"] as? Long)?.toDouble() ?: return@mapNotNull null
+                        val lng = (m["lng"] as? Double) ?: (m["lng"] as? Long)?.toDouble() ?: return@mapNotNull null
+                        LatLng(lat, lng)
+                    }
+                    if (pts.size < 3) continue
+                    assignedZonePoints.add(pts)
+                    drawnPolygons.add(
+                        googleMap.addPolygon(
+                            PolygonOptions()
+                                .addAll(pts)
+                                .fillColor(android.graphics.Color.argb(50, 76, 175, 80))   // verde semitransparente
+                                .strokeColor(android.graphics.Color.rgb(46, 125, 50))       // verde sólido
+                                .strokeWidth(3f)
+                        )
+                    )
+                }
+
+                // Zonas prohibidas — rojo
+                for (doc in forbiddenSnap.documents) {
+                    @Suppress("UNCHECKED_CAST")
+                    val raw = doc.get("coordinates") as? List<Map<String, Any>> ?: continue
+                    val pts = raw.mapNotNull { m ->
+                        val lat = (m["lat"] as? Double) ?: (m["lat"] as? Long)?.toDouble() ?: return@mapNotNull null
+                        val lng = (m["lng"] as? Double) ?: (m["lng"] as? Long)?.toDouble() ?: return@mapNotNull null
+                        LatLng(lat, lng)
+                    }
+                    if (pts.size < 3) continue
+                    forbiddenZonePoints.add(pts)
+                    drawnPolygons.add(
+                        googleMap.addPolygon(
+                            PolygonOptions()
+                                .addAll(pts)
+                                .fillColor(android.graphics.Color.argb(50, 244, 67, 54))   // rojo semitransparente
+                                .strokeColor(android.graphics.Color.rgb(198, 40, 40))       // rojo sólido
+                                .strokeWidth(3f)
+                        )
+                    )
+                }
+
+                // Actualizar banner con ubicación actual si ya se tiene
+                currentLocation?.let { updateZonaBanner(it) }
+
+            } catch (e: Exception) {
+                Log.e("AvivaTuNegocio", "Error cargando zonas", e)
+            }
+        }
+    }
+
+    private fun updateZonaBanner(location: Location) {
+        if (!isAdded) return
+        val pos = LatLng(location.latitude, location.longitude)
+        val dot  = binding.root.findViewById<android.widget.TextView>(R.id.tvZonaDot)
+        val text = binding.root.findViewById<android.widget.TextView>(R.id.tvZonaStatus)
+        val card = binding.root.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardZonaBanner)
+
+        val enProhibida = forbiddenZonePoints.any { PolyUtil.containsLocation(pos, it, true) }
+        val enAsignada  = !enProhibida && assignedZonePoints.any { PolyUtil.containsLocation(pos, it, true) }
+
+        when {
+            enProhibida -> {
+                card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.error_color))
+                dot.setTextColor(android.graphics.Color.WHITE)
+                text.setTextColor(android.graphics.Color.WHITE)
+                text.text = "Zona prohibida — sal de esta área"
+            }
+            enAsignada -> {
+                card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.aviva_green))
+                dot.setTextColor(android.graphics.Color.WHITE)
+                text.setTextColor(android.graphics.Color.WHITE)
+                text.text = "Estás en tu zona"
+            }
+            assignedZonePoints.isEmpty() && forbiddenZonePoints.isEmpty() -> {
+                card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.primary_container))
+                dot.setTextColor(ContextCompat.getColor(requireContext(), R.color.secondary_text))
+                text.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary_text))
+                text.text = "Sin zonas asignadas"
+            }
+            else -> {
+                card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.warning_color))
+                dot.setTextColor(android.graphics.Color.WHITE)
+                text.setTextColor(android.graphics.Color.WHITE)
+                text.text = "Fuera de tu zona"
+            }
         }
     }
 
