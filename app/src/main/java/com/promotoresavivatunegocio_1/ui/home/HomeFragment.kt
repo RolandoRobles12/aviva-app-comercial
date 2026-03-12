@@ -233,6 +233,8 @@ class HomeFragment : Fragment() {
                 Pair("✓ Entrada y comida registradas", R.color.aviva_green)
             hasEntrada ->
                 Pair("✓ Entrada registrada", R.color.aviva_green)
+            hasSalida || hasComida ->
+                Pair("✓ Registro parcial", R.color.aviva_green)
             else ->
                 Pair("● Sin registro hoy", R.color.warning_color)
         }

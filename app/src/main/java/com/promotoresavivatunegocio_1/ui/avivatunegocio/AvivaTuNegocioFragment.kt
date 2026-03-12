@@ -2018,6 +2018,7 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun hasLocationPermissions(): Boolean {
+        if (!isAdded) return false
         return ContextCompat.checkSelfPermission(
             requireContext(),
             Manifest.permission.ACCESS_FINE_LOCATION
