@@ -122,23 +122,33 @@ class HomeFragment : Fragment() {
 
     /**
      * Consulta la colección "checkins" en el proyecto Firebase "registro-aviva"
-     * usando la REST API de Firestore (sin necesitar SDK ni credenciales).
-     * Retorna el conjunto de tipos de registro (entrada, comida, salida) del día de hoy.
+     * usando la REST API de Firestore (lectura pública, sin credenciales).
+     *
+     * Filtra solo por email y luego determina si el registro es de hoy en la
+     * zona horaria LOCAL del dispositivo (evita errores UTC vs hora México).
      */
     private fun fetchTodayCheckIns(email: String): Set<String> {
-        // Rango del día de hoy en UTC
-        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-        val year  = cal.get(Calendar.YEAR)
-        val month = String.format("%02d", cal.get(Calendar.MONTH) + 1)
-        val day   = String.format("%02d", cal.get(Calendar.DAY_OF_MONTH))
-        val startTs = "${year}-${month}-${day}T00:00:00Z"
-        val endTs   = "${year}-${month}-${day}T23:59:59Z"
-
         val endpoint = "https://firestore.googleapis.com/v1/projects/registro-aviva" +
                 "/databases/(default)/documents:runQuery"
 
-        // Escapar el email para JSON (por si contiene caracteres especiales)
         val emailEscaped = email.replace("\"", "\\\"")
+
+        // Rango del día de hoy usando zona horaria LOCAL del dispositivo.
+        // Los timestamps en Firestore se guardan en UTC, así que convertimos
+        // medianoche/23:59 hora local a epoch millis y luego a RFC3339 UTC.
+        val cal = Calendar.getInstance() // zona horaria local
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0);      cal.set(Calendar.MILLISECOND, 0)
+        val startMs = cal.timeInMillis
+        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        val endMs = cal.timeInMillis
+
+        val utcFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+        val startTs = utcFmt.format(Date(startMs))
+        val endTs   = utcFmt.format(Date(endMs))
 
         val body = """
             {
@@ -188,16 +198,17 @@ class HomeFragment : Fragment() {
 
         try {
             conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            if (conn.responseCode != 200) {
-                Log.w("HomeFragment", "Firestore REST devolvió ${conn.responseCode}")
+            val code = conn.responseCode
+            if (code != 200) {
+                val errorBody = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                Log.w("HomeFragment", "Firestore REST devolvió $code: $errorBody")
                 return emptySet()
             }
 
             val response = conn.inputStream.bufferedReader().readText()
-            Log.d("HomeFragment", "check-ins hoy: $response")
+            Log.d("HomeFragment", "check-ins hoy (raw): $response")
 
-            // Extraer valores del campo "type" de los documentos devueltos
-            // Formato: "type": { "stringValue": "entrada" }
+            // "type": { "stringValue": "entrada" }
             val pattern = Regex(""""type"\s*:\s*\{\s*"stringValue"\s*:\s*"([^"]+)"""")
             return pattern.findAll(response)
                 .map { it.groupValues[1].lowercase() }
