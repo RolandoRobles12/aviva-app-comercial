@@ -102,6 +102,8 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
     // Puntos de zonas asignadas (verde) y prohibidas (rojo) para containsLocation
     private val assignedZonePoints = mutableListOf<List<LatLng>>()
     private val forbiddenZonePoints = mutableListOf<List<LatLng>>()
+    // Solo centramos la cámara la primera vez que llega ubicación
+    private var initialCameraSet = false
     private var photoUri: Uri? = null
     private var tempPhotoFile: File? = null
 
@@ -2095,6 +2097,14 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
         }
         loadAndDrawZones()
 
+        // Fix crítico: evita que el ScrollView padre intercepte los toques sobre el mapa.
+        // Sin esto, arrastrar el mapa hace scroll de la pantalla en lugar de mover el mapa.
+        binding.root.findViewById<android.view.View>(R.id.mapTouchContainer)
+            ?.setOnTouchListener { v, _ ->
+                v.parent.requestDisallowInterceptTouchEvent(true)
+                false
+            }
+
         googleMap.setOnMarkerClickListener { marker ->
             val prospectoSeleccionado = prospectosAviva.find { prospecto ->
                 val markerPos = marker.position
@@ -2134,9 +2144,12 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun updateMapLocation(location: Location) {
-        if (::googleMap.isInitialized) {
+        // Solo centra la cámara en la primera ubicación recibida;
+        // después el usuario puede explorar libremente sin que el mapa lo jale de vuelta.
+        if (::googleMap.isInitialized && !initialCameraSet) {
             val latLng = LatLng(location.latitude, location.longitude)
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14f))
+            initialCameraSet = true
         }
         updateZonaBanner(location)
     }
@@ -2214,6 +2227,23 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
 
                 // Actualizar banner con ubicación actual si ya se tiene
                 currentLocation?.let { updateZonaBanner(it) }
+
+                // Auto-fit: si el promotor tiene zonas asignadas, ajustar la cámara para
+                // mostrar el polígono completo (incluyendo su ubicación si está disponible).
+                // Así sabe de un vistazo el alcance de todo su territorio.
+                if (assignedZonePoints.isNotEmpty()) {
+                    try {
+                        val boundsBuilder = com.google.android.gms.maps.model.LatLngBounds.Builder()
+                        assignedZonePoints.forEach { pts -> pts.forEach { boundsBuilder.include(it) } }
+                        currentLocation?.let { boundsBuilder.include(LatLng(it.latitude, it.longitude)) }
+                        googleMap.animateCamera(
+                            CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 80)
+                        )
+                        initialCameraSet = true
+                    } catch (e: Exception) {
+                        Log.w("AvivaTuNegocio", "No se pudo hacer fit a la zona: ${e.message}")
+                    }
+                }
 
             } catch (e: Exception) {
                 Log.e("AvivaTuNegocio", "Error cargando zonas", e)
