@@ -151,6 +151,8 @@ const ZonasVendedores: React.FC = () => {
   const [savingForbidden, setSavingForbidden] = useState(false);
   const [deleteForbiddenDialog, setDeleteForbiddenDialog] = useState<ForbiddenZone | null>(null);
   const [selectedForbiddenZone, setSelectedForbiddenZone] = useState<ForbiddenZone | null>(null);
+  const [forbiddenOverlapDialog, setForbiddenOverlapDialog] = useState(false);
+  const [overlappingZones, setOverlappingZones] = useState<Zone[]>([]);
 
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null);
 
@@ -215,7 +217,29 @@ const ZonasVendedores: React.FC = () => {
     setDrawingForbiddenMode(false);
   }, []);
 
-  const handleSaveForbiddenZone = async () => {
+  const isPointInPolygon = (point: ZoneCoord, polygon: ZoneCoord[]): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].lng, yi = polygon[i].lat;
+      const xj = polygon[j].lng, yj = polygon[j].lat;
+      const intersect = ((yi > point.lat) !== (yj > point.lat)) &&
+        (point.lng < (xj - xi) * (point.lat - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  const polygonsOverlap = (poly1: ZoneCoord[], poly2: ZoneCoord[]): boolean => {
+    for (const pt of poly1) {
+      if (isPointInPolygon(pt, poly2)) return true;
+    }
+    for (const pt of poly2) {
+      if (isPointInPolygon(pt, poly1)) return true;
+    }
+    return false;
+  };
+
+  const doSaveForbiddenZone = async () => {
     if (!forbiddenZoneName.trim() || !pendingForbiddenPolygon) return;
     setSavingForbidden(true);
     try {
@@ -228,15 +252,37 @@ const ZonasVendedores: React.FC = () => {
       });
       setSuccess('Zona prohibida guardada');
       setForbiddenDialog(false);
+      setForbiddenOverlapDialog(false);
       setForbiddenZoneName('');
       setForbiddenZoneDesc('');
       setPendingForbiddenPolygon(null);
+      setOverlappingZones([]);
       await fetchForbiddenZones();
     } catch (e: any) {
       setError('Error al guardar: ' + e.message);
     } finally {
       setSavingForbidden(false);
     }
+  };
+
+  const handleSaveForbiddenZone = async () => {
+    if (!forbiddenZoneName.trim() || !pendingForbiddenPolygon) return;
+
+    // Check if the forbidden zone overlaps with any existing sales zones
+    const overlapping = zones.filter(zone =>
+      zone.isActive &&
+      zone.coordinates &&
+      zone.coordinates.length >= 3 &&
+      polygonsOverlap(pendingForbiddenPolygon, zone.coordinates)
+    );
+
+    if (overlapping.length > 0) {
+      setOverlappingZones(overlapping);
+      setForbiddenOverlapDialog(true);
+      return;
+    }
+
+    await doSaveForbiddenZone();
   };
 
   const handleDeleteForbiddenZone = async (zone: ForbiddenZone) => {
@@ -1197,6 +1243,51 @@ const ZonasVendedores: React.FC = () => {
             startIcon={savingForbidden ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
           >
             {savingForbidden ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Dialog: Advertencia de traslape con zonas de venta ── */}
+      <Dialog open={forbiddenOverlapDialog} onClose={() => setForbiddenOverlapDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <BlockIcon color="warning" />
+            <Typography variant="h6" fontWeight={700}>Zona prohibida dentro de zona de venta</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            La zona prohibida que estás por guardar se traslapa con {overlappingZones.length === 1 ? 'una zona de venta existente' : `${overlappingZones.length} zonas de venta existentes`}.
+          </Alert>
+          <Typography variant="body2" gutterBottom>
+            Zonas afectadas:
+          </Typography>
+          <List dense disablePadding sx={{ mb: 1 }}>
+            {overlappingZones.map(z => (
+              <ListItem key={z.id} disablePadding>
+                <Box sx={{ py: 0.5 }}>
+                  <Typography variant="body2" fontWeight={600}>{z.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">{z.assignedSellerName}</Typography>
+                </Box>
+              </ListItem>
+            ))}
+          </List>
+          <Typography variant="body2" color="text.secondary">
+            ¿Quieres que la zona prohibida tenga prioridad sobre las zonas de venta, o prefieres cancelar?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setForbiddenOverlapDialog(false); setOverlappingZones([]); }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={savingForbidden ? <CircularProgress size={18} color="inherit" /> : <BlockIcon />}
+            disabled={savingForbidden}
+            onClick={doSaveForbiddenZone}
+          >
+            Dar prioridad a zona prohibida
           </Button>
         </DialogActions>
       </Dialog>

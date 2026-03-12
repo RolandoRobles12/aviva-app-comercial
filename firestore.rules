@@ -287,6 +287,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Forbidden Zones - anyone authenticated can read, only admins can write
+    match /forbidden_zones/{zoneId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Kiosk Visits - users can create/read their own, admins can read all
     match /kioskVisits/{visitId} {
       allow get: if isOwner(resource.data.userId) || isAdmin();

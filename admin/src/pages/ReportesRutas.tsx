@@ -36,7 +36,8 @@ import {
   Route as RouteIcon,
   CalendarToday as CalendarIcon,
   Schedule as ScheduleIcon,
-  PauseCircleOutline as PauseIcon
+  PauseCircleOutline as PauseIcon,
+  InfoOutlined as InfoIcon
 } from '@mui/icons-material';
 import {
   collection,
@@ -132,8 +133,9 @@ const StatCard: React.FC<{
   label: string;
   value: string;
   sub?: string;
+  description?: string;
   color?: string;
-}> = ({ icon, label, value, sub, color = '#16b877' }) => (
+}> = ({ icon, label, value, sub, description, color = '#16b877' }) => (
   <Paper sx={{ p: 2.5, height: '100%' }}>
     <Stack direction="row" spacing={2} alignItems="flex-start">
       <Box sx={{
@@ -148,10 +150,17 @@ const StatCard: React.FC<{
         {icon}
       </Box>
       <Box sx={{ flex: 1 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={600}
-          sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {label}
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600}
+            sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {label}
+          </Typography>
+          {description && (
+            <Tooltip title={description} placement="top" arrow>
+              <InfoIcon sx={{ fontSize: 14, color: 'text.disabled', cursor: 'help' }} />
+            </Tooltip>
+          )}
+        </Stack>
         <Typography variant="h4" fontWeight={800} sx={{ color, lineHeight: 1.1 }}>
           {value}
         </Typography>
@@ -612,6 +621,7 @@ const ReportesRutas: React.FC = () => {
                 label="Km totales recorridos"
                 value={`${totals.km.toFixed(1)} km`}
                 sub={`entre ${totals.sellers} vendedor${totals.sellers > 1 ? 'es' : ''}`}
+                description="Suma de la distancia entre cada par de puntos GPS consecutivos del periodo, excluyendo saltos de más de 30 min (pausas o pérdida de señal)."
                 color="#16b877"
               />
             </Grid>
@@ -621,6 +631,7 @@ const ReportesRutas: React.FC = () => {
                 label="Tiempo total en campo"
                 value={formatDuration(totals.minutes)}
                 sub={`prom. ${formatDuration(totals.minutes / Math.max(totals.sellers, 1))} por vendedor`}
+                description="Suma de los intervalos de tiempo entre puntos GPS consecutivos, contando solo tramos menores a 30 min. Refleja el tiempo que el vendedor estuvo activamente en movimiento o atendiendo clientes."
                 color="#2196F3"
               />
             </Grid>
@@ -630,6 +641,7 @@ const ReportesRutas: React.FC = () => {
                 label="Días activos promedio"
                 value={`${totals.avgDays}`}
                 sub="días con presencia en campo"
+                description="Promedio de días distintos en los que cada vendedor registró al menos un punto GPS válido durante el periodo seleccionado. Indica cuántos días laboró en campo."
                 color="#9C27B0"
               />
             </Grid>
@@ -639,6 +651,7 @@ const ReportesRutas: React.FC = () => {
                 label="Km promedio por día"
                 value={`${totals.avgKmPerDay} km`}
                 sub="cobertura diaria del equipo"
+                description="Promedio de kilómetros recorridos por vendedor en cada día activo. Se calcula dividiendo el total de km entre el número de días con actividad."
                 color="#FF9800"
               />
             </Grid>
@@ -721,22 +734,34 @@ const ReportesRutas: React.FC = () => {
                   {/* Métricas principales */}
                   <Grid container spacing={1} sx={{ mb: 2 }}>
                     <Grid item xs={4}>
-                      <Typography variant="caption" color="text.secondary">Km recorridos</Typography>
-                      <Typography variant="h6" fontWeight={800} sx={{ color: '#16b877' }}>
-                        {s.totalKm}
-                      </Typography>
+                      <Tooltip title="Total de kilómetros recorridos en el periodo (tramos < 30 min)" placement="top" arrow>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Km recorridos</Typography>
+                          <Typography variant="h6" fontWeight={800} sx={{ color: '#16b877' }}>
+                            {s.totalKm}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
                     </Grid>
                     <Grid item xs={4}>
-                      <Typography variant="caption" color="text.secondary">Tiempo campo</Typography>
-                      <Typography variant="h6" fontWeight={800} sx={{ color: '#2196F3' }}>
-                        {formatDuration(s.totalMinutes)}
-                      </Typography>
+                      <Tooltip title="Tiempo activo en campo: suma de intervalos < 30 min entre puntos GPS consecutivos" placement="top" arrow>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Tiempo campo</Typography>
+                          <Typography variant="h6" fontWeight={800} sx={{ color: '#2196F3' }}>
+                            {formatDuration(s.totalMinutes)}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
                     </Grid>
                     <Grid item xs={4}>
-                      <Typography variant="caption" color="text.secondary">Días activos</Typography>
-                      <Typography variant="h6" fontWeight={800} sx={{ color: '#9C27B0' }}>
-                        {s.activeDays}
-                      </Typography>
+                      <Tooltip title="Número de días distintos con al menos un registro GPS válido en el periodo" placement="top" arrow>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Días activos</Typography>
+                          <Typography variant="h6" fontWeight={800} sx={{ color: '#9C27B0' }}>
+                            {s.activeDays}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
                     </Grid>
                   </Grid>
 
