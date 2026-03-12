@@ -190,7 +190,7 @@ class LocationService : Service() {
             stopWorkHoursMonitoring()
 
             // Iniciar como servicio foreground con notificacion neutra
-            val notification = createNotification("Tracking activo", "Registrando ubicación cada 5 minutos")
+            val notification = createNotification()
             startForeground(NOTIFICATION_ID, notification)
 
             // Configurar y solicitar actualizaciones
@@ -600,7 +600,7 @@ class LocationService : Service() {
         }
 
         // Iniciar como servicio foreground con notificacion de espera
-        val notification = createNotification("Esperando horario laboral", "Monitoreo cada 30 minutos")
+        val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
 
         // Configurar verificacion cada 30 minutos
@@ -637,10 +637,7 @@ class LocationService : Service() {
             nextCheck.add(Calendar.MINUTE, 30)
             val nextCheckStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(nextCheck.time)
 
-            val notification = createNotification(
-                "Fuera de horario laboral",
-                "Próxima verificación: $nextCheckStr"
-            )
+            val notification = createNotification()
             startForeground(NOTIFICATION_ID, notification)
 
             // Programar siguiente verificacion
