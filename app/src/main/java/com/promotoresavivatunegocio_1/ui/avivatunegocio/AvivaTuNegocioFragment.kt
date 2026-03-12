@@ -2236,25 +2236,25 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
                 card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.error_color))
                 dot.setTextColor(android.graphics.Color.WHITE)
                 text.setTextColor(android.graphics.Color.WHITE)
-                text.text = "Zona prohibida — sal de esta área"
+                text.text = "Prohibida"
             }
             enAsignada -> {
                 card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.aviva_green))
                 dot.setTextColor(android.graphics.Color.WHITE)
                 text.setTextColor(android.graphics.Color.WHITE)
-                text.text = "Estás en tu zona"
+                text.text = "En zona"
             }
             assignedZonePoints.isEmpty() && forbiddenZonePoints.isEmpty() -> {
                 card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.primary_container))
                 dot.setTextColor(ContextCompat.getColor(requireContext(), R.color.secondary_text))
                 text.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary_text))
-                text.text = "Sin zonas asignadas"
+                text.text = "Sin zonas"
             }
             else -> {
                 card.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.warning_color))
                 dot.setTextColor(android.graphics.Color.WHITE)
                 text.setTextColor(android.graphics.Color.WHITE)
-                text.text = "Fuera de tu zona"
+                text.text = "Fuera de zona"
             }
         }
     }
