@@ -599,6 +599,14 @@ class LocationService : Service() {
             stopLocationTracking()
         }
 
+        // Android 14+: startForeground con tipo 'location' requiere permisos concedidos.
+        // Si no están concedidos, no se puede llamar startForeground — se detiene el servicio.
+        if (!checkLocationPermissions()) {
+            Log.w(TAG, "❌ Sin permisos de ubicación — no se puede iniciar FGS. Deteniéndose.")
+            stopSelf()
+            return
+        }
+
         // Iniciar como servicio foreground con notificacion de espera
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
@@ -631,6 +639,12 @@ class LocationService : Service() {
             startLocationTracking()
         } else {
             Log.d(TAG, "⏰ Fuera de horario laboral - Manteniendo monitoreo")
+
+            if (!checkLocationPermissions()) {
+                Log.w(TAG, "❌ Sin permisos de ubicación — deteniendo servicio.")
+                stopSelf()
+                return
+            }
 
             // Actualizar notificación
             val nextCheck = Calendar.getInstance()
