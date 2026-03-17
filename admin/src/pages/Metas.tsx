@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -26,11 +26,18 @@ import {
   Select,
   MenuItem,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  LinearProgress,
+  Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import DownloadIcon from '@mui/icons-material/Download';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import * as XLSX from 'xlsx';
 import {
   collection,
   getDocs,
@@ -87,12 +94,38 @@ const tipoLabels: Record<MetaTipo, string> = {
   'KIOSCO': 'Por Kiosco Específico'
 };
 
+// Columnas requeridas en el CSV/XLS
+const REQUIRED_COLUMNS = ['nombre', 'periodo', 'tipo', 'llamadasObjetivo', 'colocacionObjetivo', 'fechaInicio', 'fechaFin'];
+
+interface ImportRow {
+  row: number;
+  nombre: string;
+  descripcion?: string;
+  tipo: string;
+  periodo: string;
+  llamadasObjetivo: number;
+  colocacionObjetivo: number;
+  tasaCierreObjetivo: number;
+  fechaInicio: string;
+  fechaFin: string;
+  activo: boolean;
+  errors: string[];
+}
+
 const Metas: React.FC = () => {
   // Estados para Metas
   const [metas, setMetas] = useState<Meta[]>([]);
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [error, setError] = useState<string>('');
+
+  // Estados para importación CSV/XLS
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importError, setImportError] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ ok: number; fail: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form Data para Metas
   const [metaFormData, setMetaFormData] = useState<Omit<Meta, 'id'>>({
@@ -235,6 +268,139 @@ const Metas: React.FC = () => {
       }
     }
   };
+  // ==================== IMPORT CSV/XLS ====================
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError('');
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target!.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (raw.length === 0) {
+          setImportError('El archivo está vacío o no tiene filas de datos.');
+          return;
+        }
+
+        // Validar que existan las columnas requeridas
+        const headers = Object.keys(raw[0]).map(h => h.trim().toLowerCase());
+        const missing = REQUIRED_COLUMNS.filter(c => !headers.includes(c));
+        if (missing.length > 0) {
+          setImportError(`Columnas faltantes: ${missing.join(', ')}`);
+          return;
+        }
+
+        const validTipos = ['GLOBAL', 'LIGA', 'USUARIO', 'KIOSCO'];
+        const validPeriodos = ['SEMANAL', 'MENSUAL', 'TRIMESTRAL'];
+
+        const rows: ImportRow[] = raw.map((r: any, idx: number) => {
+          const errors: string[] = [];
+          const nombre = String(r.nombre || '').trim();
+          const tipo = String(r.tipo || '').trim().toUpperCase();
+          const periodo = String(r.periodo || '').trim().toUpperCase();
+          const llamadas = Number(r.llamadasObjetivo);
+          const colocacion = Number(r.colocacionObjetivo);
+          const tasa = Number(r.tasaCierreObjetivo || 0);
+
+          // Parsear fechas — pueden venir como Date (xlsx con cellDates) o string
+          const parseDate = (val: any): string => {
+            if (!val) return '';
+            if (val instanceof Date) return val.toISOString().split('T')[0];
+            const s = String(val).trim();
+            // Aceptar DD/MM/YYYY o YYYY-MM-DD
+            const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (dm) return `${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+            return s;
+          };
+
+          const fechaInicio = parseDate(r.fechaInicio);
+          const fechaFin    = parseDate(r.fechaFin);
+          const activo = String(r.activo || 'true').toLowerCase() !== 'false';
+
+          if (!nombre) errors.push('nombre vacío');
+          if (!validTipos.includes(tipo)) errors.push(`tipo inválido "${r.tipo}" (usa: ${validTipos.join('/')})`);
+          if (!validPeriodos.includes(periodo)) errors.push(`periodo inválido "${r.periodo}" (usa: ${validPeriodos.join('/')})`);
+          if (isNaN(llamadas) || llamadas < 0) errors.push('llamadasObjetivo inválido');
+          if (isNaN(colocacion) || colocacion < 0) errors.push('colocacionObjetivo inválido');
+          if (!fechaInicio) errors.push('fechaInicio inválida');
+          if (!fechaFin) errors.push('fechaFin inválida');
+
+          return { row: idx + 2, nombre, descripcion: String(r.descripcion || ''), tipo, periodo,
+            llamadasObjetivo: llamadas, colocacionObjetivo: colocacion, tasaCierreObjetivo: tasa,
+            fechaInicio, fechaFin, activo, errors };
+        });
+
+        setImportRows(rows);
+      } catch (err) {
+        setImportError('Error al leer el archivo. Verifica que sea un CSV o Excel válido.');
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // Limpiar el input para permitir re-seleccionar el mismo archivo
+    e.target.value = '';
+  };
+
+  const handleImport = async () => {
+    const validRows = importRows.filter(r => r.errors.length === 0);
+    if (validRows.length === 0) return;
+
+    setImporting(true);
+    let ok = 0; let fail = 0;
+
+    for (const row of validRows) {
+      try {
+        await addDoc(collection(db, 'metas'), {
+          nombre: row.nombre,
+          descripcion: row.descripcion || '',
+          tipo: row.tipo as MetaTipo,
+          periodo: row.periodo as MetaPeriodo,
+          llamadasObjetivo: row.llamadasObjetivo,
+          colocacionObjetivo: row.colocacionObjetivo * 100, // pesos → centavos
+          tasaCierreObjetivo: row.tasaCierreObjetivo,
+          fechaInicio: Timestamp.fromDate(new Date(row.fechaInicio)),
+          fechaFin: Timestamp.fromDate(new Date(row.fechaFin)),
+          activo: row.activo,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+        ok++;
+      } catch { fail++; }
+    }
+
+    setImportResult({ ok, fail });
+    setImporting(false);
+    await fetchMetas();
+  };
+
+  const handleDownloadTemplate = () => {
+    const template = [
+      {
+        nombre: 'Meta Ejemplo Semanal',
+        descripcion: 'Descripción opcional',
+        tipo: 'GLOBAL',
+        periodo: 'SEMANAL',
+        llamadasObjetivo: 20,
+        colocacionObjetivo: 50000,
+        tasaCierreObjetivo: 25,
+        fechaInicio: '2025-01-06',
+        fechaFin: '2025-01-12',
+        activo: 'true'
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Metas');
+    XLSX.writeFile(wb, 'plantilla_metas.xlsx');
+  };
+
   // ==================== UTILITY FUNCTIONS ====================
 
   const formatCurrency = (centavos: number) => {
@@ -265,14 +431,40 @@ const Metas: React.FC = () => {
       <Box>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6">Metas Definidas</Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenMetaDialog()}
-            >
-              Nueva Meta
-            </Button>
+            <Box display="flex" gap={1}>
+              <Tooltip title="Descargar plantilla Excel">
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleDownloadTemplate}
+                >
+                  Plantilla
+                </Button>
+              </Tooltip>
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileIcon />}
+                onClick={() => { setImportDialogOpen(true); setImportRows([]); setImportError(''); setImportResult(null); }}
+              >
+                Importar CSV/XLS
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenMetaDialog()}
+              >
+                Nueva Meta
+              </Button>
+            </Box>
           </Box>
+          {/* Input oculto para seleccionar archivo */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
 
           <Grid container spacing={2} mb={3}>
             <Grid item xs={12} md={4}>
@@ -377,6 +569,110 @@ const Metas: React.FC = () => {
             </Table>
           </TableContainer>
       </Box>
+
+      {/* ==================== DIALOG IMPORTAR CSV/XLS ==================== */}
+      <Dialog open={importDialogOpen} onClose={() => !importing && setImportDialogOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>Importar Metas desde CSV / Excel</DialogTitle>
+        <DialogContent>
+          {importError && <Alert severity="error" sx={{ mb: 2 }}>{importError}</Alert>}
+          {importResult && (
+            <Alert severity={importResult.fail === 0 ? 'success' : 'warning'} sx={{ mb: 2 }}>
+              Importación completada: <strong>{importResult.ok} metas guardadas</strong>
+              {importResult.fail > 0 && `, ${importResult.fail} fallidas`}
+            </Alert>
+          )}
+
+          {importRows.length === 0 && !importResult && (
+            <Box textAlign="center" py={4}>
+              <Typography variant="body1" mb={2}>
+                Selecciona un archivo <strong>.csv</strong>, <strong>.xlsx</strong> o <strong>.xls</strong> con las metas.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={1}>
+                Columnas requeridas: <code>nombre, tipo, periodo, llamadasObjetivo, colocacionObjetivo, fechaInicio, fechaFin</code>
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={3}>
+                Columnas opcionales: <code>descripcion, tasaCierreObjetivo, activo</code>
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" mb={3}>
+                • tipo: GLOBAL | LIGA | USUARIO | KIOSCO &nbsp;|&nbsp; periodo: SEMANAL | MENSUAL | TRIMESTRAL<br />
+                • colocacionObjetivo en pesos (ej: 50000) &nbsp;|&nbsp; fechas en YYYY-MM-DD o DD/MM/YYYY
+              </Typography>
+              <Button variant="contained" startIcon={<UploadFileIcon />} onClick={() => fileInputRef.current?.click()}>
+                Seleccionar archivo
+              </Button>
+            </Box>
+          )}
+
+          {importRows.length > 0 && !importResult && (
+            <>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="body2">
+                  <strong>{importRows.filter(r => r.errors.length === 0).length}</strong> filas válidas de {importRows.length} total
+                  {importRows.some(r => r.errors.length > 0) && (
+                    <Typography component="span" color="error" ml={1}>
+                      ({importRows.filter(r => r.errors.length > 0).length} con errores — serán omitidas)
+                    </Typography>
+                  )}
+                </Typography>
+                <Button size="small" onClick={() => fileInputRef.current?.click()}>Cambiar archivo</Button>
+              </Box>
+              {importing && <LinearProgress sx={{ mb: 2 }} />}
+              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>#</TableCell>
+                      <TableCell>Nombre</TableCell>
+                      <TableCell>Tipo</TableCell>
+                      <TableCell>Período</TableCell>
+                      <TableCell>Llamadas</TableCell>
+                      <TableCell>Colocación</TableCell>
+                      <TableCell>Inicio</TableCell>
+                      <TableCell>Fin</TableCell>
+                      <TableCell>Estado</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {importRows.map((row) => (
+                      <TableRow key={row.row} sx={{ bgcolor: row.errors.length > 0 ? 'error.50' : 'inherit' }}>
+                        <TableCell>{row.row}</TableCell>
+                        <TableCell>{row.nombre}</TableCell>
+                        <TableCell>{row.tipo}</TableCell>
+                        <TableCell>{row.periodo}</TableCell>
+                        <TableCell>{row.llamadasObjetivo}</TableCell>
+                        <TableCell>
+                          {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(row.colocacionObjetivo)}
+                        </TableCell>
+                        <TableCell>{row.fechaInicio}</TableCell>
+                        <TableCell>{row.fechaFin}</TableCell>
+                        <TableCell>
+                          {row.errors.length === 0 ? (
+                            <Tooltip title="Válida"><CheckCircleIcon color="success" fontSize="small" /></Tooltip>
+                          ) : (
+                            <Tooltip title={row.errors.join('; ')}><ErrorIcon color="error" fontSize="small" /></Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportDialogOpen(false)} disabled={importing}>Cerrar</Button>
+          {importRows.length > 0 && !importResult && (
+            <Button
+              variant="contained"
+              onClick={handleImport}
+              disabled={importing || importRows.filter(r => r.errors.length === 0).length === 0}
+            >
+              Importar {importRows.filter(r => r.errors.length === 0).length} metas
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {/* ==================== DIALOG PARA CREAR/EDITAR META ==================== */}
       <Dialog open={metaDialogOpen} onClose={handleCloseMetaDialog} maxWidth="md" fullWidth>
