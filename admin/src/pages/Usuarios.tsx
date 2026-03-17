@@ -35,7 +35,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  Timestamp
+  Timestamp,
+  deleteField
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -265,23 +266,36 @@ const Usuarios: React.FC = () => {
         updatedAt: Timestamp.now()
       };
 
-      // Agregar campos opcionales solo si tienen valores REALES (no strings vacías)
-      if (formData.photoUrl && formData.photoUrl.trim()) dataToSave.photoUrl = formData.photoUrl.trim();
-      if (formData.phoneNumber && formData.phoneNumber.trim()) dataToSave.phoneNumber = formData.phoneNumber.trim();
-      if (formData.employeeId && formData.employeeId.trim()) dataToSave.employeeId = formData.employeeId.trim();
-      if (formData.department && formData.department.trim()) dataToSave.department = formData.department.trim();
-      if (formData.position && formData.position.trim()) dataToSave.position = formData.position.trim();
-      if (formData.managerId && formData.managerId.trim()) dataToSave.managerId = formData.managerId.trim();
+      // Campos opcionales: si tienen valor se guardan; si están vacíos y es edición se borran del documento
+      const setOrDelete = (field: string, value: string | undefined) => {
+        if (value && value.trim()) {
+          dataToSave[field] = value.trim();
+        } else if (editingUser) {
+          dataToSave[field] = deleteField();
+        }
+      };
+
+      setOrDelete('photoUrl', formData.photoUrl);
+      setOrDelete('phoneNumber', formData.phoneNumber);
+      setOrDelete('employeeId', formData.employeeId);
+      setOrDelete('department', formData.department);
+      setOrDelete('position', formData.position);
+      setOrDelete('managerId', formData.managerId);
+      setOrDelete('assignedKioskId', formData.assignedKioskId);
+      setOrDelete('hubspotOwnerId', formData.hubspotOwnerId);
+      setOrDelete('uid', (formData as any).uid);
+
       if (formData.assignedPromoters && formData.assignedPromoters.length > 0) {
         dataToSave.assignedPromoters = formData.assignedPromoters;
+      } else if (editingUser) {
+        dataToSave.assignedPromoters = deleteField();
       }
-      if (formData.assignedKioskId && formData.assignedKioskId.trim()) dataToSave.assignedKioskId = formData.assignedKioskId.trim();
-      if (formData.hubspotOwnerId && formData.hubspotOwnerId.trim()) dataToSave.hubspotOwnerId = formData.hubspotOwnerId.trim();
-      if (formData.uid && formData.uid.trim()) dataToSave.uid = formData.uid.trim();
 
-      // Agregar productLine solo si NO es admin (isAdminRole ya definido arriba)
+      // Agregar productLine solo si NO es admin; si es admin y es edición, borrar el campo
       if (!isAdminRole && formData.productLine) {
         dataToSave.productLine = formData.productLine;
+      } else if (isAdminRole && editingUser) {
+        dataToSave.productLine = deleteField();
       }
 
       // Agregar createdAt solo si es nuevo
