@@ -1457,8 +1457,12 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         var windowStart = 0
 
         while (windowStart < docs.size) {
-            val anchorGeo = docs[windowStart].getGeoPoint("location") ?: run { windowStart++; continue }
-            val anchorTs = docs[windowStart].getTimestamp("timestamp") ?: run { windowStart++; continue }
+            val anchorGeo = docs[windowStart].getGeoPoint("location")
+            val anchorTs = docs[windowStart].getTimestamp("timestamp")
+            if (anchorGeo == null || anchorTs == null) {
+                windowStart++
+                continue
+            }
             val anchorLatLng = LatLng(anchorGeo.latitude, anchorGeo.longitude)
 
             // Expandir la ventana mientras los puntos siguientes estén dentro del radio
