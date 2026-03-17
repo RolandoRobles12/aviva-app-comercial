@@ -45,7 +45,7 @@ const Login: React.FC = () => {
           <CardContent sx={{ p: 4 }}>
             <Box sx={{ textAlign: 'center', mb: 4 }}>
               <Typography variant="h4" component="h1" gutterBottom>
-                Aviva Tu Negocio
+                App Comercial Aviva
               </Typography>
               <Typography variant="h6" color="text.secondary">
                 Panel Administrativo

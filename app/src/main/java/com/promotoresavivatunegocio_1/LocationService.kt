@@ -497,7 +497,7 @@ class LocationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Aviva Tu Negocio",
+                "App Comercial Aviva",
                 NotificationManager.IMPORTANCE_MIN   // Sin icono en barra de estado
             ).apply {
                 description = "Servicio en segundo plano"
@@ -511,7 +511,7 @@ class LocationService : Service() {
         }
     }
 
-    private fun createNotification(title: String = "Aviva Tu Negocio", content: String = "Servicio activo"): Notification {
+    private fun createNotification(title: String = "App Comercial Aviva", content: String = "Servicio activo"): Notification {
         // Intent para abrir la app
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(

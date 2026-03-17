@@ -140,7 +140,7 @@ class LocationTrackingService : Service() {
 
     private fun createNotification(contentText: String): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Promotores Aviva Tu Negocio")
+            .setContentTitle("App Comercial Aviva")
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation) // Icono del sistema como respaldo
             .setOngoing(true)

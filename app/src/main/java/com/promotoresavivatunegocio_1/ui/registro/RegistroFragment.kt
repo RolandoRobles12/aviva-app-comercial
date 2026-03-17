@@ -59,7 +59,7 @@ class RegistroFragment : Fragment() {
         try {
             findNavController().navigate(R.id.navigation_aviva_tu_negocio)
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Error al navegar a Aviva Tu Negocio", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Error al navegar", Toast.LENGTH_SHORT).show()
         }
     }
 

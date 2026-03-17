@@ -41,7 +41,7 @@ class AvivaTuNegocioApplication : Application() {
         // Setup background monitoring
         setupBackgroundMonitoring()
 
-        Log.d(TAG, "Aviva Tu Negocio Application initialized successfully")
+        Log.d(TAG, "App Comercial Aviva initialized successfully")
     }
 
     private fun initializeServices() {
