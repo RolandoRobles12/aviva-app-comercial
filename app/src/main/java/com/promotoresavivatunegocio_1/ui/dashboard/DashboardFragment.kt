@@ -1441,34 +1441,64 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         val durationMin: Long
     )
 
-    /** Detecta paradas largas (>15 min dentro de radio de 100 m). */
+    /**
+     * Detecta paradas largas (>15 min dentro de radio de 100 m) usando ventana deslizante.
+     * Agrupa puntos consecutivos que están dentro del mismo radio de 100m y mide
+     * el tiempo total del grupo. Esto detecta correctamente paradas largas incluso
+     * cuando hay múltiples puntos GPS intermedios (ej: cada 5 min durante 2 horas).
+     */
     private fun computeLongStops(documents: QuerySnapshot): List<LongStop> {
         val docs = documents.documents
+        if (docs.size < 2) return emptyList()
+
         val result = mutableListOf<LongStop>()
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-        for (i in 0 until docs.size - 1) {
-            val cur = docs[i]; val nxt = docs[i + 1]
-            val curGeo = cur.getGeoPoint("location") ?: continue
-            val nxtGeo = nxt.getGeoPoint("location") ?: continue
-            val curTs  = cur.getTimestamp("timestamp")  ?: continue
-            val nxtTs  = nxt.getTimestamp("timestamp")  ?: continue
+        var windowStart = 0
 
-            val curLatLng = LatLng(curGeo.latitude, curGeo.longitude)
-            val nxtLatLng = LatLng(nxtGeo.latitude, nxtGeo.longitude)
-            val distance  = calculateDistance(curLatLng, nxtLatLng)
-            val timeDiff  = (nxtTs.seconds - curTs.seconds) / 60L
-
-            if (distance < 100 && timeDiff > 15) {
-                val startStr = timeFmt.format(curTs.toDate())
-                result.add(LongStop(
-                    position   = curLatLng,
-                    snippet    = "⏰ $startStr — ${timeDiff} min",
-                    startTime  = startStr,
-                    durationMin = timeDiff
-                ))
+        while (windowStart < docs.size) {
+            val anchorGeo = docs[windowStart].getGeoPoint("location")
+            val anchorTs = docs[windowStart].getTimestamp("timestamp")
+            if (anchorGeo == null || anchorTs == null) {
+                windowStart++
+                continue
             }
+            val anchorLatLng = LatLng(anchorGeo.latitude, anchorGeo.longitude)
+
+            // Expandir la ventana mientras los puntos siguientes estén dentro del radio
+            var windowEnd = windowStart
+            for (j in windowStart + 1 until docs.size) {
+                val jGeo = docs[j].getGeoPoint("location") ?: break
+                val jLatLng = LatLng(jGeo.latitude, jGeo.longitude)
+                val distFromAnchor = calculateDistance(anchorLatLng, jLatLng)
+                if (distFromAnchor < 100) {
+                    windowEnd = j
+                } else {
+                    break
+                }
+            }
+
+            // Calcular duración total del grupo
+            if (windowEnd > windowStart) {
+                val endTs = docs[windowEnd].getTimestamp("timestamp")
+                if (endTs != null) {
+                    val durationMin = (endTs.seconds - anchorTs.seconds) / 60L
+                    if (durationMin > 15) {
+                        val startStr = timeFmt.format(anchorTs.toDate())
+                        result.add(LongStop(
+                            position = anchorLatLng,
+                            snippet = "⏰ $startStr — ${durationMin} min",
+                            startTime = startStr,
+                            durationMin = durationMin
+                        ))
+                    }
+                }
+            }
+
+            // Avanzar al siguiente grupo (después del último punto del grupo actual)
+            windowStart = windowEnd + 1
         }
+
         return result
     }
 

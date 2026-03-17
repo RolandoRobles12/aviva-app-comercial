@@ -9,6 +9,8 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import com.google.firebase.auth.FirebaseAuth
 
 class AttendanceReminderReceiver : BroadcastReceiver() {
 
@@ -76,6 +78,23 @@ class AttendanceReminderReceiver : BroadcastReceiver() {
             .build()
 
         nm.notify(notifId, notification)
+
+        // Al recibir alarma de entrada (9 AM), iniciar LocationService inmediatamente
+        // para garantizar puntualidad en el tracking
+        if (type == TYPE_ENTRY) {
+            val auth = FirebaseAuth.getInstance()
+            if (auth.currentUser != null) {
+                try {
+                    val serviceIntent = Intent(context, LocationService::class.java).apply {
+                        action = LocationService.ACTION_START_TRACKING
+                    }
+                    ContextCompat.startForegroundService(context, serviceIntent)
+                    Log.d(TAG, "LocationService iniciado puntualmente a las 9:00 AM")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error iniciando LocationService desde alarma: ${e.message}")
+                }
+            }
+        }
 
         // Reprogramar la alarma para el día siguiente
         AttendanceAlarmScheduler.rescheduleAlarm(context, type)

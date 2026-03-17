@@ -120,6 +120,10 @@ class LocationService : Service() {
                 checkWorkHoursAndManageTracking()
                 return START_STICKY
             }
+            ACTION_START_TRACKING -> {
+                Log.d(TAG, "🎯 Inicio puntual de tracking solicitado (alarma exacta)")
+                startLocationTracking()
+            }
             else -> {
                 Log.d(TAG, "🎯 Iniciando verificación de horario y tracking")
                 if (isWithinWorkHours()) {
@@ -603,8 +607,37 @@ class LocationService : Service() {
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
 
-        // Configurar verificacion cada 30 minutos
+        // Configurar verificacion con intervalo adaptativo
         setupWorkHoursChecker()
+    }
+
+    /**
+     * Calcula el intervalo óptimo para verificar el horario laboral.
+     * - Si faltan ≤5 minutos para la hora de inicio: verifica cada 30 segundos (puntualidad)
+     * - Si faltan ≤30 minutos: verifica cada 2 minutos
+     * - En otros casos: verifica cada 15 minutos
+     */
+    private fun getAdaptiveCheckInterval(): Long {
+        val calendar = Calendar.getInstance()
+        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = calendar.get(Calendar.MINUTE)
+        val currentDay = calendar.get(Calendar.DAY_OF_WEEK)
+
+        val isWeekday = currentDay in Calendar.MONDAY..Calendar.FRIDAY
+
+        if (!isWeekday) {
+            return 30 * 60 * 1000L // 30 min en fines de semana
+        }
+
+        // Minutos restantes para las 9:00 AM
+        val minutesToStart = (WORK_START_HOUR * 60) - (currentHour * 60 + currentMinute)
+
+        return when {
+            minutesToStart in 1..5 -> 30 * 1000L      // 30 seg si faltan ≤5 min
+            minutesToStart in 6..30 -> 2 * 60 * 1000L  // 2 min si faltan ≤30 min
+            minutesToStart > 30 -> 15 * 60 * 1000L     // 15 min si falta más
+            else -> 15 * 60 * 1000L                    // 15 min después de horario
+        }
     }
 
     private fun setupWorkHoursChecker() {
@@ -616,11 +649,10 @@ class LocationService : Service() {
             checkWorkHoursAndManageTracking()
         }
 
-        // Verificar cada 30 minutos
-        val checkInterval = 30 * 60 * 1000L // 30 minutos
+        val checkInterval = getAdaptiveCheckInterval()
         workHoursHandler?.postDelayed(workHoursRunnable!!, checkInterval)
 
-        Log.d(TAG, "⏰ Checker de horario configurado (cada 30 min)")
+        Log.d(TAG, "⏰ Checker de horario configurado (intervalo: ${checkInterval / 1000}s)")
     }
 
     private fun checkWorkHoursAndManageTracking() {
@@ -630,17 +662,13 @@ class LocationService : Service() {
             Log.d(TAG, "✅ Entrando en horario laboral - Iniciando seguimiento")
             startLocationTracking()
         } else {
-            Log.d(TAG, "⏰ Fuera de horario laboral - Manteniendo monitoreo")
-
-            // Actualizar notificación
-            val nextCheck = Calendar.getInstance()
-            nextCheck.add(Calendar.MINUTE, 30)
-            val nextCheckStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(nextCheck.time)
+            val nextInterval = getAdaptiveCheckInterval()
+            Log.d(TAG, "⏰ Fuera de horario laboral - Próxima verificación en ${nextInterval / 1000}s")
 
             val notification = createNotification()
             startForeground(NOTIFICATION_ID, notification)
 
-            // Programar siguiente verificacion
+            // Programar siguiente verificacion con intervalo adaptativo
             setupWorkHoursChecker()
         }
     }

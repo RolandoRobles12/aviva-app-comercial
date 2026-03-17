@@ -327,7 +327,11 @@ const RutasPromotores: React.FC = () => {
     }
   };
 
-  // Detectar paradas largas (misma lógica que la app Android)
+  /**
+   * Detecta paradas largas (>15 min dentro de radio de 100m) usando ventana deslizante.
+   * Agrupa puntos consecutivos cercanos y mide el tiempo total del grupo,
+   * detectando correctamente paradas largas con múltiples puntos GPS intermedios.
+   */
   const detectLongStops = (points: LocationPoint[]): LongStop[] => {
     const stops: LongStop[] = [];
 
@@ -338,33 +342,48 @@ const RutasPromotores: React.FC = () => {
       return acc;
     }, {} as Record<string, LocationPoint[]>);
 
-    // Para cada usuario, detectar paradas largas
+    // Para cada usuario, detectar paradas largas con ventana deslizante
     Object.entries(pointsByUser).forEach(([userId, userPoints]) => {
-      for (let i = 0; i < userPoints.length - 1; i++) {
-        const current = userPoints[i];
-        const next = userPoints[i + 1];
+      // Asegurar orden cronológico
+      userPoints.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
 
-        // Calcular distancia entre puntos (Haversine)
-        const distance = calculateDistance(
-          current.location.latitude,
-          current.location.longitude,
-          next.location.latitude,
-          next.location.longitude
-        );
+      let windowStart = 0;
 
-        // Calcular diferencia de tiempo en minutos
-        const timeDiff = (next.timestamp.toMillis() - current.timestamp.toMillis()) / 1000 / 60;
+      while (windowStart < userPoints.length) {
+        const anchor = userPoints[windowStart];
+        let windowEnd = windowStart;
 
-        // Si estuvo más de 15 minutos en un radio de 100 metros
-        if (distance < 100 && timeDiff > 15) {
-          stops.push({
-            id: `${userId}_${current.timestamp.toMillis()}`,
-            userId: userId,
-            location: current.location,
-            startTime: current.timestamp,
-            durationMinutes: Math.round(timeDiff)
-          });
+        // Expandir ventana mientras los puntos estén dentro del radio de 100m del anchor
+        for (let j = windowStart + 1; j < userPoints.length; j++) {
+          const dist = calculateDistance(
+            anchor.location.latitude,
+            anchor.location.longitude,
+            userPoints[j].location.latitude,
+            userPoints[j].location.longitude
+          );
+          if (dist < 100) {
+            windowEnd = j;
+          } else {
+            break;
+          }
         }
+
+        // Calcular duración total del grupo
+        if (windowEnd > windowStart) {
+          const durationMin = (userPoints[windowEnd].timestamp.toMillis() - anchor.timestamp.toMillis()) / 1000 / 60;
+          if (durationMin > 15) {
+            stops.push({
+              id: `${userId}_${anchor.timestamp.toMillis()}`,
+              userId: userId,
+              location: anchor.location,
+              startTime: anchor.timestamp,
+              durationMinutes: Math.round(durationMin)
+            });
+          }
+        }
+
+        // Avanzar al siguiente grupo
+        windowStart = windowEnd + 1;
       }
     });
 
