@@ -94,23 +94,32 @@ const tipoLabels: Record<MetaTipo, string> = {
   'KIOSCO': 'Por Kiosco Específico'
 };
 
-// Columnas requeridas en el CSV/XLS
-const REQUIRED_COLUMNS = ['nombre', 'periodo', 'tipo', 'llamadasObjetivo', 'colocacionObjetivo', 'fechaInicio', 'fechaFin'];
+// Columnas del CSV de metas por usuario
+// Correo | Categoría | Producto | Meta Mensual | Meta Solicitudes (opcional)
+const REQUIRED_COLUMNS = ['correo', 'meta mensual'];
 
 interface ImportRow {
   row: number;
-  nombre: string;
-  descripcion?: string;
-  tipo: string;
-  periodo: string;
-  llamadasObjetivo: number;
-  colocacionObjetivo: number;
-  tasaCierreObjetivo: number;
-  fechaInicio: string;
-  fechaFin: string;
-  activo: boolean;
+  correo: string;
+  categoria: string;
+  producto: string;
+  metaMensual: number;
+  metaSolicitudes: number;
+  // Resueltos al importar
+  userId?: string;
+  userName?: string;
   errors: string[];
 }
+
+/** Calcula primer y último día del mes actual */
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const inicio = new Date(now.getFullYear(), now.getMonth(), 1);
+  const fin    = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  return { inicio, fin };
+};
+
+const MES_NOMBRE = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(new Date());
 
 const Metas: React.FC = () => {
   // Estados para Metas
@@ -289,7 +298,7 @@ const Metas: React.FC = () => {
           return;
         }
 
-        // Validar que existan las columnas requeridas
+        // Normalizar headers a minúsculas para comparación
         const headers = Object.keys(raw[0]).map(h => h.trim().toLowerCase());
         const missing = REQUIRED_COLUMNS.filter(c => !headers.includes(c));
         if (missing.length > 0) {
@@ -297,44 +306,24 @@ const Metas: React.FC = () => {
           return;
         }
 
-        const validTipos = ['GLOBAL', 'LIGA', 'USUARIO', 'KIOSCO'];
-        const validPeriodos = ['SEMANAL', 'MENSUAL', 'TRIMESTRAL'];
+        // Helper para leer columna sin importar mayúsculas/tildes
+        const get = (r: any, key: string) => {
+          const match = Object.keys(r).find(k => k.trim().toLowerCase() === key);
+          return match ? r[match] : '';
+        };
 
         const rows: ImportRow[] = raw.map((r: any, idx: number) => {
           const errors: string[] = [];
-          const nombre = String(r.nombre || '').trim();
-          const tipo = String(r.tipo || '').trim().toUpperCase();
-          const periodo = String(r.periodo || '').trim().toUpperCase();
-          const llamadas = Number(r.llamadasObjetivo);
-          const colocacion = Number(r.colocacionObjetivo);
-          const tasa = Number(r.tasaCierreObjetivo || 0);
+          const correo        = String(get(r, 'correo') || '').trim().toLowerCase();
+          const categoria     = String(get(r, 'categoría') || get(r, 'categoria') || '').trim();
+          const producto      = String(get(r, 'producto') || '').trim();
+          const metaMensual   = Number(get(r, 'meta mensual') || 0);
+          const metaSol       = Number(get(r, 'meta solicitudes') || 0);
 
-          // Parsear fechas — pueden venir como Date (xlsx con cellDates) o string
-          const parseDate = (val: any): string => {
-            if (!val) return '';
-            if (val instanceof Date) return val.toISOString().split('T')[0];
-            const s = String(val).trim();
-            // Aceptar DD/MM/YYYY o YYYY-MM-DD
-            const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (dm) return `${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
-            return s;
-          };
+          if (!correo || !correo.includes('@')) errors.push('correo inválido');
+          if (isNaN(metaMensual) || metaMensual <= 0) errors.push('Meta Mensual debe ser > 0');
 
-          const fechaInicio = parseDate(r.fechaInicio);
-          const fechaFin    = parseDate(r.fechaFin);
-          const activo = String(r.activo || 'true').toLowerCase() !== 'false';
-
-          if (!nombre) errors.push('nombre vacío');
-          if (!validTipos.includes(tipo)) errors.push(`tipo inválido "${r.tipo}" (usa: ${validTipos.join('/')})`);
-          if (!validPeriodos.includes(periodo)) errors.push(`periodo inválido "${r.periodo}" (usa: ${validPeriodos.join('/')})`);
-          if (isNaN(llamadas) || llamadas < 0) errors.push('llamadasObjetivo inválido');
-          if (isNaN(colocacion) || colocacion < 0) errors.push('colocacionObjetivo inválido');
-          if (!fechaInicio) errors.push('fechaInicio inválida');
-          if (!fechaFin) errors.push('fechaFin inválida');
-
-          return { row: idx + 2, nombre, descripcion: String(r.descripcion || ''), tipo, periodo,
-            llamadasObjetivo: llamadas, colocacionObjetivo: colocacion, tasaCierreObjetivo: tasa,
-            fechaInicio, fechaFin, activo, errors };
+          return { row: idx + 2, correo, categoria, producto, metaMensual, metaSolicitudes: metaSol, errors };
         });
 
         setImportRows(rows);
@@ -344,7 +333,6 @@ const Metas: React.FC = () => {
       }
     };
     reader.readAsArrayBuffer(file);
-    // Limpiar el input para permitir re-seleccionar el mismo archivo
     e.target.value = '';
   };
 
@@ -353,26 +341,58 @@ const Metas: React.FC = () => {
     if (validRows.length === 0) return;
 
     setImporting(true);
+
+    // Cargar todos los usuarios para resolver email → {id, displayName}
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const emailMap: Record<string, { id: string; name: string }> = {};
+    usersSnap.forEach(d => {
+      const data = d.data();
+      const email = (data.email || '').toLowerCase();
+      if (email) emailMap[email] = { id: d.id, name: data.displayName || data.email || email };
+    });
+
+    const { inicio, fin } = getCurrentMonthRange();
+    const fechaInicio = Timestamp.fromDate(inicio);
+    const fechaFin    = Timestamp.fromDate(fin);
+
     let ok = 0; let fail = 0;
 
     for (const row of validRows) {
       try {
+        const userInfo = emailMap[row.correo];
+        const targetIds   = userInfo ? [userInfo.id]   : [];
+        const targetNames = userInfo ? [userInfo.name] : [row.correo];
+
+        // Nombre legible: "Meta Mensual marzo 2026 – nombre"
+        const label = userInfo ? userInfo.name : row.correo;
+        const nombre = `Meta Mensual ${MES_NOMBRE} – ${label}`;
+
         await addDoc(collection(db, 'metas'), {
-          nombre: row.nombre,
-          descripcion: row.descripcion || '',
-          tipo: row.tipo as MetaTipo,
-          periodo: row.periodo as MetaPeriodo,
-          llamadasObjetivo: row.llamadasObjetivo,
-          colocacionObjetivo: row.colocacionObjetivo * 100, // pesos → centavos
-          tasaCierreObjetivo: row.tasaCierreObjetivo,
-          fechaInicio: Timestamp.fromDate(new Date(row.fechaInicio)),
-          fechaFin: Timestamp.fromDate(new Date(row.fechaFin)),
-          activo: row.activo,
+          nombre,
+          descripcion: [row.categoria, row.producto].filter(Boolean).join(' · '),
+          tipo: 'USUARIO' as MetaTipo,
+          periodo: 'MENSUAL' as MetaPeriodo,
+          // colocacionObjetivo en centavos (el monto del CSV viene en pesos)
+          colocacionObjetivo: row.metaMensual * 100,
+          llamadasObjetivo: row.metaSolicitudes,
+          tasaCierreObjetivo: 0,
+          targetIds,
+          targetNames,
+          // Email guardado para referencia aunque no haya doc en Firestore
+          targetEmail: row.correo,
+          producto: row.producto,
+          categoria: row.categoria,
+          fechaInicio,
+          fechaFin,
+          activo: true,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         });
         ok++;
-      } catch { fail++; }
+      } catch (err) {
+        console.error('Error al guardar fila', row.row, err);
+        fail++;
+      }
     }
 
     setImportResult({ ok, fail });
@@ -382,18 +402,9 @@ const Metas: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const template = [
-      {
-        nombre: 'Meta Ejemplo Semanal',
-        descripcion: 'Descripción opcional',
-        tipo: 'GLOBAL',
-        periodo: 'SEMANAL',
-        llamadasObjetivo: 20,
-        colocacionObjetivo: 50000,
-        tasaCierreObjetivo: 25,
-        fechaInicio: '2025-01-06',
-        fechaFin: '2025-01-12',
-        activo: 'true'
-      }
+      { Correo: 'adrian.contreras@avivacredito.com', 'Categoría': 'G3', Producto: 'aviva_contigo',  'Meta Mensual': 124300, 'Meta Solicitudes': '' },
+      { Correo: 'airet.cervantes@avivacredito.com',  'Categoría': 'G1', Producto: 'construrama',    'Meta Mensual': 136000, 'Meta Solicitudes': '' },
+      { Correo: 'ejemplo@avivacredito.com',           'Categoría': 'G2', Producto: 'aviva_tu_negocio','Meta Mensual': 180000, 'Meta Solicitudes': 5 }
     ];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
@@ -585,18 +596,19 @@ const Metas: React.FC = () => {
           {importRows.length === 0 && !importResult && (
             <Box textAlign="center" py={4}>
               <Typography variant="body1" mb={2}>
-                Selecciona un archivo <strong>.csv</strong>, <strong>.xlsx</strong> o <strong>.xls</strong> con las metas.
+                Selecciona tu archivo <strong>.csv</strong>, <strong>.xlsx</strong> o <strong>.xls</strong> de metas mensuales.
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={1}>
-                Columnas requeridas: <code>nombre, tipo, periodo, llamadasObjetivo, colocacionObjetivo, fechaInicio, fechaFin</code>
+                Columnas requeridas: <code>Correo</code>, <code>Meta Mensual</code>
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={3}>
-                Columnas opcionales: <code>descripcion, tasaCierreObjetivo, activo</code>
+                Columnas opcionales: <code>Categoría</code>, <code>Producto</code>, <code>Meta Solicitudes</code>
               </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" mb={3}>
-                • tipo: GLOBAL | LIGA | USUARIO | KIOSCO &nbsp;|&nbsp; periodo: SEMANAL | MENSUAL | TRIMESTRAL<br />
-                • colocacionObjetivo en pesos (ej: 50000) &nbsp;|&nbsp; fechas en YYYY-MM-DD o DD/MM/YYYY
-              </Typography>
+              <Alert severity="info" sx={{ textAlign: 'left', mb: 3 }}>
+                • Las fechas se calculan automáticamente: del <strong>1 al último día del mes actual</strong><br />
+                • <strong>Meta Mensual</strong>: monto en pesos (ej: 124300)<br />
+                • <strong>Meta Solicitudes</strong>: número de solicitudes (opcional, puede dejarse vacío)
+              </Alert>
               <Button variant="contained" startIcon={<UploadFileIcon />} onClick={() => fileInputRef.current?.click()}>
                 Seleccionar archivo
               </Button>
@@ -616,19 +628,20 @@ const Metas: React.FC = () => {
                 </Typography>
                 <Button size="small" onClick={() => fileInputRef.current?.click()}>Cambiar archivo</Button>
               </Box>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Las metas se crearán para el mes actual ({MES_NOMBRE}), del día 1 al último día del mes.
+              </Alert>
               {importing && <LinearProgress sx={{ mb: 2 }} />}
               <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
                       <TableCell>#</TableCell>
-                      <TableCell>Nombre</TableCell>
-                      <TableCell>Tipo</TableCell>
-                      <TableCell>Período</TableCell>
-                      <TableCell>Llamadas</TableCell>
-                      <TableCell>Colocación</TableCell>
-                      <TableCell>Inicio</TableCell>
-                      <TableCell>Fin</TableCell>
+                      <TableCell>Correo</TableCell>
+                      <TableCell>Categoría</TableCell>
+                      <TableCell>Producto</TableCell>
+                      <TableCell align="right">Meta Venta</TableCell>
+                      <TableCell align="right">Meta Solicitudes</TableCell>
                       <TableCell>Estado</TableCell>
                     </TableRow>
                   </TableHead>
@@ -636,15 +649,15 @@ const Metas: React.FC = () => {
                     {importRows.map((row) => (
                       <TableRow key={row.row} sx={{ bgcolor: row.errors.length > 0 ? 'error.50' : 'inherit' }}>
                         <TableCell>{row.row}</TableCell>
-                        <TableCell>{row.nombre}</TableCell>
-                        <TableCell>{row.tipo}</TableCell>
-                        <TableCell>{row.periodo}</TableCell>
-                        <TableCell>{row.llamadasObjetivo}</TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(row.colocacionObjetivo)}
+                        <TableCell>{row.correo}</TableCell>
+                        <TableCell>{row.categoria}</TableCell>
+                        <TableCell>{row.producto}</TableCell>
+                        <TableCell align="right">
+                          {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(row.metaMensual)}
                         </TableCell>
-                        <TableCell>{row.fechaInicio}</TableCell>
-                        <TableCell>{row.fechaFin}</TableCell>
+                        <TableCell align="right">
+                          {row.metaSolicitudes || '—'}
+                        </TableCell>
                         <TableCell>
                           {row.errors.length === 0 ? (
                             <Tooltip title="Válida"><CheckCircleIcon color="success" fontSize="small" /></Tooltip>
