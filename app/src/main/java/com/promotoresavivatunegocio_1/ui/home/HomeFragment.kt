@@ -43,6 +43,9 @@ class HomeFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
 
+    // Guardamos la línea de producto para decidir la navegación del mapa
+    private var userProductLine: User.ProductLine? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -267,6 +270,9 @@ class HomeFragment : Fragment() {
         val textProspectosLabel   = view.findViewById<TextView>(R.id.textProspectosLabel)
         val textProspectosSubtitle = view.findViewById<TextView>(R.id.textProspectosSubtitle)
 
+        // Guardamos la línea de producto para la navegación del botón
+        userProductLine = user.productLine
+
         // El mapa de zonas es visible para todos los productos
         cardProspectos.visibility = View.VISIBLE
 
@@ -300,9 +306,13 @@ class HomeFragment : Fragment() {
         view.findViewById<MaterialCardView>(R.id.cardMetasComerciales).setOnClickListener {
             navigate(R.id.navigation_metas_bono)
         }
-        // Prospectos (solo AVIVA_TU_NEGOCIO, visibilidad controlada en applyProductLayout)
+        // Mapa / Prospectos: AVIVA_TU_NEGOCIO → sección completa; resto → mapa simple de zonas
         view.findViewById<MaterialCardView>(R.id.cardProspectos).setOnClickListener {
-            navigate(R.id.navigation_aviva_tu_negocio)
+            if (userProductLine == User.ProductLine.AVIVA_TU_NEGOCIO) {
+                navigate(R.id.navigation_aviva_tu_negocio)
+            } else {
+                navigate(R.id.navigation_zone_map)
+            }
         }
         // LMS embed
         view.findViewById<MaterialCardView>(R.id.cardAprendizaje).setOnClickListener {
