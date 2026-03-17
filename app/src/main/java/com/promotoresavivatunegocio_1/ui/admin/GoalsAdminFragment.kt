@@ -15,16 +15,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.promotoresavivatunegocio_1.R
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.Calendar
 
 data class UserGoal(
     val email: String,
     val category: String,
     val product: String,
-    val monthlyTarget: Double
+    val monthlyTarget: Double,
+    val solicitudesTarget: Double? = null
 )
 
 class GoalsAdminFragment : Fragment() {
@@ -120,9 +123,33 @@ class GoalsAdminFragment : Fragment() {
     }
 
     /**
-     * Parsea el CSV y muestra una vista previa. Formato esperado:
-     * Correo,Categoría,Producto,Meta Mensual
-     * El separador puede ser coma o tabulador (para pegar desde Sheets).
+     * Retorna (startDate, endDate) para el periodo mensual vigente.
+     * startDate = 01 del mes actual a las 00:00:00
+     * endDate   = último día del mes actual a las 23:59:59
+     */
+    private fun currentMonthPeriod(): Pair<Timestamp, Timestamp> {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val startDate = Timestamp(cal.time)
+
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        val endDate = Timestamp(cal.time)
+
+        return startDate to endDate
+    }
+
+    /**
+     * Parsea el CSV y muestra una vista previa.
+     * Formato esperado (separador coma o tabulador para pegar desde Sheets):
+     *   Correo, Categoría, Producto, Meta Mensual[, Meta Solicitudes (opcional)]
      */
     private fun parseAndPreviewFile(uri: Uri) {
         try {
@@ -137,13 +164,11 @@ class GoalsAdminFragment : Fragment() {
                 return
             }
 
-            // Detectar separador (coma o tabulador)
             val firstLine = lines.first()
             val separator = if (firstLine.contains('\t')) '\t' else ','
 
-            // Saltar encabezado si lo tiene
-            val dataLines = if (lines.first().contains("Correo", ignoreCase = true) ||
-                lines.first().contains("Email", ignoreCase = true)) {
+            val dataLines = if (firstLine.contains("Correo", ignoreCase = true) ||
+                firstLine.contains("Email", ignoreCase = true)) {
                 lines.drop(1)
             } else {
                 lines
@@ -168,18 +193,25 @@ class GoalsAdminFragment : Fragment() {
                     errors.add("Línea ${idx + 2}: meta inválida '$targetRaw'")
                     return@forEachIndexed
                 }
-                goals.add(UserGoal(email, category, product, target))
+                val solicitudesTarget = if (cols.size >= 5) {
+                    val solRaw = cols[4].trim().replace(",", "").replace("$", "")
+                    if (solRaw.isBlank()) null else solRaw.toDoubleOrNull()
+                } else null
+
+                goals.add(UserGoal(email, category, product, target, solicitudesTarget))
             }
 
             parsedGoals = goals
 
-            // Vista previa (primeras 5 filas)
+            val hasSolicitudesMeta = goals.any { it.solicitudesTarget != null }
             val previewText = buildString {
                 appendLine("${goals.size} metas encontradas${if (errors.isNotEmpty()) " (${errors.size} errores)" else ""}")
+                if (hasSolicitudesMeta) appendLine("Incluye meta de solicitudes ✓")
                 appendLine()
                 goals.take(5).forEach { g ->
                     appendLine("• ${g.email}")
-                    appendLine("  ${g.product} | ${g.category} | \$${g.monthlyTarget.toLong()}")
+                    val solStr = g.solicitudesTarget?.let { " | ${it.toLong()} sol." } ?: ""
+                    appendLine("  ${g.product} | ${g.category} | \$${g.monthlyTarget.toLong()}$solStr")
                 }
                 if (goals.size > 5) appendLine("  ... y ${goals.size - 5} más")
                 if (errors.isNotEmpty()) {
@@ -211,16 +243,78 @@ class GoalsAdminFragment : Fragment() {
         uploadProgress.visibility = View.VISIBLE
         tvUploadStatus.visibility = View.GONE
 
+        val (periodStart, periodEnd) = currentMonthPeriod()
+        val emails = parsedGoals.map { it.email }
+
+        // Buscar usuarios en Firestore por correo para asignarles la meta
+        db.collection("users")
+            .whereIn("email", emails.take(30)) // Firestore whereIn limite = 30
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val foundEmails = snapshot.documents.mapNotNull { it.getString("email")?.lowercase() }.toSet()
+
+                // Si hay más de 30 emails, hay que consultar en lotes — por ahora usamos el set parcial
+                // y reportamos cuántos no se encontraron
+                val notFound = emails.count { it.lowercase() !in foundEmails }
+
+                val batch = db.batch()
+
+                parsedGoals.forEach { goal ->
+                    val docRef = db.collection("userGoals").document(goal.email.lowercase())
+                    val data = mutableMapOf<String, Any>(
+                        "email" to goal.email.lowercase(),
+                        "category" to goal.category,
+                        "product" to goal.product,
+                        "monthlyTarget" to goal.monthlyTarget,
+                        "periodStart" to periodStart,
+                        "periodEnd" to periodEnd,
+                        "updatedAt" to Timestamp.now()
+                    )
+                    goal.solicitudesTarget?.let { data["solicitudesTarget"] = it }
+                    batch.set(docRef, data)
+                }
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        uploadProgress.visibility = View.GONE
+                        val notFoundMsg = if (notFound > 0) "\n⚠️ $notFound usuario(s) aún no han ingresado a la app" else ""
+                        tvUploadStatus.text = "✅ ${parsedGoals.size} metas subidas correctamente$notFoundMsg"
+                        tvUploadStatus.setTextColor(android.graphics.Color.parseColor("#2E7D32"))
+                        tvUploadStatus.visibility = View.VISIBLE
+                        btnUploadGoals.isEnabled = true
+                        Log.d(TAG, "Metas subidas: ${parsedGoals.size}, no encontrados: $notFound")
+                    }
+                    .addOnFailureListener { e ->
+                        uploadProgress.visibility = View.GONE
+                        tvUploadStatus.text = "❌ Error al subir: ${e.message}"
+                        tvUploadStatus.setTextColor(android.graphics.Color.parseColor("#C62828"))
+                        tvUploadStatus.visibility = View.VISIBLE
+                        btnUploadGoals.isEnabled = true
+                        Log.e(TAG, "Error al subir metas: ${e.message}", e)
+                    }
+            }
+            .addOnFailureListener { e ->
+                // Si falla la consulta de usuarios, subir metas de todas formas
+                Log.w(TAG, "No se pudo verificar usuarios en Firestore: ${e.message}")
+                uploadGoalsDirectly(periodStart, periodEnd)
+            }
+    }
+
+    /** Sube metas directamente sin verificar usuarios (fallback). */
+    private fun uploadGoalsDirectly(periodStart: Timestamp, periodEnd: Timestamp) {
         val batch = db.batch()
         parsedGoals.forEach { goal ->
-            val docRef = db.collection("userGoals").document(goal.email)
-            val data = mapOf(
-                "email" to goal.email,
+            val docRef = db.collection("userGoals").document(goal.email.lowercase())
+            val data = mutableMapOf<String, Any>(
+                "email" to goal.email.lowercase(),
                 "category" to goal.category,
                 "product" to goal.product,
                 "monthlyTarget" to goal.monthlyTarget,
-                "updatedAt" to com.google.firebase.Timestamp.now()
+                "periodStart" to periodStart,
+                "periodEnd" to periodEnd,
+                "updatedAt" to Timestamp.now()
             )
+            goal.solicitudesTarget?.let { data["solicitudesTarget"] = it }
             batch.set(docRef, data)
         }
 
@@ -231,7 +325,6 @@ class GoalsAdminFragment : Fragment() {
                 tvUploadStatus.setTextColor(android.graphics.Color.parseColor("#2E7D32"))
                 tvUploadStatus.visibility = View.VISIBLE
                 btnUploadGoals.isEnabled = true
-                Log.d(TAG, "Metas subidas: ${parsedGoals.size}")
             }
             .addOnFailureListener { e ->
                 uploadProgress.visibility = View.GONE
@@ -248,7 +341,6 @@ class GoalsAdminFragment : Fragment() {
         tvSolicitudesCount.text = "—"
         tvSolicitudesError.visibility = View.GONE
 
-        // Intentar primero con la colección "solicitudes", luego "applications"
         db.collection("solicitudes")
             .get()
             .addOnSuccessListener { snapshot ->
@@ -256,8 +348,7 @@ class GoalsAdminFragment : Fragment() {
                 tvSolicitudesCount.text = snapshot.size().toString()
                 Log.d(TAG, "Solicitudes: ${snapshot.size()}")
             }
-            .addOnFailureListener { e ->
-                // Fallback a colección "applications"
+            .addOnFailureListener { _ ->
                 db.collection("applications")
                     .get()
                     .addOnSuccessListener { snapshot ->

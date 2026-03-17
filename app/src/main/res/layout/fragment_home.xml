@@ -321,6 +321,7 @@
                     android:orientation="vertical">
 
                     <TextView
+                        android:id="@+id/textProspectosLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Prospectos"
@@ -330,6 +331,7 @@
                         android:fontFamily="sans-serif-medium" />
 
                     <TextView
+                        android:id="@+id/textProspectosSubtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Buscar y levantar solicitudes"
