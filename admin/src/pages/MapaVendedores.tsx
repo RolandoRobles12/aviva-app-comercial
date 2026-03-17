@@ -158,7 +158,7 @@ const MapaVendedores: React.FC = () => {
   // Cargar vendedores
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, 'users'), where('isActive', '==', true));
+    const q = query(collection(db, 'users'), where('status', '==', 'ACTIVE'));
 
     const unsubscribe = onSnapshot(q,
       async (snapshot) => {
