@@ -82,6 +82,13 @@
         android:label="Aviva Tu Negocio"
         tools:layout="@layout/fragment_aviva_tu_negocio" />
 
+    <!-- Mapa de Zonas simplificado (para productos que no son Aviva Tu Negocio) -->
+    <fragment
+        android:id="@+id/navigation_zone_map"
+        android:name="com.promotoresavivatunegocio_1.ui.zonemap.ZoneMapFragment"
+        android:label="Mapa de Zonas"
+        tools:layout="@layout/fragment_zone_map" />
+
     <!-- Admin (oculto en bottom nav, accesible para admins) -->
     <fragment
         android:id="@+id/navigation_admin"

@@ -79,10 +79,13 @@ class LocationTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Servicio de tracking iniciado")
 
+        // startForeground() DEBE llamarse antes de cualquier return, de lo contrario
+        // Android lanza ForegroundServiceDidNotStartInTimeException (~5 segundos de límite).
+        startForeground(NOTIFICATION_ID, createNotification("Servicio activo"))
+
         if (!hasRequiredPermissions()) {
             Log.e(TAG, "Permisos insuficientes para tracking")
             showPermissionErrorNotification()
-            // No detener el servicio, solo mostrar error
             return START_STICKY
         }
 
@@ -92,8 +95,6 @@ class LocationTrackingService : Service() {
             return START_STICKY
         }
 
-        val notification = createNotification("Servicio activo")
-        startForeground(NOTIFICATION_ID, notification)
         startLocationUpdates()
 
         return START_STICKY
