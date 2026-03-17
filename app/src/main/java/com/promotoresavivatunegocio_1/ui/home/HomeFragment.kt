@@ -43,8 +43,10 @@ class HomeFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
 
-    // Guardamos la línea de producto para decidir la navegación del mapa
-    private var userProductLine: User.ProductLine? = null
+    // Línea de producto del usuario. Inicializamos en CONSTRURAMA (non-ATN) como
+    // valor seguro: si el usuario pulsa el card ANTES de que cargue Firestore,
+    // irá al mapa de zonas en lugar del módulo ATN.
+    private var userProductLine: User.ProductLine = User.ProductLine.CONSTRURAMA
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -260,55 +262,70 @@ class HomeFragment : Fragment() {
         db.collection("users").document(uid)
             .get()
             .addOnSuccessListener { doc ->
-                val user = doc.toObject(User::class.java)
-                if (user != null && isAdded) {
-                    applyProductLayout(view, user)
+                if (doc.exists() && isAdded) {
+                    // Leemos productLine como String CRUDO para evitar que el default
+                    // de Kotlin (AVIVA_TU_NEGOCIO) enmascare documentos sin el campo.
+                    val rawProduct = doc.getString("productLine")
+                    applyProductLayout(view, rawProduct)
                 } else {
-                    // El documento no existe por UID (creado desde el admin con addDoc).
-                    // Buscamos por email para obtener la línea de producto correcta.
+                    // Documento no encontrado por UID → buscar por email
                     db.collection("users")
                         .whereEqualTo("email", email)
                         .limit(1)
                         .get()
                         .addOnSuccessListener { query ->
-                            val emailUser = query.documents.firstOrNull()?.toObject(User::class.java)
-                            if (emailUser != null && isAdded) applyProductLayout(view, emailUser)
+                            val emailDoc = query.documents.firstOrNull()
+                            val rawProduct = emailDoc?.getString("productLine")
+                            if (isAdded) applyProductLayout(view, rawProduct)
                         }
                 }
             }
     }
 
-    private fun applyProductLayout(view: View, user: User) {
+    /**
+     * Adapta el layout según la línea de producto leída directamente de Firestore.
+     * [rawProductLine] es el valor crudo del campo; si es null el campo no existe en
+     * el documento → tratamos al usuario como NO-ATN (nunca asumimos ATN por defecto).
+     */
+    private fun applyProductLayout(view: View, rawProductLine: String?) {
         val productNameText        = view.findViewById<TextView>(R.id.productNameText)
         val textMetasLabel         = view.findViewById<TextView>(R.id.textMetasComerciales)
-        val cardProspectos         = view.findViewById<MaterialCardView>(R.id.cardProspectos)
         val textProspectosIcon     = view.findViewById<TextView>(R.id.textProspectosIcon)
         val textProspectosLabel    = view.findViewById<TextView>(R.id.textProspectosLabel)
         val textProspectosSubtitle = view.findViewById<TextView>(R.id.textProspectosSubtitle)
 
-        // Guardamos la línea de producto para la navegación del botón
-        userProductLine = user.productLine
+        val isATN = rawProductLine == "AVIVA_TU_NEGOCIO"
 
-        // Visible para todos los productos
-        cardProspectos.visibility = View.VISIBLE
-
-        if (user.productLine == User.ProductLine.AVIVA_TU_NEGOCIO) {
-            // Sección completa de prospección
+        if (isATN) {
+            // ATN: módulo de prospección completo
+            userProductLine             = User.ProductLine.AVIVA_TU_NEGOCIO
             textProspectosIcon.text     = "🔍"
             textProspectosLabel.text    = "Prospectos"
             textProspectosSubtitle.text = "Buscar y levantar solicitudes"
-        }
-        // El resto de productos usa los defaults del XML:
-        // 🗺️ / "Mapa de Zonas" / "Ver zonas asignadas y restricciones"
-
-        when (user.productLine) {
-            User.ProductLine.CONSTRURAMA -> {
-                productNameText.text = "Construrama · Promotores"
-                textMetasLabel.text  = "Mis metas"
+            productNameText.text        = "App Comercial Aviva"
+            textMetasLabel.text         = "Mis metas comerciales"
+        } else {
+            // Todos los demás (Construrama, Aviva Contigo, Casa Marchand, desconocido)
+            // → módulo de Mapa de Zonas, NUNCA Prospectos
+            userProductLine             = when (rawProductLine) {
+                "CONSTRURAMA"    -> User.ProductLine.CONSTRURAMA
+                "AVIVA_CONTIGO"  -> User.ProductLine.AVIVA_CONTIGO
+                "AVIVA_TU_CASA"  -> User.ProductLine.AVIVA_TU_CASA
+                else             -> User.ProductLine.CONSTRURAMA // fallback seguro → mapa
             }
-            else -> {
-                productNameText.text = "App Comercial Aviva"
-                textMetasLabel.text  = "Mis metas comerciales"
+            textProspectosIcon.text     = "🗺️"
+            textProspectosLabel.text    = "Mapa de Zonas"
+            textProspectosSubtitle.text = "Ver zonas asignadas y restricciones"
+
+            when (rawProductLine) {
+                "CONSTRURAMA" -> {
+                    productNameText.text = "Construrama · Promotores"
+                    textMetasLabel.text  = "Mis metas"
+                }
+                else -> {
+                    productNameText.text = "App Comercial Aviva"
+                    textMetasLabel.text  = "Mis metas comerciales"
+                }
             }
         }
     }
@@ -326,7 +343,8 @@ class HomeFragment : Fragment() {
         view.findViewById<MaterialCardView>(R.id.cardMetasComerciales).setOnClickListener {
             navigate(R.id.navigation_metas_bono)
         }
-        // Mapa / Prospectos: AVIVA_TU_NEGOCIO → sección completa; resto → mapa simple de zonas
+        // ATN → AvivaTuNegocio (prospectos + visitas)
+        // Cualquier otro producto → ZoneMapFragment (solo mapa de zonas)
         view.findViewById<MaterialCardView>(R.id.cardProspectos).setOnClickListener {
             if (userProductLine == User.ProductLine.AVIVA_TU_NEGOCIO) {
                 navigate(R.id.navigation_aviva_tu_negocio)
