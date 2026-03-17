@@ -264,22 +264,27 @@ class HomeFragment : Fragment() {
     }
 
     private fun applyProductLayout(view: View, user: User) {
-        val productNameText       = view.findViewById<TextView>(R.id.productNameText)
-        val textMetasLabel        = view.findViewById<TextView>(R.id.textMetasComerciales)
-        val cardProspectos        = view.findViewById<MaterialCardView>(R.id.cardProspectos)
-        val textProspectosLabel   = view.findViewById<TextView>(R.id.textProspectosLabel)
+        val productNameText        = view.findViewById<TextView>(R.id.productNameText)
+        val textMetasLabel         = view.findViewById<TextView>(R.id.textMetasComerciales)
+        val cardProspectos         = view.findViewById<MaterialCardView>(R.id.cardProspectos)
+        val textProspectosIcon     = view.findViewById<TextView>(R.id.textProspectosIcon)
+        val textProspectosLabel    = view.findViewById<TextView>(R.id.textProspectosLabel)
         val textProspectosSubtitle = view.findViewById<TextView>(R.id.textProspectosSubtitle)
 
         // Guardamos la línea de producto para la navegación del botón
         userProductLine = user.productLine
 
-        // El mapa de zonas es visible para todos los productos
+        // Visible para todos los productos
         cardProspectos.visibility = View.VISIBLE
 
-        if (user.productLine != User.ProductLine.AVIVA_TU_NEGOCIO) {
-            textProspectosLabel.text   = "Mapa de Zonas"
-            textProspectosSubtitle.text = "Ver zonas asignadas y restricciones"
+        if (user.productLine == User.ProductLine.AVIVA_TU_NEGOCIO) {
+            // Sección completa de prospección
+            textProspectosIcon.text     = "🔍"
+            textProspectosLabel.text    = "Prospectos"
+            textProspectosSubtitle.text = "Buscar y levantar solicitudes"
         }
+        // El resto de productos usa los defaults del XML:
+        // 🗺️ / "Mapa de Zonas" / "Ver zonas asignadas y restricciones"
 
         when (user.productLine) {
             User.ProductLine.CONSTRURAMA -> {
