@@ -52,6 +52,11 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
     // ─── Estado del modo dibujo ───────────────────────────────────
     private var isDrawingMode = false
     private val drawnPoints   = mutableListOf<LatLng>()
+
+    // ─── Promotores asignados a la zona en creación/edición ────────
+    private val selectedPromotorIds   = mutableListOf<String>()
+    private val selectedPromotorNames = mutableListOf<String>()
+    private var allUsers: List<Pair<String, String>> = emptyList() // (uid, displayName)
     private var previewPolygon: Polygon? = null
     private val previewMarkers = mutableListOf<Marker>()
 
@@ -182,6 +187,23 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
         }
 
         loadZones()
+        loadUsers()
+    }
+
+    /** Carga la lista de promotores para el selector de asignación */
+    private fun loadUsers() {
+        db.collection("users").get()
+            .addOnSuccessListener { docs ->
+                allUsers = docs.documents.mapNotNull { doc ->
+                    val name = doc.getString("displayName") ?: return@mapNotNull null
+                    if (name == "Sin nombre") return@mapNotNull null
+                    Pair(doc.id, name)
+                }.sortedBy { it.second }
+                Log.d(TAG, "Promotores cargados: ${allUsers.size}")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Error cargando promotores", e)
+            }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -285,12 +307,22 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
         val chipGroup      = dialogView.findViewById<ChipGroup>(R.id.colorChipGroup)
         val viewPreview    = dialogView.findViewById<View>(R.id.viewColorPreview)
 
+        // Resetear y pre-llenar selección de promotores
+        selectedPromotorIds.clear()
+        selectedPromotorNames.clear()
+
         // Pre-llenar si es edición
         if (isEdit) {
             etName.setText(existingZone!!.name)
             etDesc.setText(existingZone.description)
             currentFillColor   = existingZone.fillColorHex
             currentStrokeColor = existingZone.strokeColorHex
+            selectedPromotorIds.addAll(existingZone.assignedPromotorIds)
+            selectedPromotorNames.addAll(
+                existingZone.assignedPromotorIds.mapNotNull { id ->
+                    allUsers.find { it.first == id }?.second
+                }
+            )
         } else {
             currentFillColor   = PRESET_COLORS[0].second
             currentStrokeColor = PRESET_COLORS[0].third
@@ -327,6 +359,22 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
             chipGroup.addView(chip)
         }
 
+        // ─── Botón para seleccionar promotores ────────────────────
+        val tvPromotores = TextView(requireContext()).apply {
+            setPadding(48, 24, 48, 0)
+            text = if (selectedPromotorIds.isEmpty()) "📋 Aplica a: Todos los promotores"
+                   else "📋 Aplica a: ${selectedPromotorNames.joinToString(", ")}"
+            setTextColor(Color.DKGRAY)
+            textSize = 13f
+            setOnClickListener { showPromotorPicker() { updatedNames ->
+                text = if (selectedPromotorIds.isEmpty()) "📋 Aplica a: Todos los promotores"
+                       else "📋 Aplica a: $updatedNames"
+            }}
+        }
+
+        val container = dialogView as ViewGroup
+        container.addView(tvPromotores)
+
         val title = if (isEdit) "Editar zona" else "Nueva zona prohibida"
         AlertDialog.Builder(requireContext())
             .setTitle(title)
@@ -346,6 +394,45 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
             .show()
     }
 
+    /** Muestra un diálogo multi-selección de promotores */
+    private fun showPromotorPicker(onDone: (String) -> Unit) {
+        if (allUsers.isEmpty()) {
+            Toast.makeText(context, "Cargando promotores…", Toast.LENGTH_SHORT).show()
+            loadUsers()
+            return
+        }
+
+        val names = allUsers.map { it.second }.toTypedArray()
+        val checked = BooleanArray(allUsers.size) { allUsers[it].first in selectedPromotorIds }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Seleccionar promotores")
+            .setMultiChoiceItems(names, checked) { _, which, isChecked ->
+                val (uid, name) = allUsers[which]
+                if (isChecked) {
+                    if (uid !in selectedPromotorIds) {
+                        selectedPromotorIds.add(uid)
+                        selectedPromotorNames.add(name)
+                    }
+                } else {
+                    selectedPromotorIds.remove(uid)
+                    selectedPromotorNames.remove(name)
+                }
+            }
+            .setPositiveButton("Aceptar") { _, _ ->
+                val label = if (selectedPromotorIds.isEmpty()) "Todos los promotores"
+                            else selectedPromotorNames.joinToString(", ")
+                onDone(label)
+            }
+            .setNeutralButton("Todos (global)") { _, _ ->
+                selectedPromotorIds.clear()
+                selectedPromotorNames.clear()
+                onDone("Todos los promotores")
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // FIRESTORE: CREAR / ACTUALIZAR / ELIMINAR
     // ═══════════════════════════════════════════════════════════════
@@ -357,11 +444,13 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
         val data = hashMapOf(
             "name"           to name,
             "description"    to description,
-            "points"         to pointsList,
+            "coordinates"    to pointsList,
+            "points"         to pointsList,   // compatibilidad con registros anteriores
             "fillColorHex"   to currentFillColor,
             "strokeColorHex" to currentStrokeColor,
             "strokeWidth"    to 3f,
             "isActive"       to true,
+            "assignedPromotorIds" to selectedPromotorIds.toList(),
             "createdAt"      to Timestamp.now(),
             "updatedAt"      to Timestamp.now()
         )
@@ -384,6 +473,7 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
             "description"    to description,
             "fillColorHex"   to currentFillColor,
             "strokeColorHex" to currentStrokeColor,
+            "assignedPromotorIds" to selectedPromotorIds.toList(),
             "updatedAt"      to Timestamp.now()
         )
         db.collection(COLLECTION).document(id).update(updates)
@@ -429,7 +519,11 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
                 for (doc in docs) {
                     try {
                         @Suppress("UNCHECKED_CAST")
-                        val rawPts = doc.get("points") as? List<Map<String, Double>> ?: emptyList()
+                        val rawPts = (doc.get("points") as? List<Map<String, Double>>)
+                            ?: (doc.get("coordinates") as? List<Map<String, Double>>)
+                            ?: emptyList()
+                        @Suppress("UNCHECKED_CAST")
+                        val promotorIds = doc.get("assignedPromotorIds") as? List<String> ?: emptyList()
                         zones.add(
                             ForbiddenZone(
                                 id             = doc.id,
@@ -440,6 +534,7 @@ class KiosksAdminFragment : Fragment(), OnMapReadyCallback {
                                 strokeColorHex = doc.getString("strokeColorHex") ?: "#FFCC0000",
                                 strokeWidth    = (doc.getDouble("strokeWidth") ?: 3.0).toFloat(),
                                 isActive       = doc.getBoolean("isActive") ?: true,
+                                assignedPromotorIds = promotorIds,
                                 createdAt      = doc.getTimestamp("createdAt"),
                                 updatedAt      = doc.getTimestamp("updatedAt")
                             )

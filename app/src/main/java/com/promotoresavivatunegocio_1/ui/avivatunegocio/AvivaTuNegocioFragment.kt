@@ -2203,8 +2203,13 @@ class AvivaTuNegocioFragment : Fragment(), OnMapReadyCallback {
                     )
                 }
 
-                // Zonas prohibidas — rojo
+                // Zonas prohibidas — rojo (filtradas por promotor)
                 for (doc in forbiddenSnap.documents) {
+                    // Filtrar: si la zona tiene promotores asignados, solo mostrar si el usuario actual está incluido
+                    @Suppress("UNCHECKED_CAST")
+                    val assignedIds = doc.get("assignedPromotorIds") as? List<String> ?: emptyList()
+                    if (assignedIds.isNotEmpty() && uid !in assignedIds) continue
+
                     @Suppress("UNCHECKED_CAST")
                     val raw = doc.get("coordinates") as? List<Map<String, Any>> ?: continue
                     val pts = raw.mapNotNull { m ->
