@@ -254,12 +254,27 @@ class HomeFragment : Fragment() {
     // ──────────────────────────────────────────────────────────────────
 
     private fun loadUserAndAdaptLayout(view: View) {
-        val uid = auth.currentUser?.uid ?: return
+        val uid   = auth.currentUser?.uid   ?: return
+        val email = auth.currentUser?.email ?: return
+
         db.collection("users").document(uid)
             .get()
             .addOnSuccessListener { doc ->
                 val user = doc.toObject(User::class.java)
-                if (user != null && isAdded) applyProductLayout(view, user)
+                if (user != null && isAdded) {
+                    applyProductLayout(view, user)
+                } else {
+                    // El documento no existe por UID (creado desde el admin con addDoc).
+                    // Buscamos por email para obtener la línea de producto correcta.
+                    db.collection("users")
+                        .whereEqualTo("email", email)
+                        .limit(1)
+                        .get()
+                        .addOnSuccessListener { query ->
+                            val emailUser = query.documents.firstOrNull()?.toObject(User::class.java)
+                            if (emailUser != null && isAdded) applyProductLayout(view, emailUser)
+                        }
+                }
             }
     }
 
