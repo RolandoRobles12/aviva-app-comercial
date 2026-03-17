@@ -23,6 +23,11 @@ data class ForbiddenZone(
     val strokeColorHex: String = "#FFFF0000",
     val strokeWidth: Float = 3f,
     val isActive: Boolean = true,
+    /**
+     * IDs de los promotores a los que aplica esta zona prohibida.
+     * Si la lista está vacía, aplica a TODOS los promotores (comportamiento global).
+     */
+    val assignedPromotorIds: List<String> = emptyList(),
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null
 )

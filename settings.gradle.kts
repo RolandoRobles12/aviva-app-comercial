@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Promotores Aviva Tu Negocio"
+rootProject.name = "App Comercial Aviva"
 include(":app")
  

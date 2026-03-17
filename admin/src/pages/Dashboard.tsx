@@ -170,7 +170,7 @@ const Dashboard: React.FC = () => {
           Dashboard Ejecutivo
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Visión general del sistema Aviva Tu Negocio
+          Visión general del sistema App Comercial Aviva
         </Typography>
       </Box>
 

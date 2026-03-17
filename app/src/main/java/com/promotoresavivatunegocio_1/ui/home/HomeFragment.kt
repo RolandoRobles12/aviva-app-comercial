@@ -276,7 +276,7 @@ class HomeFragment : Fragment() {
                 textMetasLabel.text  = "Mis metas"
             }
             else -> {
-                productNameText.text = "Aviva Tu Negocio · Promotores"
+                productNameText.text = "App Comercial Aviva"
                 textMetasLabel.text  = "Mis metas comerciales"
             }
         }

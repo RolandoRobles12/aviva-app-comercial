@@ -186,7 +186,7 @@ const Giros: React.FC = () => {
         <Box>
           <Typography variant="h4">Catálogo de Giros</Typography>
           <Typography variant="body2" color="text.secondary" mt={1}>
-            Tipos de negocios relevantes para Aviva Tu Negocio
+            Tipos de negocios relevantes para App Comercial Aviva
           </Typography>
         </Box>
         <Button

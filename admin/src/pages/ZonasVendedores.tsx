@@ -91,6 +91,8 @@ interface ForbiddenZone {
   description: string;
   coordinates: ZoneCoord[];
   isActive: boolean;
+  /** IDs de promotores asignados. Vacío = aplica a todos (global). */
+  assignedPromotorIds: string[];
   createdAt?: Timestamp;
 }
 
@@ -148,6 +150,7 @@ const ZonasVendedores: React.FC = () => {
   const [forbiddenDialog, setForbiddenDialog] = useState(false);
   const [forbiddenZoneName, setForbiddenZoneName] = useState('');
   const [forbiddenZoneDesc, setForbiddenZoneDesc] = useState('');
+  const [forbiddenZonePromotors, setForbiddenZonePromotors] = useState<User[]>([]);
   const [savingForbidden, setSavingForbidden] = useState(false);
   const [deleteForbiddenDialog, setDeleteForbiddenDialog] = useState<ForbiddenZone | null>(null);
   const [selectedForbiddenZone, setSelectedForbiddenZone] = useState<ForbiddenZone | null>(null);
@@ -248,6 +251,7 @@ const ZonasVendedores: React.FC = () => {
         description: forbiddenZoneDesc.trim(),
         coordinates: pendingForbiddenPolygon,
         isActive: true,
+        assignedPromotorIds: forbiddenZonePromotors.map(u => u.id),
         createdAt: Timestamp.now()
       });
       setSuccess('Zona prohibida guardada');
@@ -255,6 +259,7 @@ const ZonasVendedores: React.FC = () => {
       setForbiddenOverlapDialog(false);
       setForbiddenZoneName('');
       setForbiddenZoneDesc('');
+      setForbiddenZonePromotors([]);
       setPendingForbiddenPolygon(null);
       setOverlappingZones([]);
       await fetchForbiddenZones();
@@ -889,6 +894,11 @@ const ZonasVendedores: React.FC = () => {
                               {zone.description}
                             </Typography>
                           )}
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            👥 {(!zone.assignedPromotorIds || zone.assignedPromotorIds.length === 0)
+                              ? 'Todos los promotores'
+                              : zone.assignedPromotorIds.map(id => users.find(u => u.id === id)?.displayName || id).join(', ')}
+                          </Typography>
                         </Box>
                         <Tooltip title="Eliminar zona prohibida">
                           <IconButton
@@ -1225,6 +1235,33 @@ const ZonasVendedores: React.FC = () => {
               rows={2}
               value={forbiddenZoneDesc}
               onChange={e => setForbiddenZoneDesc(e.target.value)}
+            />
+            <Autocomplete
+              multiple
+              options={users}
+              value={forbiddenZonePromotors}
+              onChange={(_, v) => setForbiddenZonePromotors(v)}
+              getOptionLabel={o => o.displayName}
+              renderInput={params => (
+                <TextField
+                  {...params}
+                  label="Promotores asignados"
+                  placeholder="Vacío = aplica a todos"
+                  helperText="Deja vacío para que aplique a todos los promotores"
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={option.id}
+                    label={option.displayName}
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                  />
+                ))
+              }
             />
           </Stack>
         </DialogContent>

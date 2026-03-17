@@ -95,7 +95,7 @@ class HelpAssistantFragment : Fragment() {
                 "¡Hola! Soy Ro-Bot Aviva, tu asistente virtual. Puedo ayudarte con:\n\n" +
                 "• Consultas sobre deals y llamadas en HubSpot\n" +
                 "• Información sobre procesos y procedimientos\n" +
-                "• Preguntas frecuentes sobre Aviva Tu Negocio\n\n" +
+                "• Preguntas frecuentes sobre App Comercial Aviva\n\n" +
                 "¿En qué puedo ayudarte hoy?",
                 queryType = "welcome"
             )
