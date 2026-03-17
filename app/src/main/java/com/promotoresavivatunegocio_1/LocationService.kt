@@ -108,6 +108,11 @@ class LocationService : Service() {
         val action = intent?.action ?: "DEFAULT"
         Log.d(TAG, "📨 LocationService onStartCommand - Acción: $action")
 
+        // Llamar startForeground() inmediatamente para satisfacer el requisito de Android:
+        // startForegroundService() DEBE ir seguido de startForeground() en menos de ~5 segundos.
+        val immediateNotification = createNotification()
+        startForeground(NOTIFICATION_ID, immediateNotification)
+
         when (action) {
             ACTION_STOP_TRACKING -> {
                 Log.d(TAG, "🛑 Solicitud de detener tracking")
@@ -193,7 +198,7 @@ class LocationService : Service() {
             // Detener monitoreo de horario si estaba activo
             stopWorkHoursMonitoring()
 
-            // Iniciar como servicio foreground con notificacion neutra
+            // Actualizar la notificación de foreground (ya fue iniciada en onStartCommand)
             val notification = createNotification()
             startForeground(NOTIFICATION_ID, notification)
 

@@ -7,7 +7,8 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 class AdminPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapter(fragmentActivity) {
 
     private val fragments = listOf(
-        HubSpotMetricsFragment(),  // ⭐ NUEVA: Pestaña de HubSpot primero
+        HubSpotMetricsFragment(),
+        GoalsAdminFragment(),
         UsersAdminFragment(),
         ProductsAdminFragment(),
         CitiesAdminFragment(),
@@ -15,7 +16,8 @@ class AdminPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapt
     )
 
     private val tabTitles = listOf(
-        "📊 HubSpot",              // ⭐ NUEVA pestaña
+        "📊 HubSpot",
+        "🎯 Metas",
         "👥 Usuarios",
         "📦 Productos",
         "🏙️ Ciudades",
