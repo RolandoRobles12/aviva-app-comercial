@@ -118,6 +118,13 @@ const Usuarios: React.FC = () => {
   });
   const homeInputRef = useRef<HTMLInputElement>(null);
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [managers, setManagers] = useState<User[]>([]);
+  const [kiosks, setKiosks] = useState<Kiosk[]>([]);
+  const [products, setProducts] = useState<ProductCatalog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   // Adjunta Google Places Autocomplete al input de domicilio cuando el diálogo abre
   useEffect(() => {
     if (!mapsLoaded || !dialogOpen || !homeInputRef.current) return;
@@ -138,13 +145,6 @@ const Usuarios: React.FC = () => {
     });
     return () => { window.google.maps.event.removeListener(listener); };
   }, [mapsLoaded, dialogOpen]);
-
-  const [users, setUsers] = useState<User[]>([]);
-  const [managers, setManagers] = useState<User[]>([]);
-  const [kiosks, setKiosks] = useState<Kiosk[]>([]);
-  const [products, setProducts] = useState<ProductCatalog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string>('');
 
