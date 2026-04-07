@@ -144,9 +144,10 @@ const MapaVendedores: React.FC = () => {
   const [selectedKiosk, setSelectedKiosk] = useState<KioskData | null>(null);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showKiosks, setShowKiosks] = useState(true);
-  const [showRadiusCircles, setShowRadiusCircles] = useState(true);
+  const [showKiosks, setShowKiosks] = useState(false);
+  const [showRadiusCircles, setShowRadiusCircles] = useState(false);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [showHomes, setShowHomes] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Cargar productos para identificar vendedores de campo
@@ -516,6 +517,10 @@ const MapaVendedores: React.FC = () => {
                   control={<Switch checked={showRadiusCircles} onChange={(e) => setShowRadiusCircles(e.target.checked)} />}
                   label={<Typography variant="body2">Mostrar radios</Typography>}
                 />
+                <FormControlLabel
+                  control={<Switch checked={showHomes} onChange={(e) => setShowHomes(e.target.checked)} />}
+                  label={<Typography variant="body2">Mostrar domicilios</Typography>}
+                />
               </Stack>
             </Box>
 
@@ -643,18 +648,30 @@ const MapaVendedores: React.FC = () => {
             </React.Fragment>
           ))}
 
-          {/* Domicilios de vendedores (marcador casa naranja) */}
-          {filteredVendors.filter(v => v.homeLat && v.homeLng).map(vendor => (
-            <Marker
-              key={`home-${vendor.id}`}
-              position={{ lat: vendor.homeLat!, lng: vendor.homeLng! }}
-              icon={{
-                url: createHomeIcon(),
-                scaledSize: new google.maps.Size(36, 36),
-                anchor: new google.maps.Point(18, 18)
-              }}
-              title={`🏠 Domicilio: ${vendor.displayName}`}
-            />
+          {/* Domicilios de vendedores (marcador casa naranja + radio 200m) */}
+          {showHomes && filteredVendors.filter(v => v.homeLat && v.homeLng).map(vendor => (
+            <React.Fragment key={`home-${vendor.id}`}>
+              <Marker
+                position={{ lat: vendor.homeLat!, lng: vendor.homeLng! }}
+                icon={{
+                  url: createHomeIcon(),
+                  scaledSize: new google.maps.Size(36, 36),
+                  anchor: new google.maps.Point(18, 18)
+                }}
+                title={`🏠 Domicilio: ${vendor.displayName}`}
+              />
+              <Circle
+                center={{ lat: vendor.homeLat!, lng: vendor.homeLng! }}
+                radius={50}
+                options={{
+                  fillColor: '#F59E0B',
+                  fillOpacity: 0.12,
+                  strokeColor: '#F59E0B',
+                  strokeOpacity: 0.6,
+                  strokeWeight: 2,
+                }}
+              />
+            </React.Fragment>
           ))}
 
           {/* Vendedores */}
