@@ -749,7 +749,7 @@ const ReporteProductividad: React.FC = () => {
             try {
               const startMs = new Date(start + 'T00:00:00').getTime();
               const endMs = new Date(end + 'T23:59:59').getTime();
-              console.log(`[HubSpot] ${user.name} (ownerId: ${user.hubspotOwnerId})`);
+              console.log(`[HubSpot] ${user.displayName} (ownerId: ${user.hubspotOwnerId})`);
               console.log(`[HubSpot] Rango: ${start} → ${end}`);
               console.log(`[HubSpot] startMs: ${startMs} (${new Date(startMs).toISOString()})`);
               console.log(`[HubSpot] endMs:   ${endMs} (${new Date(endMs).toISOString()})`);
