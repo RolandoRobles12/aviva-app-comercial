@@ -95,6 +95,9 @@ const Visitas: React.FC = () => {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
+  // Detail dialog
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+
   // Status configuration dialog
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState<VisitStatus | null>(null);
@@ -228,6 +231,12 @@ const Visitas: React.FC = () => {
 
   const getStatusColor = (code: string): string =>
     statuses.find((s) => s.code === code)?.color || '#9CA3AF';
+
+  // Busca el nombre del producto ignorando mayúsculas/minúsculas
+  const getProductName = (productLine?: string): string => {
+    if (!productLine) return '—';
+    return products.find((p) => p.code.toLowerCase() === productLine.toLowerCase())?.name || productLine;
+  };
 
   const formatDate = (ts: Timestamp) =>
     ts.toDate().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -363,7 +372,12 @@ const Visitas: React.FC = () => {
               filteredVisits.map((visit) => {
                 const userForVisit = users.find((u) => u.id === visit.userId || u.email === visit.userEmail);
                 return (
-                  <TableRow key={visit.id} hover>
+                  <TableRow
+                    key={visit.id}
+                    hover
+                    onClick={() => setSelectedVisit(visit)}
+                    sx={{ cursor: 'pointer' }}
+                  >
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>{visit.businessName || '—'}</Typography>
                       {visit.businessType && (
@@ -378,9 +392,7 @@ const Visitas: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption">
-                        {userForVisit?.productLine
-                          ? (products.find((p) => p.code === userForVisit.productLine)?.name || userForVisit.productLine)
-                          : '—'}
+                        {getProductName(userForVisit?.productLine || visit.productLine)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -397,18 +409,18 @@ const Visitas: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      <Tooltip title={visit.address || ''}>
-                        <Typography variant="caption" sx={{ maxWidth: 180, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {visit.address || '—'}
-                        </Typography>
-                      </Tooltip>
+                      <Typography variant="caption" color={visit.address ? 'text.primary' : 'text.disabled'}>
+                        {visit.address
+                          ? <Tooltip title={visit.address}><span style={{ maxWidth: 180, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{visit.address}</span></Tooltip>
+                          : '—'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      <Tooltip title={visit.notes || ''}>
-                        <Typography variant="caption" sx={{ maxWidth: 160, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {visit.notes || '—'}
-                        </Typography>
-                      </Tooltip>
+                      <Typography variant="caption" color={visit.notes ? 'text.primary' : 'text.disabled'}>
+                        {visit.notes
+                          ? <Tooltip title={visit.notes}><span style={{ maxWidth: 160, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{visit.notes}</span></Tooltip>
+                          : '—'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption">{formatDate(visit.timestamp)}</Typography>
@@ -420,6 +432,73 @@ const Visitas: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* ── Visit Detail Dialog ─────────────────────────────────────── */}
+      <Dialog open={!!selectedVisit} onClose={() => setSelectedVisit(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>{selectedVisit?.businessName || 'Detalle de visita'}</Typography>
+          {selectedVisit?.businessType && (
+            <Typography variant="caption" color="text.secondary">{selectedVisit.businessType}</Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedVisit && (() => {
+            const u = users.find((u) => u.id === selectedVisit.userId || u.email === selectedVisit.userEmail);
+            return (
+              <Stack spacing={2}>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">Vendedor</Typography>
+                    <Typography variant="body2" fontWeight={600}>{getUserName(selectedVisit)}</Typography>
+                    {selectedVisit.userEmail && (
+                      <Typography variant="caption" color="text.secondary">{selectedVisit.userEmail}</Typography>
+                    )}
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">Producto</Typography>
+                    <Typography variant="body2">{getProductName(u?.productLine || selectedVisit.productLine)}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">Estado</Typography>
+                    <Chip
+                      label={getStatusLabel(selectedVisit.status)}
+                      size="small"
+                      sx={{
+                        bgcolor: getStatusColor(selectedVisit.status) + '22',
+                        color: getStatusColor(selectedVisit.status),
+                        border: `1px solid ${getStatusColor(selectedVisit.status)}`,
+                        fontWeight: 600,
+                        mt: 0.5,
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">Fecha y hora</Typography>
+                    <Typography variant="body2">{formatDate(selectedVisit.timestamp)}</Typography>
+                  </Grid>
+                  {selectedVisit.address && (
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="text.secondary" display="block">Dirección</Typography>
+                      <Typography variant="body2">{selectedVisit.address}</Typography>
+                    </Grid>
+                  )}
+                  {selectedVisit.notes && (
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="text.secondary" display="block">Comentarios</Typography>
+                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'grey.50' }}>
+                        <Typography variant="body2">{selectedVisit.notes}</Typography>
+                      </Paper>
+                    </Grid>
+                  )}
+                </Grid>
+              </Stack>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedVisit(null)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Status Config Dialog */}
       <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="xs" fullWidth>

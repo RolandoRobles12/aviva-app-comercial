@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLoadScript, Autocomplete as GoogleAutocomplete } from '@react-google-maps/api';
+import { useLoadScript } from '@react-google-maps/api';
 import {
   Box,
   Button,
@@ -116,7 +116,28 @@ const Usuarios: React.FC = () => {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: PLACES_LIBRARIES,
   });
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const homeInputRef = useRef<HTMLInputElement>(null);
+
+  // Adjunta Google Places Autocomplete al input de domicilio cuando el diálogo abre
+  useEffect(() => {
+    if (!mapsLoaded || !dialogOpen || !homeInputRef.current) return;
+    const ac = new window.google.maps.places.Autocomplete(homeInputRef.current, {
+      types: ['address'],
+      componentRestrictions: { country: 'mx' },
+    });
+    const listener = ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (place.geometry?.location) {
+        setFormData((prev) => ({
+          ...prev,
+          homeAddress: place.formatted_address || '',
+          homeLat: place.geometry!.location!.lat(),
+          homeLng: place.geometry!.location!.lng(),
+        }));
+      }
+    });
+    return () => { window.google.maps.event.removeListener(listener); };
+  }, [mapsLoaded, dialogOpen]);
 
   const [users, setUsers] = useState<User[]>([]);
   const [managers, setManagers] = useState<User[]>([]);
@@ -630,48 +651,20 @@ const Usuarios: React.FC = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                {mapsLoaded ? (
-                  <GoogleAutocomplete
-                    onLoad={(ac) => { autocompleteRef.current = ac; }}
-                    onPlaceChanged={() => {
-                      const place = autocompleteRef.current?.getPlace();
-                      if (place) {
-                        const address = place.formatted_address || '';
-                        const lat = place.geometry?.location?.lat();
-                        const lng = place.geometry?.location?.lng();
-                        setFormData((prev) => ({
-                          ...prev,
-                          homeAddress: address,
-                          homeLat: lat,
-                          homeLng: lng,
-                        }));
-                      }
-                    }}
-                    options={{ types: ['address'], componentRestrictions: { country: 'mx' } }}
-                  >
-                    <TextField
-                      label="Domicilio del vendedor"
-                      fullWidth
-                      value={formData.homeAddress || ''}
-                      onChange={(e) => handleInputChange('homeAddress', e.target.value)}
-                      placeholder="Busca la dirección del domicilio..."
-                      helperText={
-                        formData.homeLat
-                          ? `Coordenadas: ${formData.homeLat?.toFixed(6)}, ${formData.homeLng?.toFixed(6)}`
-                          : 'Escribe y selecciona del desplegable para guardar coordenadas automáticamente'
-                      }
-                    />
-                  </GoogleAutocomplete>
-                ) : (
-                  <TextField
-                    label="Domicilio del vendedor"
-                    fullWidth
-                    value={formData.homeAddress || ''}
-                    onChange={(e) => handleInputChange('homeAddress', e.target.value)}
-                    placeholder="Cargando buscador de mapas..."
-                    disabled
-                  />
-                )}
+                <TextField
+                  label="Domicilio del vendedor"
+                  fullWidth
+                  inputRef={homeInputRef}
+                  value={formData.homeAddress || ''}
+                  onChange={(e) => handleInputChange('homeAddress', e.target.value)}
+                  placeholder={mapsLoaded ? 'Escribe la dirección y selecciona del desplegable…' : 'Cargando buscador de mapas…'}
+                  disabled={!mapsLoaded}
+                  helperText={
+                    formData.homeLat
+                      ? `Coordenadas guardadas: ${formData.homeLat.toFixed(6)}, ${formData.homeLng?.toFixed(6)}`
+                      : 'Selecciona del desplegable de Google Maps para guardar las coordenadas automáticamente'
+                  }
+                />
               </Grid>
               <Grid item xs={12}>
                 <FormControl fullWidth>
