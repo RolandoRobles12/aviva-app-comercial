@@ -358,23 +358,41 @@ const buildDayReports = (
     const workStartMin = timeToMinutes(dayConfig?.start || '09:00');
     const workEndMin   = timeToMinutes(dayConfig?.end   || '18:00');
 
+    // Calcular km recorridos
     let km = 0;
-    let longStops = 0;
-    let stopMinutes = 0;
     for (let i = 1; i < locs.length; i++) {
       km += calculateDistance(locs[i - 1].lat, locs[i - 1].lng, locs[i].lat, locs[i].lng);
-      const gapMin = (locs[i].ts.toDate().getTime() - locs[i - 1].ts.toDate().getTime()) / 60000;
-      if (gapMin > 30) {
-        // Solo contar paradas si ambos extremos del gap están dentro de la jornada laboral.
-        // Esto excluye gaps nocturnos / fuera de horario que inflarían el tiempo parado.
-        const t1 = locs[i - 1].ts.toDate();
-        const t2 = locs[i].ts.toDate();
-        const m1 = t1.getHours() * 60 + t1.getMinutes();
-        const m2 = t2.getHours() * 60 + t2.getMinutes();
-        if (m1 >= workStartMin && m1 <= workEndMin && m2 >= workStartMin && m2 <= workEndMin) {
-          longStops++;
-          stopMinutes += gapMin;
+    }
+
+    // Detectar paradas largas (>30 min) con ventana deslizante de 100m.
+    // NO se basa en gaps entre lecturas (el GPS puede grabar cada pocos minutos aunque
+    // el vendedor esté parado), sino en clusters de puntos cerca del mismo lugar.
+    let longStops = 0;
+    let stopMinutes = 0;
+    {
+      let wi = 0;
+      while (wi < locs.length) {
+        const anchor = locs[wi];
+        let we = wi;
+        // Expandir ventana mientras los puntos estén dentro de 100m del anchor
+        for (let j = wi + 1; j < locs.length; j++) {
+          const distM = calculateDistance(anchor.lat, anchor.lng, locs[j].lat, locs[j].lng) * 1000;
+          if (distM < 100) { we = j; } else { break; }
         }
+        if (we > wi) {
+          const durationMin =
+            (locs[we].ts.toDate().getTime() - anchor.ts.toDate().getTime()) / 60000;
+          if (durationMin > 30) {
+            // Solo contar si la parada ocurre dentro del horario laboral
+            const m1 = anchor.ts.toDate().getHours() * 60 + anchor.ts.toDate().getMinutes();
+            const m2 = locs[we].ts.toDate().getHours() * 60 + locs[we].ts.toDate().getMinutes();
+            if (m1 >= workStartMin && m1 <= workEndMin && m2 >= workStartMin && m2 <= workEndMin) {
+              longStops++;
+              stopMinutes += durationMin;
+            }
+          }
+        }
+        wi = we + 1;
       }
     }
 
