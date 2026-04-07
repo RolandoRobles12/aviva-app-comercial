@@ -64,6 +64,20 @@ const COLORS = {
   radiusCircle: 'rgba(16, 185, 129, 0.15)'
 };
 
+// Datos crudos del usuario tal como vienen de Firestore
+interface RawUser {
+  id: string;
+  displayName: string;
+  email: string;
+  photoUrl?: string;
+  lastLocation: GeoPoint;
+  lastLocationUpdate?: Timestamp;
+  assignedKioskId?: string;
+  productLine?: string;
+  homeLat?: number;
+  homeLng?: number;
+}
+
 // Tipos
 interface VendorData {
   id: string;
@@ -135,7 +149,8 @@ const MapaVendedores: React.FC = () => {
     libraries: GOOGLE_MAPS_LIBRARIES
   });
 
-  const [vendors, setVendors] = useState<VendorData[]>([]);
+  // Datos crudos de Firestore (sin cálculo de status)
+  const [rawUsers, setRawUsers] = useState<RawUser[]>([]);
   const [kiosks, setKiosks] = useState<KioskData[]>([]);
   const [fieldSellerCodes, setFieldSellerCodes] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -152,125 +167,61 @@ const MapaVendedores: React.FC = () => {
 
   // Cargar productos para identificar vendedores de campo
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'products'));
-        const codes = new Set<string>();
-        snapshot.docs.forEach(doc => {
-          const data = doc.data() as ProductData;
-          if (data.isFieldSeller && data.code) codes.add(data.code.toLowerCase());
-        });
-        setFieldSellerCodes(codes);
-      } catch (err) {
-        console.error('Error loading products:', err);
-      }
-    };
-    loadProducts();
+    getDocs(collection(db, 'products')).then(snapshot => {
+      const codes = new Set<string>();
+      snapshot.docs.forEach(doc => {
+        const data = doc.data() as ProductData;
+        if (data.isFieldSeller && data.code) codes.add(data.code.toLowerCase());
+      });
+      setFieldSellerCodes(codes);
+    }).catch(err => console.error('Error loading products:', err));
   }, []);
 
   // Cargar kioscos
   useEffect(() => {
-    const loadKiosks = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'kiosks'));
-        const kioskData: KioskData[] = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name || 'Sin nombre',
-            location: data.location || data.coordinates || new GeoPoint(19.4326, -99.1332),
-            address: data.address || 'Sin dirección',
-            city: data.city || '',
-            state: data.state || '',
-            radiusMeters: data.radiusMeters || data.radiusOverride || 100
-          };
-        });
-        setKiosks(kioskData);
-        console.log('✅ Kiosks loaded:', kioskData.length);
-      } catch (err) {
-        console.error('❌ Error loading kiosks:', err);
-      }
-    };
-    loadKiosks();
+    getDocs(collection(db, 'kiosks')).then(snapshot => {
+      setKiosks(snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || 'Sin nombre',
+          location: data.location || data.coordinates || new GeoPoint(19.4326, -99.1332),
+          address: data.address || 'Sin dirección',
+          city: data.city || '',
+          state: data.state || '',
+          radiusMeters: data.radiusMeters || data.radiusOverride || 100,
+        };
+      }));
+    }).catch(err => console.error('❌ Error loading kiosks:', err));
   }, []);
 
-  // Cargar vendedores
+  // Escuchar vendedores activos en tiempo real — solo guarda datos crudos,
+  // el status se calcula en el useMemo de abajo para evitar closures obsoletos.
   useEffect(() => {
     setLoading(true);
     const q = query(collection(db, 'users'), where('status', '==', 'ACTIVE'));
-
     const unsubscribe = onSnapshot(q,
-      async (snapshot) => {
-        try {
-          const vendorsList: VendorData[] = [];
-
-          for (const doc of snapshot.docs) {
-            const data = doc.data();
-            if (!data.lastLocation) continue;
-
-            // Determinar estado
-            let status: VendorData['status'] = 'inactive';
-            const lastUpdate = data.lastLocationUpdate?.toDate();
-
-            const isFieldSeller = data.productLine
-              ? fieldSellerCodes.has(data.productLine.toLowerCase())
-              : false;
-
-            if (lastUpdate && (Date.now() - lastUpdate.getTime()) <= 30 * 60 * 1000) {
-              if (isFieldSeller) {
-                // Vendedores de campo: siempre "en tránsito", nunca rojo por kiosco
-                status = 'in_transit';
-              } else if (data.assignedKioskId) {
-                const kiosk = kiosks.find(k => k.id === data.assignedKioskId);
-                if (kiosk) {
-                  const distance = calculateDistance(data.lastLocation, kiosk.location);
-                  status = distance <= kiosk.radiusMeters ? 'active_in_zone' : 'out_of_zone';
-                } else {
-                  status = 'in_transit';
-                }
-              } else {
-                status = 'in_transit';
-              }
-            }
-
-            // Calcular distancia
-            let distanceFromKiosk: number | undefined;
-            let allowedRadius: number | undefined;
-            if (data.assignedKioskId && kiosks.length > 0) {
-              const kiosk = kiosks.find(k => k.id === data.assignedKioskId);
-              if (kiosk) {
-                distanceFromKiosk = calculateDistance(data.lastLocation, kiosk.location);
-                allowedRadius = kiosk.radiusMeters;
-              }
-            }
-
-            vendorsList.push({
-              id: doc.id,
-              displayName: data.displayName || 'Sin nombre',
-              email: data.email || '',
-              photoUrl: data.photoUrl || data.profileImageUrl,
-              currentLocation: data.lastLocation,
-              lastLocationUpdate: data.lastLocationUpdate || Timestamp.now(),
-              status,
-              assignedKioskId: data.assignedKioskId,
-              assignedKioskName: kiosks.find(k => k.id === data.assignedKioskId)?.name,
-              distanceFromKiosk,
-              allowedRadius,
-              productLine: data.productLine,
-              homeLat: data.homeLat,
-              homeLng: data.homeLng,
-            });
-          }
-
-          setVendors(vendorsList);
-          setLoading(false);
-          setError(null);
-          console.log('✅ Vendors loaded:', vendorsList.length);
-        } catch (err: any) {
-          console.error('❌ Error processing vendors:', err);
-          setError('Error al procesar vendedores');
-          setLoading(false);
-        }
+      (snapshot) => {
+        const raw: RawUser[] = [];
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (!data.lastLocation) return;
+          raw.push({
+            id: doc.id,
+            displayName: data.displayName || 'Sin nombre',
+            email: data.email || '',
+            photoUrl: data.photoUrl || data.profileImageUrl,
+            lastLocation: data.lastLocation,
+            lastLocationUpdate: data.lastLocationUpdate,
+            assignedKioskId: data.assignedKioskId,
+            productLine: data.productLine,
+            homeLat: data.homeLat,
+            homeLng: data.homeLng,
+          });
+        });
+        setRawUsers(raw);
+        setLoading(false);
+        setError(null);
       },
       (err) => {
         console.error('❌ Error listening:', err);
@@ -278,9 +229,64 @@ const MapaVendedores: React.FC = () => {
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
-  }, [kiosks, fieldSellerCodes]);
+  }, []); // sin dependencias: el listener vive todo el ciclo de vida del componente
+
+  // Calcular status de cada vendedor reactivamente a partir de datos crudos +
+  // kioscos + códigos de campo. Esto garantiza que si cualquiera de los tres
+  // cambia, todos los status se recalculan correctamente.
+  const vendors = useMemo((): VendorData[] => {
+    return rawUsers.map(raw => {
+      let status: VendorData['status'] = 'inactive';
+      const lastUpdate = raw.lastLocationUpdate?.toDate();
+      const isFieldSeller = raw.productLine
+        ? fieldSellerCodes.has(raw.productLine.toLowerCase())
+        : false;
+
+      if (lastUpdate && (Date.now() - lastUpdate.getTime()) <= 30 * 60 * 1000) {
+        if (isFieldSeller) {
+          status = 'in_transit';
+        } else if (raw.assignedKioskId) {
+          const kiosk = kiosks.find(k => k.id === raw.assignedKioskId);
+          if (kiosk) {
+            const distance = calculateDistance(raw.lastLocation, kiosk.location);
+            status = distance <= kiosk.radiusMeters ? 'active_in_zone' : 'out_of_zone';
+          } else {
+            status = 'in_transit';
+          }
+        } else {
+          status = 'in_transit';
+        }
+      }
+
+      let distanceFromKiosk: number | undefined;
+      let allowedRadius: number | undefined;
+      if (raw.assignedKioskId) {
+        const kiosk = kiosks.find(k => k.id === raw.assignedKioskId);
+        if (kiosk) {
+          distanceFromKiosk = calculateDistance(raw.lastLocation, kiosk.location);
+          allowedRadius = kiosk.radiusMeters;
+        }
+      }
+
+      return {
+        id: raw.id,
+        displayName: raw.displayName,
+        email: raw.email,
+        photoUrl: raw.photoUrl,
+        currentLocation: raw.lastLocation,
+        lastLocationUpdate: raw.lastLocationUpdate || Timestamp.now(),
+        status,
+        assignedKioskId: raw.assignedKioskId,
+        assignedKioskName: kiosks.find(k => k.id === raw.assignedKioskId)?.name,
+        distanceFromKiosk,
+        allowedRadius,
+        productLine: raw.productLine,
+        homeLat: raw.homeLat,
+        homeLng: raw.homeLng,
+      };
+    });
+  }, [rawUsers, kiosks, fieldSellerCodes]);
 
   const calculateDistance = (point1: GeoPoint, point2: GeoPoint): number => {
     const R = 6371000;
@@ -662,7 +668,7 @@ const MapaVendedores: React.FC = () => {
               />
               <Circle
                 center={{ lat: vendor.homeLat!, lng: vendor.homeLng! }}
-                radius={50}
+                radius={30}
                 options={{
                   fillColor: '#F59E0B',
                   fillOpacity: 0.12,
