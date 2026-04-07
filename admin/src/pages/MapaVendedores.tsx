@@ -77,6 +77,15 @@ interface VendorData {
   assignedKioskName?: string;
   distanceFromKiosk?: number;
   allowedRadius?: number;
+  productLine?: string;
+  homeLat?: number;
+  homeLng?: number;
+}
+
+interface ProductData {
+  id: string;
+  code: string;
+  isFieldSeller?: boolean;
 }
 
 interface KioskData {
@@ -109,6 +118,16 @@ const createKioskIcon = (): string => {
   `)}`;
 };
 
+const createHomeIcon = (): string => {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="18" cy="18" r="16" fill="#F59E0B" opacity="0.25"/>
+      <circle cx="18" cy="18" r="12" fill="#F59E0B" opacity="0.6"/>
+      <path d="M18 9 L27 17 L25 17 L25 27 L21 27 L21 22 L15 22 L15 27 L11 27 L11 17 L9 17 Z" fill="white"/>
+    </svg>
+  `)}`;
+};
+
 const MapaVendedores: React.FC = () => {
   const theme = useTheme();
   const { isLoaded, loadError } = useLoadScript({
@@ -118,6 +137,7 @@ const MapaVendedores: React.FC = () => {
 
   const [vendors, setVendors] = useState<VendorData[]>([]);
   const [kiosks, setKiosks] = useState<KioskData[]>([]);
+  const [fieldSellerCodes, setFieldSellerCodes] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<VendorData | null>(null);
@@ -128,6 +148,24 @@ const MapaVendedores: React.FC = () => {
   const [showRadiusCircles, setShowRadiusCircles] = useState(true);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Cargar productos para identificar vendedores de campo
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'products'));
+        const codes = new Set<string>();
+        snapshot.docs.forEach(doc => {
+          const data = doc.data() as ProductData;
+          if (data.isFieldSeller && data.code) codes.add(data.code.toLowerCase());
+        });
+        setFieldSellerCodes(codes);
+      } catch (err) {
+        console.error('Error loading products:', err);
+      }
+    };
+    loadProducts();
+  }, []);
 
   // Cargar kioscos
   useEffect(() => {
@@ -173,8 +211,15 @@ const MapaVendedores: React.FC = () => {
             let status: VendorData['status'] = 'inactive';
             const lastUpdate = data.lastLocationUpdate?.toDate();
 
+            const isFieldSeller = data.productLine
+              ? fieldSellerCodes.has(data.productLine.toLowerCase())
+              : false;
+
             if (lastUpdate && (Date.now() - lastUpdate.getTime()) <= 30 * 60 * 1000) {
-              if (data.assignedKioskId) {
+              if (isFieldSeller) {
+                // Vendedores de campo: siempre "en tránsito", nunca rojo por kiosco
+                status = 'in_transit';
+              } else if (data.assignedKioskId) {
                 const kiosk = kiosks.find(k => k.id === data.assignedKioskId);
                 if (kiosk) {
                   const distance = calculateDistance(data.lastLocation, kiosk.location);
@@ -209,7 +254,10 @@ const MapaVendedores: React.FC = () => {
               assignedKioskId: data.assignedKioskId,
               assignedKioskName: kiosks.find(k => k.id === data.assignedKioskId)?.name,
               distanceFromKiosk,
-              allowedRadius
+              allowedRadius,
+              productLine: data.productLine,
+              homeLat: data.homeLat,
+              homeLng: data.homeLng,
             });
           }
 
@@ -231,7 +279,7 @@ const MapaVendedores: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, [kiosks]);
+  }, [kiosks, fieldSellerCodes]);
 
   const calculateDistance = (point1: GeoPoint, point2: GeoPoint): number => {
     const R = 6371000;
@@ -593,6 +641,20 @@ const MapaVendedores: React.FC = () => {
                 />
               )}
             </React.Fragment>
+          ))}
+
+          {/* Domicilios de vendedores (marcador casa naranja) */}
+          {filteredVendors.filter(v => v.homeLat && v.homeLng).map(vendor => (
+            <Marker
+              key={`home-${vendor.id}`}
+              position={{ lat: vendor.homeLat!, lng: vendor.homeLng! }}
+              icon={{
+                url: createHomeIcon(),
+                scaledSize: new google.maps.Size(36, 36),
+                anchor: new google.maps.Point(18, 18)
+              }}
+              title={`🏠 Domicilio: ${vendor.displayName}`}
+            />
           ))}
 
           {/* Vendedores */}

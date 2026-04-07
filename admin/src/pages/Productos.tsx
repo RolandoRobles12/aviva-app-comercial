@@ -28,6 +28,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CategoryIcon from '@mui/icons-material/Category';
 import ScheduleIcon from '@mui/icons-material/Schedule';
+import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
+import { FormControlLabel, Switch } from '@mui/material';
 import JornadaModal, { type WorkSchedule, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 import {
   collection,
@@ -48,6 +50,7 @@ interface Product {
   code: string; // Código interno (ej: "aviva_tu_negocio")
   category: string; // Categoría del producto
   isActive: boolean;
+  isFieldSeller?: boolean; // true = vendedor de campo (no requiere permanecer en kiosco)
   workSchedule?: WorkSchedule;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -116,7 +119,8 @@ const Productos: React.FC = () => {
         name: product.name,
         code: product.code,
         category: product.category,
-        isActive: product.isActive
+        isActive: product.isActive,
+        isFieldSeller: product.isFieldSeller ?? false,
       });
     } else {
       // Create new product
@@ -125,7 +129,8 @@ const Productos: React.FC = () => {
         name: '',
         code: '',
         category: 'Productos Aviva',
-        isActive: true
+        isActive: true,
+        isFieldSeller: false,
       });
     }
 
@@ -180,6 +185,7 @@ const Productos: React.FC = () => {
         code,
         category: formData.category || 'Otro',
         isActive: formData.isActive !== undefined ? formData.isActive : true,
+        isFieldSeller: formData.isFieldSeller ?? false,
         updatedAt: Timestamp.now()
       };
 
@@ -296,6 +302,7 @@ const Productos: React.FC = () => {
               <TableCell>Nombre</TableCell>
               <TableCell>Código</TableCell>
               <TableCell>Categoría</TableCell>
+              <TableCell>Tipo</TableCell>
               <TableCell>Estado</TableCell>
               <TableCell align="right">Acciones</TableCell>
             </TableRow>
@@ -328,6 +335,19 @@ const Productos: React.FC = () => {
                       color={getCategoryColor(product.category)}
                       size="small"
                     />
+                  </TableCell>
+                  <TableCell>
+                    {product.isFieldSeller ? (
+                      <Chip
+                        icon={<DirectionsWalkIcon />}
+                        label="Campo"
+                        color="info"
+                        size="small"
+                        variant="outlined"
+                      />
+                    ) : (
+                      <Chip label="Kiosco" size="small" variant="outlined" />
+                    )}
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -436,6 +456,23 @@ const Productos: React.FC = () => {
                 <MenuItem value={false as any}>Inactivo</MenuItem>
               </Select>
             </FormControl>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.isFieldSeller ?? false}
+                  onChange={(e) => setFormData({ ...formData, isFieldSeller: e.target.checked })}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>Vendedor de campo</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Los vendedores de este producto se mueven fuera del kiosco (no se marcan en rojo en el mapa)
+                  </Typography>
+                </Box>
+              }
+            />
 
             {!editingProduct && formData.code && (
               <Alert severity="info" sx={{ mt: 1 }}>
