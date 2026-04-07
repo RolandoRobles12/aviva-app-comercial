@@ -9,7 +9,6 @@ import {
   DialogTitle,
   FormControl,
   Grid,
-  IconButton,
   InputLabel,
   MenuItem,
   Paper,
@@ -27,8 +26,6 @@ import {
   Alert,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import {
   collection,
@@ -79,13 +76,6 @@ interface Product {
   name: string;
   code: string;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  solicitud_creada: 'success',
-  no_interesado: 'error',
-  programada: 'warning',
-  no_aplica: 'default',
-};
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
