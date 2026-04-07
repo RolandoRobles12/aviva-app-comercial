@@ -55,13 +55,25 @@ const COLORS = {
   routes: ['#2196F3', '#F44336', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#FF5722'],
   kiosk: '#4CAF50',
   longStop: '#FF9800',
-  point: '#2196F3'
+  point: '#2196F3',
+  home: '#F59E0B',
 };
+
+const createHomeIconRutas = (): string =>
+  `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="18" cy="18" r="16" fill="#F59E0B" opacity="0.25"/>
+      <circle cx="18" cy="18" r="12" fill="#F59E0B" opacity="0.7"/>
+      <path d="M18 9 L27 17 L25 17 L25 27 L21 27 L21 22 L15 22 L15 27 L11 27 L11 17 L9 17 Z" fill="white"/>
+    </svg>
+  `)}`;
 
 interface User {
   id: string;
   displayName: string;
   email: string;
+  homeLat?: number;
+  homeLng?: number;
 }
 
 interface LocationPoint {
@@ -190,7 +202,9 @@ const RutasPromotores: React.FC = () => {
         const usersData: User[] = usersSnapshot.docs.map(doc => ({
           id: doc.id,
           displayName: doc.data().displayName || 'Sin nombre',
-          email: doc.data().email || ''
+          email: doc.data().email || '',
+          homeLat: doc.data().homeLat,
+          homeLng: doc.data().homeLng,
         }));
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
       } catch (err) {
@@ -906,6 +920,23 @@ const RutasPromotores: React.FC = () => {
           }}
           onLoad={setMapRef}
         >
+          {/* Domicilios de los promotores seleccionados */}
+          {users
+            .filter(u => selectedUserIds.includes(u.id) && u.homeLat && u.homeLng)
+            .map(u => (
+              <Marker
+                key={`home-${u.id}`}
+                position={{ lat: u.homeLat!, lng: u.homeLng! }}
+                icon={{
+                  url: createHomeIconRutas(),
+                  scaledSize: new google.maps.Size(36, 36),
+                  anchor: new google.maps.Point(18, 18),
+                }}
+                title={`🏠 Domicilio: ${u.displayName}`}
+              />
+            ))
+          }
+
           {/* Rutas por usuario - Líneas de trayectoria */}
           {Object.entries(pointsByUser).map(([userId, points]) => {
             if (points.length < 2) return null;
