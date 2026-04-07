@@ -295,7 +295,7 @@ const timeToMinutes = (t: string): number => {
   return h * 60 + (m || 0);
 };
 
-const HOME_RADIUS_KM = 0.2; // 200 m
+const HOME_RADIUS_KM = 0.05; // 50 m
 
 const buildDayReports = (
   workDays: string[],
