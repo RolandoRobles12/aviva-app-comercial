@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useLoadScript, Autocomplete as GoogleAutocomplete } from '@react-google-maps/api';
 import {
   Box,
   Button,
@@ -107,7 +108,16 @@ const statusColors: Record<UserStatus, "success" | "default" | "error" | "warnin
   'PENDING_ACTIVATION': 'warning'
 };
 
+const PLACES_LIBRARIES: ('places')[] = ['places'];
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
 const Usuarios: React.FC = () => {
+  const { isLoaded: mapsLoaded } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: PLACES_LIBRARIES,
+  });
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
   const [users, setUsers] = useState<User[]>([]);
   const [managers, setManagers] = useState<User[]>([]);
   const [kiosks, setKiosks] = useState<Kiosk[]>([]);
@@ -620,38 +630,48 @@ const Usuarios: React.FC = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <TextField
-                  label="Dirección de Casa"
-                  fullWidth
-                  value={formData.homeAddress || ''}
-                  onChange={(e) => handleInputChange('homeAddress', e.target.value)}
-                  placeholder="Ej: Calle Ejemplo 123, Col. Centro, Ciudad"
-                  helperText="Dirección del domicilio del vendedor (para análisis interno)"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Latitud Casa"
-                  fullWidth
-                  type="number"
-                  value={formData.homeLat ?? ''}
-                  onChange={(e) => handleInputChange('homeLat', e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="Ej: 19.432608"
-                  helperText="Coordenada latitud del domicilio"
-                  inputProps={{ step: 'any' }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Longitud Casa"
-                  fullWidth
-                  type="number"
-                  value={formData.homeLng ?? ''}
-                  onChange={(e) => handleInputChange('homeLng', e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="Ej: -99.133209"
-                  helperText="Coordenada longitud del domicilio"
-                  inputProps={{ step: 'any' }}
-                />
+                {mapsLoaded ? (
+                  <GoogleAutocomplete
+                    onLoad={(ac) => { autocompleteRef.current = ac; }}
+                    onPlaceChanged={() => {
+                      const place = autocompleteRef.current?.getPlace();
+                      if (place) {
+                        const address = place.formatted_address || '';
+                        const lat = place.geometry?.location?.lat();
+                        const lng = place.geometry?.location?.lng();
+                        setFormData((prev) => ({
+                          ...prev,
+                          homeAddress: address,
+                          homeLat: lat,
+                          homeLng: lng,
+                        }));
+                      }
+                    }}
+                    options={{ types: ['address'], componentRestrictions: { country: 'mx' } }}
+                  >
+                    <TextField
+                      label="Domicilio del vendedor"
+                      fullWidth
+                      value={formData.homeAddress || ''}
+                      onChange={(e) => handleInputChange('homeAddress', e.target.value)}
+                      placeholder="Busca la dirección del domicilio..."
+                      helperText={
+                        formData.homeLat
+                          ? `Coordenadas: ${formData.homeLat?.toFixed(6)}, ${formData.homeLng?.toFixed(6)}`
+                          : 'Escribe y selecciona del desplegable para guardar coordenadas automáticamente'
+                      }
+                    />
+                  </GoogleAutocomplete>
+                ) : (
+                  <TextField
+                    label="Domicilio del vendedor"
+                    fullWidth
+                    value={formData.homeAddress || ''}
+                    onChange={(e) => handleInputChange('homeAddress', e.target.value)}
+                    placeholder="Cargando buscador de mapas..."
+                    disabled
+                  />
+                )}
               </Grid>
               <Grid item xs={12}>
                 <FormControl fullWidth>

@@ -67,9 +67,10 @@ class LocationService : Service() {
         private const val MIN_ACCURACY = 100f // Precisión mínima 100 metros (ajustado para edificios/zonas urbanas)
         private const val MIN_DISTANCE_CHANGE = 10f // Cambio mínimo 10 metros
 
-        // HORARIO LABORAL: 9 AM a 7 PM
-        private const val WORK_START_HOUR = 9  // 9 AM
-        private const val WORK_END_HOUR = 19   // 7 PM (19:00)
+        // HORARIO LABORAL: Lun-Vie 9-18h, Sáb 9-14h
+        private const val WORK_START_HOUR = 9   // 9 AM (todos los días laborables)
+        private const val WORK_END_HOUR = 18    // 6 PM (Lunes a Viernes)
+        private const val SAT_END_HOUR = 14     // 2 PM (Sábado)
 
         // ALERTAS: Intervalo mínimo entre alertas para evitar spam
         private const val ALERT_INTERVAL = 30 * 60 * 1000L // 30 minutos entre alertas
@@ -571,17 +572,18 @@ class LocationService : Service() {
         val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
         val currentDay = calendar.get(Calendar.DAY_OF_WEEK)
 
-        // Verificar que sea dia laboral (Lunes a Viernes)
-        val isWeekday = currentDay in Calendar.MONDAY..Calendar.FRIDAY
-
-        // Verificar horario (9 AM a 7 PM)
-        val isWorkHour = currentHour in WORK_START_HOUR until WORK_END_HOUR
-
-        val result = isWeekday && isWorkHour
+        val result = when (currentDay) {
+            Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY,
+            Calendar.THURSDAY, Calendar.FRIDAY ->
+                currentHour in WORK_START_HOUR until WORK_END_HOUR
+            Calendar.SATURDAY ->
+                currentHour in WORK_START_HOUR until SAT_END_HOUR
+            else -> false
+        }
 
         Log.d(TAG, "⏰ Verificación horario laboral:")
-        Log.d(TAG, "   - Día: ${getDayName(currentDay)} (Laboral: $isWeekday)")
-        Log.d(TAG, "   - Hora: ${currentHour}:${String.format("%02d", calendar.get(Calendar.MINUTE))} (Laboral: $isWorkHour)")
+        Log.d(TAG, "   - Día: ${getDayName(currentDay)}")
+        Log.d(TAG, "   - Hora: ${currentHour}:${String.format("%02d", calendar.get(Calendar.MINUTE))}")
         Log.d(TAG, "   - En horario: $result")
 
         return result
@@ -628,10 +630,10 @@ class LocationService : Service() {
         val currentMinute = calendar.get(Calendar.MINUTE)
         val currentDay = calendar.get(Calendar.DAY_OF_WEEK)
 
-        val isWeekday = currentDay in Calendar.MONDAY..Calendar.FRIDAY
+        val isWorkDay = currentDay in Calendar.MONDAY..Calendar.SATURDAY
 
-        if (!isWeekday) {
-            return 30 * 60 * 1000L // 30 min en fines de semana
+        if (!isWorkDay) {
+            return 30 * 60 * 1000L // 30 min en domingo
         }
 
         // Minutos restantes para las 9:00 AM

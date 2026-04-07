@@ -45,11 +45,26 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  Timestamp
+  Timestamp,
+  orderBy,
+  query
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // ==================== INTERFACES DE METAS ====================
+
+interface MetaUser {
+  id: string;
+  displayName: string;
+  email: string;
+  productLine?: string;
+}
+
+interface MetaProduct {
+  id: string;
+  name: string;
+  code: string;
+}
 
 type MetaPeriodo = 'SEMANAL' | 'MENSUAL' | 'TRIMESTRAL';
 type MetaTipo = 'GLOBAL' | 'LIGA' | 'USUARIO' | 'KIOSCO';
@@ -124,6 +139,10 @@ const MES_NOMBRE = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'nume
 const Metas: React.FC = () => {
   // Estados para Metas
   const [metas, setMetas] = useState<Meta[]>([]);
+  const [metaUsers, setMetaUsers] = useState<MetaUser[]>([]);
+  const [metaProducts, setMetaProducts] = useState<MetaProduct[]>([]);
+  const [filterProductLine, setFilterProductLine] = useState<string>('all');
+  const [filterUserId, setFilterUserId] = useState<string>('all');
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [error, setError] = useState<string>('');
@@ -153,10 +172,36 @@ const Metas: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log('🚀 Metas v3.0 - Gestión de Metas');
     fetchMetas();
+    fetchMetaUsers();
+    fetchMetaProducts();
   }, []);
+
   // ==================== FETCH FUNCTIONS ====================
+
+  const fetchMetaUsers = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const data: MetaUser[] = [];
+      snap.forEach((d) => {
+        const u = d.data();
+        data.push({ id: d.id, displayName: u.displayName || u.email || '', email: u.email || '', productLine: u.productLine });
+      });
+      setMetaUsers(data.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+    } catch { /* ignorar */ }
+  };
+
+  const fetchMetaProducts = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, 'products'), orderBy('name', 'asc')));
+      const data: MetaProduct[] = [];
+      snap.forEach((d) => {
+        const p = d.data();
+        if (p.isActive !== false) data.push({ id: d.id, name: p.name || '', code: p.code || '' });
+      });
+      setMetaProducts(data);
+    } catch { /* ignorar */ }
+  };
 
   const fetchMetas = async () => {
     try {
@@ -516,6 +561,61 @@ const Metas: React.FC = () => {
             </Grid>
           </Grid>
 
+          {/* ── Filtros por producto y usuario ── */}
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Filtrar por producto</InputLabel>
+                  <Select
+                    value={filterProductLine}
+                    label="Filtrar por producto"
+                    onChange={(e) => { setFilterProductLine(e.target.value); setFilterUserId('all'); }}
+                  >
+                    <MenuItem value="all">Todos los productos</MenuItem>
+                    {metaProducts.map(p => (
+                      <MenuItem key={p.id} value={p.code}>{p.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Filtrar por usuario</InputLabel>
+                  <Select
+                    value={filterUserId}
+                    label="Filtrar por usuario"
+                    onChange={(e) => setFilterUserId(e.target.value)}
+                  >
+                    <MenuItem value="all">Todos los usuarios</MenuItem>
+                    {(filterProductLine === 'all'
+                      ? metaUsers
+                      : metaUsers.filter(u => u.productLine?.toLowerCase() === filterProductLine.toLowerCase())
+                    ).map(u => (
+                      <MenuItem key={u.id} value={u.id}>{u.displayName} ({u.email})</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="body2" color="text.secondary">
+                  {(() => {
+                    const filtered = metas.filter(m => {
+                      if (filterUserId !== 'all') return m.targetIds?.includes(filterUserId);
+                      if (filterProductLine !== 'all') {
+                        if (m.tipo === 'GLOBAL') return true;
+                        const plIds = metaUsers.filter(u => u.productLine?.toLowerCase() === filterProductLine.toLowerCase()).map(u => u.id);
+                        return m.targetIds?.some(id => plIds.includes(id));
+                      }
+                      return true;
+                    });
+                    return `Mostrando ${filtered.length} de ${metas.length} metas`;
+                  })()}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Paper>
+
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -532,7 +632,15 @@ const Metas: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {metas.map((meta) => (
+                {metas.filter(m => {
+                  if (filterUserId !== 'all') return m.targetIds?.includes(filterUserId);
+                  if (filterProductLine !== 'all') {
+                    if (m.tipo === 'GLOBAL') return true;
+                    const plIds = metaUsers.filter(u => u.productLine?.toLowerCase() === filterProductLine.toLowerCase()).map(u => u.id);
+                    return m.targetIds?.some(id => plIds.includes(id));
+                  }
+                  return true;
+                }).map((meta) => (
                   <TableRow key={meta.id}>
                     <TableCell>
                       <Typography variant="body2" fontWeight="bold">
