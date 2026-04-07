@@ -33,6 +33,7 @@ import StoreIcon from '@mui/icons-material/Store';
 import MapIcon from '@mui/icons-material/Map';
 import RouteIcon from '@mui/icons-material/Route';
 import LayersIcon from '@mui/icons-material/Layers';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Breadcrumbs from './Breadcrumbs';
@@ -47,6 +48,7 @@ const menuItems = [
   { text: 'Mapa en Vivo', icon: <MapIcon />, path: '/mapa', category: 'main' },
   { text: 'Rutas Promotores', icon: <RouteIcon />, path: '/rutas', category: 'main' },
   { text: 'Zonas', icon: <LayersIcon />, path: '/zonas', category: 'main' },
+  { text: 'Visitas', icon: <AssignmentIcon />, path: '/visitas', category: 'main' },
   { text: 'Metas', icon: <TrendingUpIcon />, path: '/metas', category: 'gamification' },
   { text: 'Ligas', icon: <EmojiEventsIcon />, path: '/ligas', category: 'gamification' },
   { text: 'Properties HubSpot', icon: <StorageIcon />, path: '/hubspot-properties', category: 'gamification' },
