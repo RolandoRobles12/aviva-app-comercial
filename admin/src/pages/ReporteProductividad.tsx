@@ -110,6 +110,8 @@ interface AdminUser {
   email: string;
   productLine?: string;
   hubspotOwnerId?: string;
+  homeLat?: number;
+  homeLng?: number;
 }
 
 interface Product {
@@ -150,6 +152,8 @@ interface DayReport {
   hasGps: boolean;
   outOfZoneMinutes: number;
   deals: number;
+  homeVisits: number;    // veces que estuvo en casa durante horario laboral
+  homeMinutes: number;   // minutos totales en casa durante horario laboral
 }
 
 interface SellerReport {
@@ -171,6 +175,8 @@ interface SellerReport {
   days: DayReport[];
   checkInsError: boolean;
   hubspotError: boolean;
+  totalHomeVisits: number;
+  totalHomeMinutes: number;
 }
 
 type QuickFilter = 'today' | 'thisWeek' | 'thisMonth' | 'lastMonth' | 'custom';
@@ -181,6 +187,15 @@ const SELLER_COLORS = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+// Retorna la fecha local (YYYY-MM-DD) usando getFullYear/Month/Date para evitar
+// el problema de UTC: registros después de las 18h en UTC-6 aparecen en el día siguiente en UTC.
+const toLocalDate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371;
@@ -280,6 +295,8 @@ const timeToMinutes = (t: string): number => {
   return h * 60 + (m || 0);
 };
 
+const HOME_RADIUS_KM = 0.2; // 200 m
+
 const buildDayReports = (
   workDays: string[],
   locationDocs: any[],
@@ -287,13 +304,15 @@ const buildDayReports = (
   checkIns: CheckInRecord[],
   hubspotDeals: HubspotDeal[],
   workSchedule: WorkSchedule,
+  homeLat?: number,
+  homeLng?: number,
 ): DayReport[] => {
   const locByDate: Record<string, { ts: Timestamp; lat: number; lng: number }[]> = {};
   locationDocs.forEach((d) => {
     const data = d.data();
     const ts: Timestamp | undefined = data.timestamp;
     if (!ts) return;
-    const date = ts.toDate().toISOString().split('T')[0];
+    const date = toLocalDate(ts.toDate());
     const lat = data.location?.latitude ?? data.latitude ?? 0;
     const lng = data.location?.longitude ?? data.longitude ?? 0;
     if (!locByDate[date]) locByDate[date] = [];
@@ -306,7 +325,7 @@ const buildDayReports = (
     const detectedAt: Timestamp | undefined = data.detectedAt;
     const resolvedAt: Timestamp | null = data.resolvedAt ?? null;
     if (!detectedAt) return;
-    const date = detectedAt.toDate().toISOString().split('T')[0];
+    const date = toLocalDate(detectedAt.toDate());
     const durationMs = resolvedAt
       ? resolvedAt.toDate().getTime() - detectedAt.toDate().getTime()
       : 0;
@@ -317,7 +336,7 @@ const buildDayReports = (
   checkIns.forEach((ci) => {
     const d = ci.timestamp?.toDate?.();
     if (!d) return;
-    const date = d.toISOString().split('T')[0];
+    const date = toLocalDate(d);
     if (!ciByDate[date]) ciByDate[date] = [];
     ciByDate[date].push(ci);
   });
@@ -359,6 +378,35 @@ const buildDayReports = (
       }
     }
 
+    // Tiempo en casa: contar puntos GPS dentro del radio del domicilio durante horario laboral
+    let homeVisits = 0;
+    let homeMinutes = 0;
+    if (homeLat !== undefined && homeLng !== undefined) {
+      let inHome = false;
+      let homeEntryTs: number | null = null;
+      for (const loc of locs) {
+        const t = loc.ts.toDate();
+        const min = t.getHours() * 60 + t.getMinutes();
+        const duringWork = min >= workStartMin && min <= workEndMin;
+        const atHome = duringWork && calculateDistance(loc.lat, loc.lng, homeLat, homeLng) <= HOME_RADIUS_KM;
+        if (atHome && !inHome) {
+          inHome = true;
+          homeEntryTs = t.getTime();
+          homeVisits++;
+        } else if (!atHome && inHome) {
+          inHome = false;
+          if (homeEntryTs !== null) {
+            homeMinutes += (t.getTime() - homeEntryTs) / 60000;
+            homeEntryTs = null;
+          }
+        }
+      }
+      // Si terminó el día todavía en casa, cerrar la visita con el último punto
+      if (inHome && homeEntryTs !== null && locs.length > 0) {
+        homeMinutes += (locs[locs.length - 1].ts.toDate().getTime() - homeEntryTs) / 60000;
+      }
+    }
+
     const dayCIs = ciByDate[date] || [];
     const entrada = dayCIs.find((c) => c.type === 'entrada') || null;
     const salida  = dayCIs.find((c) => c.type === 'salida')  || null;
@@ -377,6 +425,8 @@ const buildDayReports = (
       hasGps: locs.length > 0,
       outOfZoneMinutes: Math.round(alertMinByDate[date] || 0),
       deals: dealsByDate[date] || 0,
+      homeVisits,
+      homeMinutes: Math.round(homeMinutes),
     };
   });
 };
@@ -426,6 +476,8 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
             <TableCell align="center">T. parado</TableCell>
             <TableCell align="center">Fuera zona</TableCell>
             <TableCell align="center">Solicitudes</TableCell>
+            <TableCell align="center">En casa</TableCell>
+            <TableCell align="center">T. en casa</TableCell>
             <TableCell align="center">GPS</TableCell>
           </TableRow>
         </TableHead>
@@ -462,6 +514,16 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
                   ? <Chip label={day.deals} size="small" color="primary" variant="outlined" />
                   : <Typography variant="caption" color="text.disabled">—</Typography>
                 }
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="caption" color={day.homeVisits > 0 ? 'warning.main' : 'text.disabled'}>
+                  {day.homeVisits > 0 ? day.homeVisits : '—'}
+                </Typography>
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="caption" color={day.homeMinutes > 0 ? 'warning.main' : 'text.disabled'}>
+                  {day.homeMinutes > 0 ? formatDuration(day.homeMinutes) : '—'}
+                </Typography>
               </TableCell>
               <TableCell align="center">
                 {day.hasGps
@@ -529,6 +591,8 @@ const ReporteProductividad: React.FC = () => {
           email: d.data().email || '',
           productLine: d.data().productLine,
           hubspotOwnerId: d.data().hubspotOwnerId,
+          homeLat: d.data().homeLat,
+          homeLng: d.data().homeLng,
         }));
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
@@ -684,6 +748,8 @@ const ReporteProductividad: React.FC = () => {
             checkIns,
             hubspotDeals,
             workSchedule,
+            user.homeLat,
+            user.homeLng,
           );
 
           // 6. Aggregate
@@ -695,6 +761,8 @@ const ReporteProductividad: React.FC = () => {
           const totalStopMinutes  = days.reduce((s, d) => s + d.stopMinutes, 0);
           const totalOutOfZoneMinutes = days.reduce((s, d) => s + d.outOfZoneMinutes, 0);
           const totalDeals        = days.reduce((s, d) => s + d.deals, 0);
+          const totalHomeVisits   = days.reduce((s, d) => s + d.homeVisits, 0);
+          const totalHomeMinutes  = days.reduce((s, d) => s + d.homeMinutes, 0);
 
           return {
             userId: user.id,
@@ -715,6 +783,8 @@ const ReporteProductividad: React.FC = () => {
             days,
             checkInsError,
             hubspotError,
+            totalHomeVisits,
+            totalHomeMinutes,
           };
         })
       );
@@ -979,6 +1049,13 @@ const ReporteProductividad: React.FC = () => {
                       </Tooltip>
                     </TableCell>
                     <TableCell align="center">
+                      <Tooltip title="Visitas al domicilio registrado durante horario laboral (solo visible para administradores)">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <ZoneIcon sx={{ fontSize: 14 }} /><span>En casa</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
                       <Tooltip title="Días con datos de GPS / días laborables en el periodo">
                         <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                           <GpsIcon sx={{ fontSize: 14 }} /><span>Trackeo activo</span>
@@ -1082,12 +1159,28 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
+                            {seller.totalHomeVisits > 0
+                              ? (
+                                <Tooltip title={`${seller.totalHomeVisits} visita(s) al domicilio durante horario laboral`}>
+                                  <Chip
+                                    label={`${seller.totalHomeVisits}× ${formatDuration(seller.totalHomeMinutes)}`}
+                                    size="small"
+                                    color="warning"
+                                    variant="outlined"
+                                  />
+                                </Tooltip>
+                              )
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
+
+                          <TableCell align="center">
                             <PctCell value={seller.gpsDays} total={seller.workDaysCount} />
                           </TableCell>
                         </TableRow>
 
                         <TableRow>
-                          <TableCell colSpan={10} sx={{ p: 0, border: 0 }}>
+                          <TableCell colSpan={11} sx={{ p: 0, border: 0 }}>
                             <Collapse in={isExpanded} unmountOnExit>
                               <ExpandedDays days={seller.days} />
                             </Collapse>

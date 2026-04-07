@@ -58,6 +58,7 @@ interface User {
   displayName: string;
   email: string;
   role: string;
+  productLine?: string;
 }
 
 interface League {
@@ -75,6 +76,10 @@ const MetasComerciales: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [error, setError] = useState<string>('');
+
+  // Filtros de la tabla
+  const [filterProductLine, setFilterProductLine] = useState<string>('all');
+  const [filterUserId, setFilterUserId] = useState<string>('all');
 
   const [formData, setFormData] = useState<GoalFormData>({
     name: '',
@@ -174,7 +179,8 @@ const MetasComerciales: React.FC = () => {
             id: doc.id,
             displayName: data.displayName || data.email || '',
             email: data.email || '',
-            role: data.role || ''
+            role: data.role || '',
+            productLine: data.productLine
           });
         }
       });
@@ -395,6 +401,31 @@ const MetasComerciales: React.FC = () => {
   const weeklyGoals = goals.filter(g => g.period === 'weekly');
   const monthlyGoals = goals.filter(g => g.period === 'monthly');
 
+  // Usuarios filtrados por línea de producto (para el selector de usuario)
+  const usersForFilter = filterProductLine === 'all'
+    ? users
+    : users.filter(u => u.productLine?.toLowerCase() === filterProductLine.toLowerCase());
+
+  // Metas filtradas por producto y usuario
+  const filteredGoals = goals.filter(g => {
+    if (filterUserId !== 'all') {
+      return g.targetIds?.includes(filterUserId);
+    }
+    if (filterProductLine !== 'all') {
+      if (g.targetType === 'all') return true;
+      const productLineUserIds = users
+        .filter(u => u.productLine?.toLowerCase() === filterProductLine.toLowerCase())
+        .map(u => u.id);
+      return g.targetIds?.some(id => productLineUserIds.includes(id));
+    }
+    return true;
+  });
+
+  // Líneas de producto únicas presentes en los usuarios
+  const productLines = Array.from(
+    new Set(users.map(u => u.productLine).filter(Boolean))
+  ) as string[];
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -471,6 +502,52 @@ const MetasComerciales: React.FC = () => {
         </Grid>
       </Grid>
 
+      {/* Filtros */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Filtrar por producto</InputLabel>
+              <Select
+                value={filterProductLine}
+                label="Filtrar por producto"
+                onChange={(e) => {
+                  setFilterProductLine(e.target.value);
+                  setFilterUserId('all');
+                }}
+              >
+                <MenuItem value="all">Todos los productos</MenuItem>
+                {productLines.map(pl => (
+                  <MenuItem key={pl} value={pl}>{pl}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Filtrar por usuario</InputLabel>
+              <Select
+                value={filterUserId}
+                label="Filtrar por usuario"
+                onChange={(e) => setFilterUserId(e.target.value)}
+              >
+                <MenuItem value="all">Todos los usuarios</MenuItem>
+                {usersForFilter.map(u => (
+                  <MenuItem key={u.id} value={u.id}>
+                    {u.displayName} ({u.email})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Typography variant="body2" color="text.secondary">
+              Mostrando {filteredGoals.length} de {goals.length} metas
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -486,16 +563,18 @@ const MetasComerciales: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {goals.length === 0 ? (
+            {filteredGoals.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} align="center">
                   <Typography variant="body2" color="text.secondary" py={3}>
-                    No hay metas comerciales configuradas. Crea la primera meta para comenzar.
+                    {goals.length === 0
+                      ? 'No hay metas comerciales configuradas. Crea la primera meta para comenzar.'
+                      : 'No hay metas que coincidan con los filtros seleccionados.'}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              goals.map((goal) => (
+              filteredGoals.map((goal) => (
                 <TableRow key={goal.id}>
                   <TableCell>
                     <Typography variant="body2" fontWeight="bold">
