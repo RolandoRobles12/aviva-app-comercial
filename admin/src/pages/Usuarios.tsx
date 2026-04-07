@@ -125,25 +125,42 @@ const Usuarios: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Eleva el z-index del dropdown de Google Places por encima del Dialog de MUI (1300)
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = '.pac-container { z-index: 1400 !important; }';
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+
   // Adjunta Google Places Autocomplete al input de domicilio cuando el diálogo abre
   useEffect(() => {
-    if (!mapsLoaded || !dialogOpen || !homeInputRef.current) return;
-    const ac = new window.google.maps.places.Autocomplete(homeInputRef.current, {
-      types: ['address'],
-      componentRestrictions: { country: 'mx' },
-    });
-    const listener = ac.addListener('place_changed', () => {
-      const place = ac.getPlace();
-      if (place.geometry?.location) {
-        setFormData((prev) => ({
-          ...prev,
-          homeAddress: place.formatted_address || '',
-          homeLat: place.geometry!.location!.lat(),
-          homeLng: place.geometry!.location!.lng(),
-        }));
-      }
-    });
-    return () => { window.google.maps.event.removeListener(listener); };
+    if (!mapsLoaded || !dialogOpen) return;
+    // Pequeño delay para asegurar que el DOM del diálogo esté listo
+    const timer = setTimeout(() => {
+      if (!homeInputRef.current) return;
+      const ac = new window.google.maps.places.Autocomplete(homeInputRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'mx' },
+      });
+      const listener = ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (place.geometry?.location) {
+          setFormData((prev) => ({
+            ...prev,
+            homeAddress: place.formatted_address || '',
+            homeLat: place.geometry!.location!.lat(),
+            homeLng: place.geometry!.location!.lng(),
+          }));
+          // Actualizar el valor visible del input manualmente
+          if (homeInputRef.current) {
+            homeInputRef.current.value = place.formatted_address || '';
+          }
+        }
+      });
+      return () => { window.google.maps.event.removeListener(listener); };
+    }, 100);
+    return () => clearTimeout(timer);
   }, [mapsLoaded, dialogOpen]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string>('');
@@ -652,10 +669,11 @@ const Usuarios: React.FC = () => {
               </Grid>
               <Grid item xs={12}>
                 <TextField
+                  key={editingUser?.id ?? 'new-user'}
                   label="Domicilio del vendedor"
                   fullWidth
                   inputRef={homeInputRef}
-                  value={formData.homeAddress || ''}
+                  defaultValue={formData.homeAddress || ''}
                   onChange={(e) => handleInputChange('homeAddress', e.target.value)}
                   placeholder={mapsLoaded ? 'Escribe la dirección y selecciona del desplegable…' : 'Cargando buscador de mapas…'}
                   disabled={!mapsLoaded}
