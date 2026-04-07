@@ -36,14 +36,21 @@ import {
   deleteDoc,
   doc,
   Timestamp,
-  deleteField
+  deleteField,
+  query,
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // Coincide con User.kt de Android
 type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'GERENTE_AVIVA_CONTIGO' | 'PROMOTOR_AVIVA_TU_NEGOCIO' | 'EMBAJADOR_AVIVA_TU_COMPRA' | 'PROMOTOR_AVIVA_TU_CASA';
 
-type ProductLine = 'AVIVA_TU_NEGOCIO' | 'AVIVA_CONTIGO' | 'AVIVA_TU_COMPRA' | 'AVIVA_TU_CASA';
+interface ProductCatalog {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
 
 type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_ACTIVATION';
 
@@ -54,16 +61,17 @@ interface User {
   displayName: string;
   photoUrl?: string;
   role: UserRole;
-  productLine?: ProductLine; // Opcional: solo para roles de vendedor/promotor
+  productLine?: string; // código del producto (ej: "aviva_tu_negocio")
   status: UserStatus;
   phoneNumber?: string;
   employeeId?: string;
-  department?: string;
-  position?: string;
   managerId?: string;
   assignedPromoters?: string[];
-  assignedKioskId?: string; // ID del kiosco asignado
-  hubspotOwnerId?: string; // Nuevo campo para HubSpot
+  assignedKioskId?: string;
+  hubspotOwnerId?: string;
+  homeAddress?: string;
+  homeLat?: number;
+  homeLng?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -85,13 +93,6 @@ const roleLabels: Record<UserRole, string> = {
   'PROMOTOR_AVIVA_TU_CASA': 'Promotor Aviva Tu Casa'
 };
 
-const productLineLabels: Record<ProductLine, string> = {
-  'AVIVA_TU_NEGOCIO': 'Aviva Tu Negocio',
-  'AVIVA_CONTIGO': 'Aviva Contigo',
-  'AVIVA_TU_COMPRA': 'Aviva Tu Compra',
-  'AVIVA_TU_CASA': 'Aviva Tu Casa'
-};
-
 const statusLabels: Record<UserStatus, string> = {
   'ACTIVE': 'Activo',
   'INACTIVE': 'Inactivo',
@@ -110,6 +111,7 @@ const Usuarios: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [managers, setManagers] = useState<User[]>([]);
   const [kiosks, setKiosks] = useState<Kiosk[]>([]);
+  const [products, setProducts] = useState<ProductCatalog[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -119,21 +121,23 @@ const Usuarios: React.FC = () => {
     email: '',
     displayName: '',
     role: 'PROMOTOR_AVIVA_TU_NEGOCIO',
-    productLine: 'AVIVA_TU_NEGOCIO', // Por defecto para promotores
+    productLine: '',
     status: 'ACTIVE',
     phoneNumber: '',
     employeeId: '',
-    department: '',
-    position: '',
     managerId: '',
     assignedPromoters: [],
     assignedKioskId: '',
-    hubspotOwnerId: ''
+    hubspotOwnerId: '',
+    homeAddress: '',
+    homeLat: undefined,
+    homeLng: undefined
   });
 
   useEffect(() => {
     fetchUsers();
     fetchKiosks();
+    fetchProducts();
   }, []);
 
   const fetchUsers = async () => {
@@ -157,6 +161,27 @@ const Usuarios: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('name', 'asc')));
+      const productsData: ProductCatalog[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.isActive !== false) {
+          productsData.push({
+            id: docSnap.id,
+            name: data.name || '',
+            code: data.code || '',
+            isActive: data.isActive ?? true
+          });
+        }
+      });
+      setProducts(productsData);
+    } catch (err) {
+      console.error('Error al cargar productos:', err);
     }
   };
 
@@ -187,16 +212,17 @@ const Usuarios: React.FC = () => {
         email: user.email,
         displayName: user.displayName,
         role: user.role,
-        productLine: user.productLine,
+        productLine: user.productLine || '',
         status: user.status,
         phoneNumber: user.phoneNumber || '',
         employeeId: user.employeeId || '',
-        department: user.department || '',
-        position: user.position || '',
         managerId: user.managerId || '',
         assignedPromoters: user.assignedPromoters || [],
         assignedKioskId: user.assignedKioskId || '',
-        hubspotOwnerId: user.hubspotOwnerId || ''
+        hubspotOwnerId: user.hubspotOwnerId || '',
+        homeAddress: user.homeAddress || '',
+        homeLat: user.homeLat,
+        homeLng: user.homeLng
       });
     } else {
       setEditingUser(null);
@@ -204,16 +230,17 @@ const Usuarios: React.FC = () => {
         email: '',
         displayName: '',
         role: 'PROMOTOR_AVIVA_TU_NEGOCIO',
-        productLine: 'AVIVA_TU_NEGOCIO',
+        productLine: '',
         status: 'ACTIVE',
         phoneNumber: '',
         employeeId: '',
-        department: '',
-        position: '',
         managerId: '',
         assignedPromoters: [],
         assignedKioskId: '',
-        hubspotOwnerId: ''
+        hubspotOwnerId: '',
+        homeAddress: '',
+        homeLat: undefined,
+        homeLng: undefined
       });
     }
     setDialogOpen(true);
@@ -266,7 +293,16 @@ const Usuarios: React.FC = () => {
         updatedAt: Timestamp.now()
       };
 
-      // Campos opcionales: si tienen valor se guardan; si están vacíos y es edición se borran del documento
+      // Campos opcionales: se guardan si tienen valor; se borran SOLO si el campo
+      // existía antes y ahora está explícitamente vacío (para campos no críticos).
+      // Los campos críticos (hubspotOwnerId, productLine) NUNCA se borran automáticamente.
+      const setIfValue = (field: string, value: string | undefined) => {
+        if (value && value.trim()) {
+          dataToSave[field] = value.trim();
+        }
+        // Si está vacío, simplemente no lo incluimos → Firestore no lo toca
+      };
+
       const setOrDelete = (field: string, value: string | undefined) => {
         if (value && value.trim()) {
           dataToSave[field] = value.trim();
@@ -278,12 +314,15 @@ const Usuarios: React.FC = () => {
       setOrDelete('photoUrl', formData.photoUrl);
       setOrDelete('phoneNumber', formData.phoneNumber);
       setOrDelete('employeeId', formData.employeeId);
-      setOrDelete('department', formData.department);
-      setOrDelete('position', formData.position);
       setOrDelete('managerId', formData.managerId);
       setOrDelete('assignedKioskId', formData.assignedKioskId);
-      setOrDelete('hubspotOwnerId', formData.hubspotOwnerId);
-      setOrDelete('uid', (formData as any).uid);
+      setIfValue('hubspotOwnerId', formData.hubspotOwnerId);
+      setIfValue('uid', (formData as any).uid);
+      setIfValue('homeAddress', formData.homeAddress);
+      if (formData.homeLat !== undefined && formData.homeLng !== undefined) {
+        dataToSave.homeLat = formData.homeLat;
+        dataToSave.homeLng = formData.homeLng;
+      }
 
       if (formData.assignedPromoters && formData.assignedPromoters.length > 0) {
         dataToSave.assignedPromoters = formData.assignedPromoters;
@@ -411,9 +450,10 @@ const Usuarios: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2">
-                    {user.productLine ? productLineLabels[user.productLine] : (
-                      <span style={{ color: '#999', fontStyle: 'italic' }}>N/A (Admin)</span>
-                    )}
+                    {user.productLine
+                      ? (products.find(p => p.code === user.productLine)?.name || user.productLine)
+                      : <span style={{ color: '#999', fontStyle: 'italic' }}>N/A</span>
+                    }
                   </Typography>
                 </TableCell>
                 <TableCell>{getManagerName(user.managerId)}</TableCell>
@@ -516,7 +556,7 @@ const Usuarios: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              {/* Solo mostrar Línea de Producto si el rol NO es ADMIN ni SUPER_ADMIN */}
+              {/* Línea de Producto — dinámica desde Firestore */}
               {formData.role !== 'ADMIN' && formData.role !== 'SUPER_ADMIN' && (
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth required>
@@ -526,9 +566,10 @@ const Usuarios: React.FC = () => {
                       onChange={(e) => handleInputChange('productLine', e.target.value)}
                       label="Línea de Producto"
                     >
-                      {Object.entries(productLineLabels).map(([key, label]) => (
-                        <MenuItem key={key} value={key}>
-                          {label}
+                      <MenuItem value=""><em>Sin asignar</em></MenuItem>
+                      {products.map((p) => (
+                        <MenuItem key={p.id} value={p.code}>
+                          {p.name}
                         </MenuItem>
                       ))}
                     </Select>
@@ -568,24 +609,6 @@ const Usuarios: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Departamento"
-                  fullWidth
-                  value={formData.department}
-                  onChange={(e) => handleInputChange('department', e.target.value)}
-                  placeholder="Ej: Ventas"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Puesto"
-                  fullWidth
-                  value={formData.position}
-                  onChange={(e) => handleInputChange('position', e.target.value)}
-                  placeholder="Ej: Promotor de Ventas"
-                />
-              </Grid>
               <Grid item xs={12}>
                 <TextField
                   label="HubSpot Owner ID"
@@ -594,6 +617,40 @@ const Usuarios: React.FC = () => {
                   onChange={(e) => handleInputChange('hubspotOwnerId', e.target.value)}
                   placeholder="123456789"
                   helperText="ID del propietario en HubSpot para sincronización de contactos y deals"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Dirección de Casa"
+                  fullWidth
+                  value={formData.homeAddress || ''}
+                  onChange={(e) => handleInputChange('homeAddress', e.target.value)}
+                  placeholder="Ej: Calle Ejemplo 123, Col. Centro, Ciudad"
+                  helperText="Dirección del domicilio del vendedor (para análisis interno)"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Latitud Casa"
+                  fullWidth
+                  type="number"
+                  value={formData.homeLat ?? ''}
+                  onChange={(e) => handleInputChange('homeLat', e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="Ej: 19.432608"
+                  helperText="Coordenada latitud del domicilio"
+                  inputProps={{ step: 'any' }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Longitud Casa"
+                  fullWidth
+                  type="number"
+                  value={formData.homeLng ?? ''}
+                  onChange={(e) => handleInputChange('homeLng', e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="Ej: -99.133209"
+                  helperText="Coordenada longitud del domicilio"
+                  inputProps={{ step: 'any' }}
                 />
               </Grid>
               <Grid item xs={12}>

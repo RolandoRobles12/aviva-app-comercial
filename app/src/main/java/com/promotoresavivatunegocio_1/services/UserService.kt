@@ -46,7 +46,7 @@ class UserService {
                 updatedAt = Timestamp.now()
             )
 
-            usersCollection.document(user.id).set(updates).await()
+            usersCollection.document(user.id).set(updates, com.google.firebase.firestore.SetOptions.merge()).await()
             Result.success(true)
         } catch (e: Exception) {
             Log.e(TAG, "Error al actualizar usuario", e)
