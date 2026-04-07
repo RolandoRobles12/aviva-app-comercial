@@ -367,7 +367,8 @@ const RutasPromotores: React.FC = () => {
         const anchor = userPoints[windowStart];
         let windowEnd = windowStart;
 
-        // Expandir ventana mientras los puntos estén dentro del radio de 100m del anchor
+        // Expandir ventana mientras los puntos estén dentro del radio de 200m del anchor.
+        // Sin break: permite GPS drift (un punto fuera del radio no rompe el grupo).
         for (let j = windowStart + 1; j < userPoints.length; j++) {
           const dist = calculateDistance(
             anchor.location.latitude,
@@ -375,10 +376,8 @@ const RutasPromotores: React.FC = () => {
             userPoints[j].location.latitude,
             userPoints[j].location.longitude
           );
-          if (dist < 100) {
+          if (dist < 200) {
             windowEnd = j;
-          } else {
-            break;
           }
         }
 
@@ -426,8 +425,8 @@ const RutasPromotores: React.FC = () => {
       const currentEndTime = current.startTime.toMillis() + current.durationMinutes * 60 * 1000;
       const gapMs = stop.startTime.toMillis() - currentEndTime;
 
-      // Merge if same user, within 150 m, and the gap between end and next start is ≤ 10 min
-      if (stop.userId === current.userId && dist < 150 && gapMs <= 10 * 60 * 1000) {
+      // Merge if same user, within 400 m, and the gap between end and next start is ≤ 60 min
+      if (stop.userId === current.userId && dist < 400 && gapMs <= 60 * 60 * 1000) {
         const newEnd = Math.max(
           currentEndTime,
           stop.startTime.toMillis() + stop.durationMinutes * 60 * 1000
