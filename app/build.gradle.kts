@@ -19,7 +19,7 @@ android {
     compileSdk = 34            // Compile SDK 34
 
     defaultConfig {
-        applicationId = "com.promotoresavivatunegocio_1"
+        applicationId = "com.aviva.appcomercial"
         minSdk = 24
         targetSdk = 34         // Target SDK 34
         versionCode = 3
