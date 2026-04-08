@@ -43,10 +43,10 @@ android {
     signingConfigs {
         create("release") {
             // ➜ Ajusta la ruta y contraseñas a tu keystore
-            storeFile = file("C:/keystores/aviva_keystore.jks")
-            storePassword = "AvivaATN"
-            keyAlias = "aviva_release"
-            keyPassword = "AvivaATN"
+            storeFile = file("C:/Users/RolandoRobles/Documents/App-Comercial-Aviva.jks")
+            storePassword = "Aviva2026!"
+            keyAlias = "key-app"
+            keyPassword = "Aviva2026!"
         }
     }
 
