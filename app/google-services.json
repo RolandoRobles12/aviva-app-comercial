@@ -15,6 +15,43 @@
       },
       "oauth_client": [
         {
+          "client_id": "256021991557-r7gu3i4ejijpe6rpp62029kd1nkp9dov.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aviva.appcomercial",
+            "certificate_hash": "b6fc6ab4d2ee802e248b78530ffe007078109937"
+          }
+        },
+        {
+          "client_id": "256021991557-9lk38c1eq1jd4vac364iqfep3cfr5d8r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBd3aOrXSBldsn9GSMhjmZOBO29qq5-2rw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "256021991557-9lk38c1eq1jd4vac364iqfep3cfr5d8r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256021991557:android:d2c4aeaee2cff3546859ec",
+        "android_client_info": {
+          "package_name": "com.aviva.comercial.app"
+        }
+      },
+      "oauth_client": [
+        {
           "client_id": "256021991557-9lk38c1eq1jd4vac364iqfep3cfr5d8r.apps.googleusercontent.com",
           "client_type": 3
         }
