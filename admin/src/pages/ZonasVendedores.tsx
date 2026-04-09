@@ -20,7 +20,9 @@ import {
   Autocomplete,
   Tabs,
   Tab,
-  Tooltip
+  Tooltip,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import {
   Map as MapIcon,
@@ -60,6 +62,11 @@ interface User {
   productLine?: string;
 }
 
+interface KioskOption {
+  id: string;
+  name: string;
+}
+
 interface ZoneCoord {
   lat: number;
   lng: number;
@@ -72,6 +79,8 @@ interface Zone {
   type: 'polygon' | 'municipality' | 'colonia';
   assignedSellerId: string;
   assignedSellerName: string;
+  assignedKioskId?: string;
+  assignedKioskName?: string;
   coordinates: ZoneCoord[];
   color: string;
   isActive: boolean;
@@ -114,6 +123,9 @@ const ZonasVendedores: React.FC = () => {
 
   const [zones, setZones] = useState<Zone[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [kiosks, setKiosks] = useState<KioskOption[]>([]);
+  const [assignType, setAssignType] = useState<'seller' | 'kiosk'>('seller');
+  const [panelKiosk, setPanelKiosk] = useState<KioskOption | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +174,7 @@ const ZonasVendedores: React.FC = () => {
   useEffect(() => {
     fetchZones();
     fetchUsers();
+    fetchKiosks();
     fetchForbiddenZones();
   }, []);
 
@@ -204,6 +217,18 @@ const ZonasVendedores: React.FC = () => {
       ));
     } catch (e) {
       console.error('Error cargando usuarios:', e);
+    }
+  };
+
+  const fetchKiosks = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'kiosks'));
+      const data: KioskOption[] = snap.docs
+        .map(d => ({ id: d.id, name: d.data().name || 'Sin nombre' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setKiosks(data);
+    } catch (e) {
+      console.error('Error cargando kioscos:', e);
     }
   };
 
@@ -311,10 +336,12 @@ const ZonasVendedores: React.FC = () => {
     polygon.setMap(null); // Quitar el polígono temporal
     setPendingPolygon(coords);
     setNewZoneType('polygon');
-    setNewZoneSeller(panelSeller); // Pre-populate seller from panel
+    if (assignType === 'seller') {
+      setNewZoneSeller(panelSeller); // Pre-populate seller from panel
+    }
     setNewZoneDialog(true);
     setDrawingMode('none');
-  }, [panelSeller]);
+  }, [panelSeller, assignType]);
 
   const generateZoneName = (start: string, end: string): string => {
     const fmt = (d: string) => {
@@ -349,8 +376,12 @@ const ZonasVendedores: React.FC = () => {
       setError('Debes seleccionar el rango de fechas de la zona');
       return;
     }
-    if (!newZoneSeller) {
+    if (assignType === 'seller' && !newZoneSeller) {
       setError('Debes asignar un vendedor a la zona');
+      return;
+    }
+    if (assignType === 'kiosk' && !panelKiosk) {
+      setError('Debes seleccionar un kiosco');
       return;
     }
 
@@ -374,8 +405,12 @@ const ZonasVendedores: React.FC = () => {
         name: generatedName,
         description: newZoneDescription.trim(),
         type: newZoneType,
-        assignedSellerId: newZoneSeller.id,
-        assignedSellerName: newZoneSeller.displayName,
+        assignedSellerId: assignType === 'seller' ? (newZoneSeller?.id || '') : '',
+        assignedSellerName: assignType === 'seller' ? (newZoneSeller?.displayName || '') : '',
+        ...(assignType === 'kiosk' && panelKiosk && {
+          assignedKioskId: panelKiosk.id,
+          assignedKioskName: panelKiosk.name,
+        }),
         coordinates,
         color: ZONE_COLOR,
         isActive: true,
@@ -505,8 +540,28 @@ const ZonasVendedores: React.FC = () => {
     );
   }
 
-  const activeZones = zones.filter(z => z.isActive);
+  const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  // Expired zones are excluded from the map (but kept in the admin list for records)
+  const activeZones = zones.filter(z => {
+    if (!z.isActive) return false;
+    if (z.endDate && z.endDate < today) return false;
+    return true;
+  });
   const visibleZones = activeZones.filter(z => !hiddenZones.has(z.id));
+
+  // "Mis Zonas" list: filter by the currently selected seller or kiosk
+  const filteredListZones = (() => {
+    if (assignType === 'seller' && panelSeller) {
+      return zones.filter(z => z.assignedSellerId === panelSeller.id);
+    }
+    if (assignType === 'kiosk' && panelKiosk) {
+      return zones.filter(z => z.assignedKioskId === panelKiosk.id);
+    }
+    return zones; // Show all when nothing is selected
+  })();
+
+  // Whether the user has selected an entity (seller or kiosk) in the panel
+  const hasEntity = assignType === 'seller' ? !!panelSeller : !!panelKiosk;
 
   return (
     <Box sx={{
@@ -554,7 +609,7 @@ const ZonasVendedores: React.FC = () => {
           variant="fullWidth"
         >
           <Tab label="Crear Zona" />
-          <Tab label={`Mis Zonas (${zones.length})`} />
+          <Tab label={`Mis Zonas (${filteredListZones.length})`} />
           <Tab
             label={`🚫 Prohibidas${forbiddenZones.length > 0 ? ` (${forbiddenZones.length})` : ''}`}
             sx={{ color: selectedTab === 2 ? 'error.main' : undefined }}
@@ -575,22 +630,52 @@ const ZonasVendedores: React.FC = () => {
               </Alert>
             )}
 
-            {/* Paso 1: Seleccionar vendedor */}
+            {/* Paso 1: Seleccionar vendedor o kiosco */}
             <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-              1. Selecciona el vendedor:
+              1. Selecciona el vendedor o kiosco:
             </Typography>
-            <Autocomplete
-              options={users}
-              value={panelSeller}
-              onChange={(_, v) => setPanelSeller(v)}
-              getOptionLabel={u => u.displayName}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              renderOption={(props, u) => <li {...props} key={u.id}>{u.displayName}</li>}
-              renderInput={(params) => (
-                <TextField {...params} label="Vendedor *" size="small" placeholder="Selecciona primero el vendedor" />
-              )}
-              sx={{ mb: 2 }}
-            />
+            <ToggleButtonGroup
+              value={assignType}
+              exclusive
+              size="small"
+              onChange={(_, v) => {
+                if (!v) return;
+                setAssignType(v);
+                setPanelSeller(null);
+                setPanelKiosk(null);
+              }}
+              sx={{ mb: 1.5 }}
+            >
+              <ToggleButton value="seller">Vendedor</ToggleButton>
+              <ToggleButton value="kiosk">Kiosco</ToggleButton>
+            </ToggleButtonGroup>
+            {assignType === 'seller' ? (
+              <Autocomplete
+                options={users}
+                value={panelSeller}
+                onChange={(_, v) => setPanelSeller(v)}
+                getOptionLabel={u => u.displayName}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderOption={(props, u) => <li {...props} key={u.id}>{u.displayName}</li>}
+                renderInput={(params) => (
+                  <TextField {...params} label="Vendedor *" size="small" placeholder="Selecciona primero el vendedor" />
+                )}
+                sx={{ mb: 2 }}
+              />
+            ) : (
+              <Autocomplete
+                options={kiosks}
+                value={panelKiosk}
+                onChange={(_, v) => setPanelKiosk(v)}
+                getOptionLabel={k => k.name}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderOption={(props, k) => <li {...props} key={k.id}>{k.name}</li>}
+                renderInput={(params) => (
+                  <TextField {...params} label="Kiosco *" size="small" placeholder="Selecciona el kiosco" />
+                )}
+                sx={{ mb: 2 }}
+              />
+            )}
 
             {/* Paso 2: Tipo de zona */}
             <Typography variant="subtitle2" fontWeight={700} gutterBottom>
@@ -610,12 +695,12 @@ const ZonasVendedores: React.FC = () => {
                     Dibuja libremente el área en el mapa
                   </Typography>
                 </Box>
-                <Tooltip title={!panelSeller ? 'Selecciona un vendedor primero' : ''}>
+                <Tooltip title={!hasEntity ? 'Selecciona un vendedor o kiosco primero' : ''}>
                   <span>
                     <Button
                       variant={drawingMode === 'polygon' ? 'contained' : 'outlined'}
                       size="small"
-                      disabled={!panelSeller}
+                      disabled={!hasEntity}
                       onClick={() => setDrawingMode(drawingMode === 'polygon' ? 'none' : 'polygon')}
                     >
                       {drawingMode === 'polygon' ? 'Cancelar' : 'Dibujar'}
@@ -668,16 +753,16 @@ const ZonasVendedores: React.FC = () => {
                     />
                   )}
                 />
-                <Tooltip title={!panelSeller ? 'Selecciona un vendedor primero' : ''}>
+                <Tooltip title={!hasEntity ? 'Selecciona un vendedor o kiosco primero' : ''}>
                   <span>
                     <Button
                       variant="outlined"
                       size="small"
                       fullWidth
-                      disabled={!panelSeller || !newZoneState || !newZoneMunicipality}
+                      disabled={!hasEntity || !newZoneState || !newZoneMunicipality}
                       onClick={() => {
                         setNewZoneType('municipality');
-                        setNewZoneSeller(panelSeller);
+                        if (assignType === 'seller') setNewZoneSeller(panelSeller);
                         setNewZoneDialog(true);
                       }}
                       startIcon={<AddIcon />}
@@ -741,17 +826,17 @@ const ZonasVendedores: React.FC = () => {
                   value={newZonePostalCode}
                   onChange={e => setNewZonePostalCode(e.target.value)}
                 />
-                <Tooltip title={!panelSeller ? 'Selecciona un vendedor primero' : ''}>
+                <Tooltip title={!hasEntity ? 'Selecciona un vendedor o kiosco primero' : ''}>
                   <span>
                     <Button
                       variant="outlined"
                       size="small"
                       color="success"
                       fullWidth
-                      disabled={!panelSeller || !newZoneState || !newZoneMunicipality || !newZoneColonia}
+                      disabled={!hasEntity || !newZoneState || !newZoneMunicipality || !newZoneColonia}
                       onClick={() => {
                         setNewZoneType('colonia');
-                        setNewZoneSeller(panelSeller);
+                        if (assignType === 'seller') setNewZoneSeller(panelSeller);
                         setNewZoneDialog(true);
                       }}
                       startIcon={<AddIcon />}
@@ -768,64 +853,88 @@ const ZonasVendedores: React.FC = () => {
         {/* Tab: Lista de zonas */}
         {selectedTab === 1 && (
           <Box sx={{ flex: 1, overflow: 'auto' }}>
+            {/* Filter banner */}
+            <Box sx={{ px: 1.5, pt: 1.5 }}>
+              {assignType === 'seller' && panelSeller ? (
+                <Alert severity="info" icon={false} sx={{ py: 0.5, mb: 1 }}>
+                  Vendedor: <strong>{panelSeller.displayName}</strong>
+                </Alert>
+              ) : assignType === 'kiosk' && panelKiosk ? (
+                <Alert severity="info" icon={false} sx={{ py: 0.5, mb: 1 }}>
+                  Kiosco: <strong>{panelKiosk.name}</strong>
+                </Alert>
+              ) : (
+                <Alert severity="info" icon={false} sx={{ py: 0.5, mb: 1 }}>
+                  Selecciona un vendedor o kiosco en "Crear Zona" para filtrar
+                </Alert>
+              )}
+            </Box>
             {loading ? (
               <Box sx={{ p: 3, textAlign: 'center' }}>
                 <CircularProgress size={40} />
               </Box>
-            ) : zones.length === 0 ? (
+            ) : filteredListZones.length === 0 ? (
               <Box sx={{ p: 3, textAlign: 'center' }}>
                 <MapIcon sx={{ fontSize: 50, color: 'text.disabled', mb: 1 }} />
                 <Typography color="text.secondary">
-                  No hay zonas creadas aún
+                  No hay zonas para esta selección
                 </Typography>
               </Box>
             ) : (
               <List dense>
-                {zones.map(zone => (
-                  <ListItem key={zone.id} disablePadding>
-                    <Box sx={{ px: 1.5, py: 0.5, width: '100%' }}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            bgcolor: zone.color,
-                            flexShrink: 0
-                          }}
-                        />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {zone.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {zone.assignedSellerName} • {getZoneTypeLabel(zone.type)}
-                          </Typography>
-                        </Box>
-                        <Tooltip title={hiddenZones.has(zone.id) ? 'Mostrar' : 'Ocultar'}>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleToggleZoneVisibility(zone.id)}
-                          >
-                            {hiddenZones.has(zone.id)
-                              ? <VisibilityOffIcon fontSize="small" color="disabled" />
-                              : <VisibilityIcon fontSize="small" />
-                            }
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar zona">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => setDeleteDialog(zone)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </Box>
-                  </ListItem>
-                ))}
+                {filteredListZones.map(zone => {
+                  const isExpired = !!(zone.endDate && zone.endDate < today);
+                  return (
+                    <ListItem key={zone.id} disablePadding>
+                      <Box sx={{ px: 1.5, py: 0.5, width: '100%', opacity: isExpired ? 0.5 : 1 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              bgcolor: isExpired ? 'text.disabled' : zone.color,
+                              flexShrink: 0
+                            }}
+                          />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.5}>
+                              <Typography variant="body2" fontWeight={600} noWrap>
+                                {zone.name}
+                              </Typography>
+                              {isExpired && (
+                                <Chip label="Caducada" size="small" color="default" sx={{ height: 16, fontSize: 10 }} />
+                              )}
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {zone.assignedKioskName || zone.assignedSellerName || 'Sin asignar'} • {getZoneTypeLabel(zone.type)}
+                            </Typography>
+                          </Box>
+                          <Tooltip title={hiddenZones.has(zone.id) ? 'Mostrar' : 'Ocultar'}>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleToggleZoneVisibility(zone.id)}
+                            >
+                              {hiddenZones.has(zone.id)
+                                ? <VisibilityOffIcon fontSize="small" color="disabled" />
+                                : <VisibilityIcon fontSize="small" />
+                              }
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar zona">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeleteDialog(zone)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </Box>
+                    </ListItem>
+                  );
+                })}
               </List>
             )}
           </Box>
@@ -1038,7 +1147,8 @@ const ZonasVendedores: React.FC = () => {
                 </Typography>
                 <Divider sx={{ my: 0.5 }} />
                 <Typography variant="body2">
-                  <strong>Vendedor:</strong> {selectedZone.assignedSellerName}
+                  <strong>{selectedZone.assignedKioskId ? 'Kiosco:' : 'Vendedor:'}</strong>{' '}
+                  {selectedZone.assignedKioskName || selectedZone.assignedSellerName || '—'}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Tipo:</strong> {getZoneTypeLabel(selectedZone.type)}
@@ -1139,17 +1249,23 @@ const ZonasVendedores: React.FC = () => {
               onChange={e => setNewZoneDescription(e.target.value)}
             />
 
-            <Autocomplete
-              options={users}
-              value={newZoneSeller}
-              onChange={(_, v) => setNewZoneSeller(v)}
-              getOptionLabel={u => `${u.displayName} (${u.email})`}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              renderOption={(props, u) => <li {...props} key={u.id}>{u.displayName} ({u.email})</li>}
-              renderInput={(params) => (
-                <TextField {...params} label="Asignar a vendedor *" />
-              )}
-            />
+            {assignType === 'seller' ? (
+              <Autocomplete
+                options={users}
+                value={newZoneSeller}
+                onChange={(_, v) => setNewZoneSeller(v)}
+                getOptionLabel={u => `${u.displayName} (${u.email})`}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderOption={(props, u) => <li {...props} key={u.id}>{u.displayName} ({u.email})</li>}
+                renderInput={(params) => (
+                  <TextField {...params} label="Asignar a vendedor *" />
+                )}
+              />
+            ) : (
+              <Alert severity="info">
+                Kiosco asignado: <strong>{panelKiosk?.name}</strong>
+              </Alert>
+            )}
 
 
             {newZoneType === 'polygon' && pendingPolygon && (
@@ -1172,7 +1288,7 @@ const ZonasVendedores: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleSaveZone}
-            disabled={saving || !newZoneStartDate || !newZoneEndDate || !newZoneSeller}
+            disabled={saving || !newZoneStartDate || !newZoneEndDate || (assignType === 'seller' ? !newZoneSeller : !panelKiosk)}
             startIcon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
           >
             {saving ? 'Guardando...' : 'Guardar Zona'}
@@ -1185,8 +1301,11 @@ const ZonasVendedores: React.FC = () => {
         <DialogTitle>Eliminar zona</DialogTitle>
         <DialogContent>
           <Typography>
-            ¿Estás seguro de eliminar la zona <strong>"{deleteDialog?.name}"</strong>?
-            El vendedor <strong>{deleteDialog?.assignedSellerName}</strong> perderá acceso a esta zona.
+            ¿Estás seguro de eliminar la zona <strong>"{deleteDialog?.name}"</strong>?{' '}
+            {deleteDialog?.assignedKioskId
+              ? <>El kiosco <strong>{deleteDialog?.assignedKioskName}</strong> perderá acceso a esta zona.</>
+              : <>El vendedor <strong>{deleteDialog?.assignedSellerName}</strong> perderá acceso a esta zona.</>
+            }
           </Typography>
         </DialogContent>
         <DialogActions>

@@ -97,8 +97,15 @@ class ZoneMapFragment : Fragment(), OnMapReadyCallback {
                 assignedZonePoints.clear()
                 forbiddenZonePoints.clear()
 
+                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                    .format(java.util.Date())
+
                 // Zonas asignadas — verde
                 for (doc in assignedSnap.documents) {
+                    // Skip expired zones
+                    val endDate = doc.getString("endDate") ?: ""
+                    if (endDate.isNotEmpty() && endDate < todayStr) continue
+
                     @Suppress("UNCHECKED_CAST")
                     val raw = doc.get("coordinates") as? List<Map<String, Any>> ?: continue
                     val pts = parsePoints(raw)

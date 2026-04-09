@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Button,
@@ -52,6 +52,23 @@ import {
   DEFAULT_WEEKLY_SCHEDULE
 } from '../types/kiosk';
 import KioskImport from '../components/KioskImport';
+import { useLoadScript } from '@react-google-maps/api';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+
+const PLACES_LIBRARIES: ('places')[] = ['places'];
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+/** Maps Google's long state names to the shorter names used in the app */
+const normalizeStateName = (googleState: string): string => {
+  const stateMap: Record<string, string> = {
+    'México': 'Estado de México',
+    'Michoacán de Ocampo': 'Michoacán',
+    'Veracruz de Ignacio de la Llave': 'Veracruz',
+    'Coahuila de Zaragoza': 'Coahuila',
+    'Querétaro de Arteaga': 'Querétaro',
+  };
+  return stateMap[googleState] || googleState;
+};
 
 interface Product {
   id: string;
@@ -87,10 +104,74 @@ const Kioscos: React.FC = () => {
   const [mapLat, setMapLat] = useState<string>('');
   const [mapLng, setMapLng] = useState<string>('');
 
+  const { isLoaded: mapsLoaded } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: PLACES_LIBRARIES,
+  });
+  const addressInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchKiosks();
     fetchProducts();
   }, []);
+
+  // Elevate pac-container above MUI Dialog (z-index 1300)
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = '.pac-container { z-index: 1400 !important; }';
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+
+  // Attach Google Places Autocomplete to address input when dialog opens
+  useEffect(() => {
+    if (!mapsLoaded || !dialogOpen) return;
+    const timer = setTimeout(() => {
+      if (!addressInputRef.current) return;
+      const ac = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'mx' },
+      });
+      const listener = ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (place.geometry?.location) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          setMapLat(lat.toString());
+          setMapLng(lng.toString());
+
+          let extractedState = '';
+          let extractedCity = '';
+          for (const comp of place.address_components || []) {
+            if (comp.types.includes('administrative_area_level_1')) {
+              extractedState = normalizeStateName(comp.long_name);
+            }
+            if (comp.types.includes('locality')) {
+              extractedCity = comp.long_name;
+            }
+            if (!extractedCity && comp.types.includes('sublocality_level_1')) {
+              extractedCity = comp.long_name;
+            }
+            if (!extractedCity && comp.types.includes('administrative_area_level_2')) {
+              extractedCity = comp.long_name;
+            }
+          }
+
+          setFormData(prev => ({
+            ...prev,
+            address: place.formatted_address || '',
+            ...(extractedState && { state: extractedState }),
+            ...(extractedCity && { city: extractedCity }),
+          }));
+          if (addressInputRef.current) {
+            addressInputRef.current.value = place.formatted_address || '';
+          }
+        }
+      });
+      return () => { window.google.maps.event.removeListener(listener); };
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [mapsLoaded, dialogOpen]);
 
   const fetchKiosks = async () => {
     try {
@@ -547,11 +628,15 @@ const Kioscos: React.FC = () => {
 
               <Grid item xs={12} sm={6}>
                 <TextField
+                  key={editingKiosk?.id ?? 'new-kiosk-addr'}
                   label="Dirección"
                   fullWidth
-                  value={formData.address || ''}
+                  inputRef={addressInputRef}
+                  defaultValue={formData.address || ''}
                   onChange={e => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Ej: Av. Principal 123"
+                  placeholder={mapsLoaded ? 'Escribe la dirección y selecciona del desplegable…' : 'Cargando buscador de mapas…'}
+                  disabled={!mapsLoaded}
+                  helperText="Al seleccionar del desplegable se completan estado, ciudad y coordenadas"
                 />
               </Grid>
 
@@ -586,13 +671,20 @@ const Kioscos: React.FC = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Obtén las coordenadas de{' '}
-                  <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer">
-                    Google Maps
-                  </a>{' '}
-                  haciendo clic derecho en el mapa
-                </Typography>
+                {mapLat && mapLng && !isNaN(parseFloat(mapLat)) && !isNaN(parseFloat(mapLng)) ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<OpenInNewIcon />}
+                    onClick={() => window.open(`https://www.google.com/maps?q=${mapLat},${mapLng}`, '_blank')}
+                  >
+                    Verificar ubicación en Google Maps
+                  </Button>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Las coordenadas, estado y ciudad se llenan automáticamente al seleccionar una dirección del autocompletado
+                  </Typography>
+                )}
               </Grid>
 
               <Grid item xs={12} sm={6}>
