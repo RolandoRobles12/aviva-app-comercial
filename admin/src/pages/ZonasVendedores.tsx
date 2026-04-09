@@ -541,13 +541,6 @@ const ZonasVendedores: React.FC = () => {
   }
 
   const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
-  // Expired zones are excluded from the map (but kept in the admin list for records)
-  const activeZones = zones.filter(z => {
-    if (!z.isActive) return false;
-    if (z.endDate && z.endDate < today) return false;
-    return true;
-  });
-  const visibleZones = activeZones.filter(z => !hiddenZones.has(z.id));
 
   // "Mis Zonas" list: filter by the currently selected seller or kiosk
   const filteredListZones = (() => {
@@ -558,6 +551,37 @@ const ZonasVendedores: React.FC = () => {
       return zones.filter(z => z.assignedKioskId === panelKiosk.id);
     }
     return zones; // Show all when nothing is selected
+  })();
+
+  // Map zones: same entity filter + exclude expired + respect hide toggle
+  const visibleZones = (() => {
+    const base = zones.filter(z => {
+      if (!z.isActive) return false;
+      if (z.endDate && z.endDate < today) return false;
+      return true;
+    });
+    const entityFiltered = (() => {
+      if (assignType === 'seller' && panelSeller) {
+        return base.filter(z => z.assignedSellerId === panelSeller.id);
+      }
+      if (assignType === 'kiosk' && panelKiosk) {
+        return base.filter(z => z.assignedKioskId === panelKiosk.id);
+      }
+      return base;
+    })();
+    return entityFiltered.filter(z => !hiddenZones.has(z.id));
+  })();
+
+  // Forbidden zones on map: when a seller is selected, show only those that apply to them
+  // (global ones with empty assignedPromotorIds, or explicitly assigned to this seller)
+  const visibleForbiddenZones = (() => {
+    if (assignType === 'seller' && panelSeller) {
+      return forbiddenZones.filter(fz =>
+        !fz.assignedPromotorIds || fz.assignedPromotorIds.length === 0 ||
+        fz.assignedPromotorIds.includes(panelSeller.id)
+      );
+    }
+    return forbiddenZones;
   })();
 
   // Whether the user has selected an entity (seller or kiosk) in the panel
@@ -595,7 +619,7 @@ const ZonasVendedores: React.FC = () => {
                 Gestión de Zonas
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                {activeZones.length} venta · {forbiddenZones.length} prohibidas
+                {visibleZones.length} venta · {visibleForbiddenZones.length} prohibidas
               </Typography>
             </Box>
           </Stack>
@@ -1059,8 +1083,8 @@ const ZonasVendedores: React.FC = () => {
             />
           )}
 
-          {/* Zonas prohibidas (siempre visibles en el mapa) */}
-          {forbiddenZones
+          {/* Zonas prohibidas — filtradas por vendedor seleccionado */}
+          {visibleForbiddenZones
             .filter(z => z.coordinates && z.coordinates.length >= 3)
             .map(zone => (
               <Polygon
