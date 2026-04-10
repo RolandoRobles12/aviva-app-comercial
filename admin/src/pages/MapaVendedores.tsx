@@ -326,7 +326,7 @@ const MapaVendedores: React.FC = () => {
       if (showOnlyActive && vendor.status === 'inactive') return false;
       if (filterProductLine !== 'all' && (vendor.productLine?.toLowerCase() || '') !== filterProductLine) return false;
       return true;
-    });
+    }).sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
   }, [vendors, searchQuery, showOnlyActive, filterProductLine]);
 
   const stats = useMemo(() => {

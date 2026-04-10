@@ -211,7 +211,7 @@ const Usuarios: React.FC = () => {
         u.role === 'ADMIN' ||
         u.role === 'SUPER_ADMIN'
       );
-      setManagers(managersData);
+      setManagers(managersData.sort((a, b) => a.displayName.localeCompare(b.displayName, 'es')));
     } catch (err) {
       setError('Error al cargar usuarios');
       console.error(err);

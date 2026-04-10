@@ -135,7 +135,7 @@ const Visitas: React.FC = () => {
         displayName: d.data().displayName || d.data().email || '',
         email: d.data().email || '',
         productLine: d.data().productLine,
-      })));
+      })).sort((a, b) => a.displayName.localeCompare(b.displayName, 'es')));
     } catch { /* ignorar */ }
   };
 

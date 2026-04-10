@@ -192,7 +192,7 @@ const Kioscos: React.FC = () => {
         ...doc.data()
       })) as Kiosk[];
 
-      setKiosks(kiosksData);
+      setKiosks(kiosksData.sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true })));
     } catch (err: any) {
       console.error('Error fetching kiosks:', err);
       setError(err.message || 'Error al cargar kioscos');
