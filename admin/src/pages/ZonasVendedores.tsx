@@ -18,6 +18,10 @@ import {
   DialogContent,
   DialogActions,
   Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Tabs,
   Tab,
   Tooltip,
@@ -60,6 +64,12 @@ interface User {
   displayName: string;
   email: string;
   productLine?: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface KioskOption {
@@ -123,6 +133,8 @@ const ZonasVendedores: React.FC = () => {
 
   const [zones, setZones] = useState<Zone[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filterProductLine, setFilterProductLine] = useState('all');
   const [kiosks, setKiosks] = useState<KioskOption[]>([]);
   const [assignType, setAssignType] = useState<'seller' | 'kiosk'>('seller');
   const [panelKiosk, setPanelKiosk] = useState<KioskOption | null>(null);
@@ -176,6 +188,7 @@ const ZonasVendedores: React.FC = () => {
     fetchUsers();
     fetchKiosks();
     fetchForbiddenZones();
+    fetchProducts();
   }, []);
 
   const fetchZones = async () => {
@@ -229,6 +242,19 @@ const ZonasVendedores: React.FC = () => {
       setKiosks(data);
     } catch (e) {
       console.error('Error cargando kioscos:', e);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'products'));
+      const data: Product[] = snap.docs
+        .filter(d => d.data().isActive !== false)
+        .map(d => ({ id: d.id, name: d.data().name || d.data().code, code: d.data().code || '' }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      setProducts(data);
+    } catch (e) {
+      console.error('Error cargando productos:', e);
     }
   };
 
@@ -542,6 +568,11 @@ const ZonasVendedores: React.FC = () => {
 
   const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
 
+  // Usuarios filtrados por línea de producto para el selector del panel
+  const filteredUsers = filterProductLine === 'all'
+    ? users
+    : users.filter(u => u.productLine?.toLowerCase() === filterProductLine.toLowerCase());
+
   // "Mis Zonas" list: filter by the currently selected seller or kiosk
   const filteredListZones = (() => {
     if (assignType === 'seller' && panelSeller) {
@@ -674,8 +705,25 @@ const ZonasVendedores: React.FC = () => {
               <ToggleButton value="kiosk">Kiosco</ToggleButton>
             </ToggleButtonGroup>
             {assignType === 'seller' ? (
-              <Autocomplete
-                options={users}
+              <>
+                <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
+                  <InputLabel>Filtrar por producto</InputLabel>
+                  <Select
+                    value={filterProductLine}
+                    label="Filtrar por producto"
+                    onChange={(e) => {
+                      setFilterProductLine(e.target.value);
+                      setPanelSeller(null); // reset seller when product changes
+                    }}
+                  >
+                    <MenuItem value="all">Todos los productos</MenuItem>
+                    {products.map((p) => (
+                      <MenuItem key={p.id} value={p.code}>{p.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Autocomplete
+                options={filteredUsers}
                 value={panelSeller}
                 onChange={(_, v) => setPanelSeller(v)}
                 getOptionLabel={u => u.displayName}
@@ -686,6 +734,7 @@ const ZonasVendedores: React.FC = () => {
                 )}
                 sx={{ mb: 2 }}
               />
+              </>
             ) : (
               <Autocomplete
                 options={kiosks}
