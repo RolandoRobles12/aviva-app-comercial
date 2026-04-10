@@ -135,7 +135,7 @@ const Visitas: React.FC = () => {
         displayName: d.data().displayName || d.data().email || '',
         email: d.data().email || '',
         productLine: d.data().productLine,
-      })));
+      })).sort((a, b) => a.displayName.localeCompare(b.displayName, 'es')));
     } catch { /* ignorar */ }
   };
 
@@ -213,7 +213,8 @@ const Visitas: React.FC = () => {
     if (filterUser !== 'all' && v.userId !== filterUser && v.userEmail !== filterUser) return false;
     if (filterProduct !== 'all') {
       const userForVisit = users.find((u) => u.id === v.userId || u.email === v.userEmail);
-      if (userForVisit && userForVisit.productLine?.toLowerCase() !== filterProduct.toLowerCase()) return false;
+      const effectiveProductLine = userForVisit?.productLine || v.productLine;
+      if (!effectiveProductLine || effectiveProductLine.toLowerCase() !== filterProduct.toLowerCase()) return false;
     }
     if (filterDateFrom) {
       const from = new Date(filterDateFrom + 'T00:00:00');

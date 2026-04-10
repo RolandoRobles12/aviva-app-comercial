@@ -9,6 +9,7 @@ import {
   DialogTitle,
   IconButton,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -29,6 +30,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import {
   collection,
   getDocs,
@@ -125,6 +127,12 @@ const Usuarios: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Filtros
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<UserStatus | 'all'>('all');
+  const [filterProduct, setFilterProduct] = useState('all');
+
   // Eleva el z-index del dropdown de Google Places por encima del Dialog de MUI (1300)
   useEffect(() => {
     const style = document.createElement('style');
@@ -203,7 +211,7 @@ const Usuarios: React.FC = () => {
         u.role === 'ADMIN' ||
         u.role === 'SUPER_ADMIN'
       );
-      setManagers(managersData);
+      setManagers(managersData.sort((a, b) => a.displayName.localeCompare(b.displayName, 'es')));
     } catch (err) {
       setError('Error al cargar usuarios');
       console.error(err);
@@ -418,6 +426,21 @@ const Usuarios: React.FC = () => {
     }
   };
 
+  const filteredUsers = users.filter((u) => {
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase();
+      if (
+        !u.displayName.toLowerCase().includes(q) &&
+        !u.email.toLowerCase().includes(q) &&
+        !(u.employeeId?.toLowerCase().includes(q))
+      ) return false;
+    }
+    if (filterRole !== 'all' && u.role !== filterRole) return false;
+    if (filterStatus !== 'all' && u.status !== filterStatus) return false;
+    if (filterProduct !== 'all' && (u.productLine?.toLowerCase() || '') !== filterProduct.toLowerCase()) return false;
+    return true;
+  });
+
   const getManagerName = (managerId?: string) => {
     if (!managerId) return '-';
     const manager = managers.find(m => m.id === managerId);
@@ -455,6 +478,60 @@ const Usuarios: React.FC = () => {
         <strong> Inactivos:</strong> {users.filter(u => u.status === 'INACTIVE').length}
       </Alert>
 
+      {/* Filtros */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+          <FilterListIcon color="action" fontSize="small" />
+          <Typography variant="subtitle2" fontWeight={700}>Filtros</Typography>
+        </Stack>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth size="small" label="Buscar"
+              placeholder="Nombre, email o ID empleado"
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Rol</InputLabel>
+              <Select value={filterRole} label="Rol" onChange={(e) => setFilterRole(e.target.value as UserRole | 'all')}>
+                <MenuItem value="all">Todos los roles</MenuItem>
+                {(Object.entries(roleLabels) as [UserRole, string][]).map(([key, label]) => (
+                  <MenuItem key={key} value={key}>{label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select value={filterStatus} label="Estado" onChange={(e) => setFilterStatus(e.target.value as UserStatus | 'all')}>
+                <MenuItem value="all">Todos los estados</MenuItem>
+                {(Object.entries(statusLabels) as [UserStatus, string][]).map(([key, label]) => (
+                  <MenuItem key={key} value={key}>{label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Línea de Producto</InputLabel>
+              <Select value={filterProduct} label="Línea de Producto" onChange={(e) => setFilterProduct(e.target.value)}>
+                <MenuItem value="all">Todos los productos</MenuItem>
+                {products.map((p) => (
+                  <MenuItem key={p.id} value={p.code}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+        <Typography variant="caption" color="text.secondary" mt={1} display="block">
+          Mostrando {filteredUsers.length} de {users.length} usuarios
+        </Typography>
+      </Paper>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -470,7 +547,15 @@ const Usuarios: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.map((user) => (
+            {filteredUsers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Typography variant="body2" color="text.secondary" py={3}>
+                    No hay usuarios que coincidan con los filtros.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : filteredUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>

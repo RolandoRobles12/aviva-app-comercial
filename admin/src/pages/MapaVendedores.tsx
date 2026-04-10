@@ -14,6 +14,10 @@ import {
   Avatar,
   TextField,
   Switch,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   FormControlLabel,
   Divider,
   Tooltip,
@@ -99,6 +103,7 @@ interface VendorData {
 interface ProductData {
   id: string;
   code: string;
+  name?: string;
   isFieldSeller?: boolean;
 }
 
@@ -167,27 +172,34 @@ const MapaVendedores: React.FC = () => {
   const [rawUsers, setRawUsers] = useState<RawUser[]>([]);
   const [kiosks, setKiosks] = useState<KioskData[]>([]);
   const [fieldSellerCodes, setFieldSellerCodes] = useState<Set<string>>(new Set());
+  const [productsList, setProductsList] = useState<{ code: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<VendorData | null>(null);
   const [selectedKiosk, setSelectedKiosk] = useState<KioskData | null>(null);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterProductLine, setFilterProductLine] = useState('all');
   const [showKiosks, setShowKiosks] = useState(false);
   const [showRadiusCircles, setShowRadiusCircles] = useState(false);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [showHomes, setShowHomes] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Cargar productos para identificar vendedores de campo
+  // Cargar productos para identificar vendedores de campo y poblar el filtro
   useEffect(() => {
     getDocs(collection(db, 'products')).then(snapshot => {
       const codes = new Set<string>();
+      const list: { code: string; name: string }[] = [];
       snapshot.docs.forEach(doc => {
         const data = doc.data() as ProductData;
-        if (data.isFieldSeller && data.code) codes.add(data.code.toLowerCase());
+        if (data.code) {
+          if (data.isFieldSeller) codes.add(data.code.toLowerCase());
+          list.push({ code: data.code.toLowerCase(), name: data.name || data.code });
+        }
       });
       setFieldSellerCodes(codes);
+      setProductsList(list.sort((a, b) => a.name.localeCompare(b.name)));
     }).catch(err => console.error('Error loading products:', err));
   }, []);
 
@@ -312,9 +324,10 @@ const MapaVendedores: React.FC = () => {
         if (!matches) return false;
       }
       if (showOnlyActive && vendor.status === 'inactive') return false;
+      if (filterProductLine !== 'all' && (vendor.productLine?.toLowerCase() || '') !== filterProductLine) return false;
       return true;
-    });
-  }, [vendors, searchQuery, showOnlyActive]);
+    }).sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+  }, [vendors, searchQuery, showOnlyActive, filterProductLine]);
 
   const stats = useMemo(() => {
     const inZone = filteredVendors.filter(v => v.status === 'active_in_zone').length;
@@ -509,6 +522,20 @@ const MapaVendedores: React.FC = () => {
                 }}
                 sx={{ mb: 2 }}
               />
+
+              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <InputLabel>Línea de Producto</InputLabel>
+                <Select
+                  value={filterProductLine}
+                  label="Línea de Producto"
+                  onChange={(e) => setFilterProductLine(e.target.value)}
+                >
+                  <MenuItem value="all">Todos los productos</MenuItem>
+                  {productsList.map((p) => (
+                    <MenuItem key={p.code} value={p.code}>{p.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <Stack spacing={1}>
                 <FormControlLabel
