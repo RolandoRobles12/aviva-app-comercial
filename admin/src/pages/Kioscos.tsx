@@ -8,6 +8,7 @@ import {
   DialogTitle,
   IconButton,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -54,6 +55,7 @@ import {
 import KioskImport from '../components/KioskImport';
 import { useLoadScript } from '@react-google-maps/api';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import FilterListIcon from '@mui/icons-material/FilterList';
 
 const PLACES_LIBRARIES: ('places')[] = ['places'];
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
@@ -84,6 +86,12 @@ const Kioscos: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Filtros
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterProduct, setFilterProduct] = useState('all');
+  const [filterState, setFilterState] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -217,6 +225,19 @@ const Kioscos: React.FC = () => {
     const product = products.find(p => p.code === code);
     return product ? product.name : code;
   };
+
+  const uniqueStates = Array.from(new Set(kiosks.map(k => k.state).filter(Boolean))).sort();
+
+  const filteredKiosks = kiosks.filter((k) => {
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase();
+      if (!k.name.toLowerCase().includes(q) && !k.city?.toLowerCase().includes(q)) return false;
+    }
+    if (filterProduct !== 'all' && k.productType !== filterProduct) return false;
+    if (filterState !== 'all' && k.state !== filterState) return false;
+    if (filterStatus !== 'all' && k.status !== filterStatus) return false;
+    return true;
+  });
 
   const handleOpenDialog = (kiosk?: Kiosk) => {
     if (kiosk) {
@@ -465,6 +486,61 @@ const Kioscos: React.FC = () => {
         </Alert>
       )}
 
+      {/* Filtros */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+          <FilterListIcon color="action" fontSize="small" />
+          <Typography variant="subtitle2" fontWeight={700}>Filtros</Typography>
+        </Stack>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth size="small" label="Buscar"
+              placeholder="Nombre o ciudad"
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Tipo de Producto</InputLabel>
+              <Select value={filterProduct} label="Tipo de Producto" onChange={(e) => setFilterProduct(e.target.value)}>
+                <MenuItem value="all">Todos los productos</MenuItem>
+                {products.map((p) => (
+                  <MenuItem key={p.id} value={p.code}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select value={filterState} label="Estado" onChange={(e) => setFilterState(e.target.value)}>
+                <MenuItem value="all">Todos los estados</MenuItem>
+                {uniqueStates.map((s) => (
+                  <MenuItem key={s} value={s}>{s}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estatus</InputLabel>
+              <Select value={filterStatus} label="Estatus" onChange={(e) => setFilterStatus(e.target.value)}>
+                <MenuItem value="all">Todos</MenuItem>
+                <MenuItem value="ACTIVE">Activo</MenuItem>
+                <MenuItem value="INACTIVE">Inactivo</MenuItem>
+                <MenuItem value="MAINTENANCE">Mantenimiento</MenuItem>
+                <MenuItem value="CLOSED">Cerrado</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+        <Typography variant="caption" color="text.secondary" mt={1} display="block">
+          Mostrando {filteredKiosks.length} de {kiosks.length} kioscos
+        </Typography>
+      </Paper>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -479,16 +555,16 @@ const Kioscos: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {kiosks.length === 0 ? (
+            {filteredKiosks.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-                    No hay kioscos registrados
+                    {kiosks.length === 0 ? 'No hay kioscos registrados' : 'No hay kioscos que coincidan con los filtros.'}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              kiosks.map(kiosk => (
+              filteredKiosks.map(kiosk => (
                 <TableRow key={kiosk.id}>
                   <TableCell>
                     <Typography variant="body2" fontWeight="bold">
