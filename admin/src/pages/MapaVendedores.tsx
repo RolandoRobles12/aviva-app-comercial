@@ -173,6 +173,7 @@ const MapaVendedores: React.FC = () => {
   const [kiosks, setKiosks] = useState<KioskData[]>([]);
   const [fieldSellerCodes, setFieldSellerCodes] = useState<Set<string>>(new Set());
   const [productsList, setProductsList] = useState<{ code: string; name: string }[]>([]);
+  const [noFieldProductsConfigured, setNoFieldProductsConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<VendorData | null>(null);
@@ -190,15 +191,31 @@ const MapaVendedores: React.FC = () => {
   useEffect(() => {
     getDocs(collection(db, 'products')).then(snapshot => {
       const codes = new Set<string>();
+
+      // Normaliza un string: minúsculas, quita acentos, reemplaza espacios/guiones por nada
+      const norm = (s: string) =>
+        s.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[\s_\-]+/g, '');
+
       const list: { code: string; name: string }[] = [];
       snapshot.docs.forEach(doc => {
         const data = doc.data() as ProductData;
         if (data.code) {
-          if (data.isFieldSeller) codes.add(data.code.toLowerCase());
+          if (data.isFieldSeller) {
+            // Agregar código e nombre normalizados para matching flexible
+            codes.add(data.code.toLowerCase());
+            codes.add(norm(data.code));
+            if (data.name) {
+              codes.add(data.name.toLowerCase());
+              codes.add(norm(data.name));
+            }
+          }
           list.push({ code: data.code.toLowerCase(), name: data.name || data.code });
         }
       });
       setFieldSellerCodes(codes);
+      setNoFieldProductsConfigured(codes.size === 0 && list.length > 0);
       setProductsList(list.sort((a, b) => a.name.localeCompare(b.name)));
     }).catch(err => console.error('Error loading products:', err));
   }, []);
@@ -262,11 +279,17 @@ const MapaVendedores: React.FC = () => {
   // kioscos + códigos de campo. Esto garantiza que si cualquiera de los tres
   // cambia, todos los status se recalculan correctamente.
   const vendors = useMemo((): VendorData[] => {
+    const norm = (s: string) =>
+      s.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\s_\-]+/g, '');
+
     return rawUsers.map(raw => {
       let status: VendorData['status'] = 'inactive';
       const lastUpdate = raw.lastLocationUpdate?.toDate();
       const isFieldSeller = raw.productLine
-        ? fieldSellerCodes.has(raw.productLine.toLowerCase())
+        ? fieldSellerCodes.has(raw.productLine.toLowerCase()) ||
+          fieldSellerCodes.has(norm(raw.productLine))
         : false;
 
       if (lastUpdate && (Date.now() - lastUpdate.getTime()) <= 30 * 60 * 1000) {
@@ -411,12 +434,31 @@ const MapaVendedores: React.FC = () => {
       bgcolor: 'background.default',
       zIndex: 1
     }}>
+      {/* Aviso si ningún producto tiene isFieldSeller configurado */}
+      {noFieldProductsConfigured && (
+        <Alert
+          severity="warning"
+          sx={{
+            position: 'absolute',
+            top: 16,
+            left: sidebarOpen ? 376 : 16,
+            right: 16,
+            zIndex: 1001,
+          }}
+        >
+          <strong>Productos de campo no configurados</strong> — Ningún producto tiene activado
+          "Vendedor de campo". Ve a <strong>Configuración → Productos</strong> y activa ese
+          switch en los productos correspondientes para que sus vendedores aparezcan como{' '}
+          <em>En campo</em> en lugar de <em>Fuera de zona de trabajo</em>.
+        </Alert>
+      )}
+
       {/* Barra superior de estadísticas */}
       <Paper
         elevation={3}
         sx={{
           position: 'absolute',
-          top: 16,
+          top: noFieldProductsConfigured ? 80 : 16,
           left: sidebarOpen ? 376 : 16,
           right: 16,
           zIndex: 1000,
