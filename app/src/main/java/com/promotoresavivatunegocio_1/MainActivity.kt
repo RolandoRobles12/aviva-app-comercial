@@ -704,7 +704,7 @@ class MainActivity : AppCompatActivity() {
 
             // Detener el servicio de ubicación antes de cerrar sesión
             if (::locationManager.isInitialized) {
-                locationManager.stopTracking(this)
+                locationManager.stopTracking()
                 Log.d(TAG, "📍 LocationService detenido al cerrar sesión")
             }
 
