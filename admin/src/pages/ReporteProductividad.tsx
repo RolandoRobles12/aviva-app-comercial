@@ -27,6 +27,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   KeyboardArrowDown as ExpandIcon,
@@ -42,6 +45,8 @@ import {
   LocationOff as ZoneIcon,
   Hub as HubSpotIcon,
   GpsFixed as GpsIcon,
+  Close as CloseIcon,
+  PhotoCamera as PhotoCameraIcon,
 } from '@mui/icons-material';
 import {
   collection,
@@ -112,6 +117,7 @@ interface AdminUser {
   hubspotOwnerId?: string;
   homeLat?: number;
   homeLng?: number;
+  assignedKioskId?: string;
 }
 
 interface Product {
@@ -126,6 +132,7 @@ interface CheckInRecord {
   timestamp: Timestamp;
   status: string;
   userId: string;
+  photoUrl?: string;
   validationResults?: {
     isOnTime: boolean;
     locationValid: boolean;
@@ -144,8 +151,10 @@ interface DayReport {
   dayLabel: string;  // 'Lun 3 Mar'
   checkInTime: string | null;
   checkInOnTime: boolean | null;
+  checkInPhotoUrl?: string;
   checkOutTime: string | null;
   checkOutOnTime: boolean | null;
+  checkOutPhotoUrl?: string;
   km: number;
   longStops: number;
   stopMinutes: number;
@@ -164,6 +173,7 @@ interface SellerReport {
   hubspotOwnerId?: string;
   color: string;
   workDaysCount: number;
+  elapsedWorkDaysCount: number;
   checkInDays: number;
   checkOutDays: number;
   avgKmPerDay: number;
@@ -306,6 +316,9 @@ const buildDayReports = (
   workSchedule: WorkSchedule,
   homeLat?: number,
   homeLng?: number,
+  kioskLat?: number,
+  kioskLng?: number,
+  kioskRadiusKm?: number,
 ): DayReport[] => {
   const locByDate: Record<string, { ts: Timestamp; lat: number; lng: number }[]> = {};
   locationDocs.forEach((d) => {
@@ -425,6 +438,23 @@ const buildDayReports = (
       }
     }
 
+    // GPS-based out-of-kiosk minutes during work hours
+    let gpsOutOfKioskMinutes = 0;
+    if (kioskLat !== undefined && kioskLng !== undefined && kioskRadiusKm !== undefined) {
+      for (let i = 0; i < locs.length - 1; i++) {
+        const loc = locs[i];
+        const t = loc.ts.toDate();
+        const min = t.getHours() * 60 + t.getMinutes();
+        if (min >= workStartMin && min <= workEndMin) {
+          const distKm = calculateDistance(loc.lat, loc.lng, kioskLat, kioskLng);
+          if (distKm > kioskRadiusKm) {
+            const gapMin = (locs[i + 1].ts.toDate().getTime() - t.getTime()) / 60000;
+            if (gapMin <= 60) gpsOutOfKioskMinutes += gapMin; // ignorar brechas > 1h (GPS apagado)
+          }
+        }
+      }
+    }
+
     const dayCIs = ciByDate[date] || [];
     const entrada = dayCIs.find((c) => c.type === 'entrada') || null;
     const salida  = dayCIs.find((c) => c.type === 'salida')  || null;
@@ -433,15 +463,17 @@ const buildDayReports = (
     return {
       date,
       dayLabel: `${DAY_LABELS[d.getDay()]} ${d.getDate()} ${MONTH_LABELS[d.getMonth()]}`,
-      checkInTime:    formatTime(entrada?.timestamp ?? null),
-      checkInOnTime:  entrada ? (entrada.validationResults?.locationValid ?? null) : null,
-      checkOutTime:   formatTime(salida?.timestamp ?? null),
-      checkOutOnTime: salida  ? (salida.validationResults?.locationValid  ?? null) : null,
+      checkInTime:      formatTime(entrada?.timestamp ?? null),
+      checkInOnTime:    entrada ? (entrada.validationResults?.locationValid ?? null) : null,
+      checkInPhotoUrl:  entrada?.photoUrl,
+      checkOutTime:     formatTime(salida?.timestamp ?? null),
+      checkOutOnTime:   salida  ? (salida.validationResults?.locationValid  ?? null) : null,
+      checkOutPhotoUrl: salida?.photoUrl,
       km: Math.round(km * 10) / 10,
       longStops,
       stopMinutes: Math.round(stopMinutes),
       hasGps: locs.length > 0,
-      outOfZoneMinutes: Math.round(alertMinByDate[date] || 0),
+      outOfZoneMinutes: Math.round((alertMinByDate[date] || 0) + gpsOutOfKioskMinutes),
       deals: dealsByDate[date] || 0,
       homeVisits,
       homeMinutes: Math.round(homeMinutes),
@@ -451,7 +483,7 @@ const buildDayReports = (
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-const CheckInChip: React.FC<{ time: string | null; onTime: boolean | null }> = ({ time, onTime }) => {
+const CheckInChip: React.FC<{ time: string | null; onTime: boolean | null; hasPhoto?: boolean }> = ({ time, onTime, hasPhoto }) => {
   if (!time) return <Typography variant="caption" color="text.disabled">—</Typography>;
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
@@ -459,6 +491,7 @@ const CheckInChip: React.FC<{ time: string | null; onTime: boolean | null }> = (
       {onTime === false && <CancelIcon sx={{ fontSize: 14, color: 'warning.main' }} />}
       {onTime === null  && <HelpIcon   sx={{ fontSize: 14, color: 'text.disabled' }} />}
       <Typography variant="body2" fontWeight={600}>{time}</Typography>
+      {hasPhoto && <PhotoCameraIcon sx={{ fontSize: 12, color: 'primary.main' }} />}
     </Stack>
   );
 };
@@ -480,8 +513,12 @@ const PctCell: React.FC<{ value: number; total: number; error?: boolean }> = ({ 
   );
 };
 
-const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
-  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
+  const [photoDialog, setPhotoDialog] = React.useState<{ url: string; label: string } | null>(null);
+
+  return (
+    <>
+    <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
@@ -506,10 +543,20 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
                 <Typography variant="caption" fontWeight={600}>{day.dayLabel}</Typography>
               </TableCell>
               <TableCell align="center">
-                <CheckInChip time={day.checkInTime} onTime={day.checkInOnTime} />
+                <Box
+                  onClick={day.checkInPhotoUrl ? () => setPhotoDialog({ url: day.checkInPhotoUrl!, label: `Entrada — ${day.dayLabel}` }) : undefined}
+                  sx={{ cursor: day.checkInPhotoUrl ? 'pointer' : 'default', display: 'inline-flex' }}
+                >
+                  <CheckInChip time={day.checkInTime} onTime={day.checkInOnTime} hasPhoto={!!day.checkInPhotoUrl} />
+                </Box>
               </TableCell>
               <TableCell align="center">
-                <CheckInChip time={day.checkOutTime} onTime={day.checkOutOnTime} />
+                <Box
+                  onClick={day.checkOutPhotoUrl ? () => setPhotoDialog({ url: day.checkOutPhotoUrl!, label: `Salida — ${day.dayLabel}` }) : undefined}
+                  sx={{ cursor: day.checkOutPhotoUrl ? 'pointer' : 'default', display: 'inline-flex' }}
+                >
+                  <CheckInChip time={day.checkOutTime} onTime={day.checkOutOnTime} hasPhoto={!!day.checkOutPhotoUrl} />
+                </Box>
               </TableCell>
               <TableCell align="right">
                 <Typography variant="caption">{day.km > 0 ? `${day.km} km` : '—'}</Typography>
@@ -554,8 +601,34 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => (
         </TableBody>
       </Table>
     </TableContainer>
-  </Box>
-);
+    </Box>
+
+    {/* Dialog de foto de entrada/salida */}
+    <Dialog open={!!photoDialog} onClose={() => setPhotoDialog(null)} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ pr: 6 }}>
+        {photoDialog?.label}
+        <IconButton
+          onClick={() => setPhotoDialog(null)}
+          sx={{ position: 'absolute', right: 8, top: 8 }}
+          size="small"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.900' }}>
+        {photoDialog && (
+          <Box
+            component="img"
+            src={photoDialog.url}
+            alt="Foto de registro"
+            sx={{ maxWidth: '100%', maxHeight: 520, borderRadius: 1, objectFit: 'contain' }}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+};
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
@@ -611,6 +684,7 @@ const ReporteProductividad: React.FC = () => {
           hubspotOwnerId: d.data().hubspotOwnerId,
           homeLat: d.data().homeLat,
           homeLng: d.data().homeLng,
+          assignedKioskId: d.data().assignedKioskId,
         }));
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
@@ -680,10 +754,30 @@ const ReporteProductividad: React.FC = () => {
     const endTs    = Timestamp.fromDate(new Date(end + 'T23:59:59'));
     const workDays = getWorkDaysInRange(start, end, workSchedule);
 
+    // Días laborables transcurridos hasta hoy (denominador "so far")
+    const todayStr = toLocalDate(new Date());
+    const effectiveEnd = end <= todayStr ? end : todayStr;
+    const elapsedWorkDays = getWorkDaysInRange(start, effectiveEnd, workSchedule);
+
     const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
     const idToken = user ? await user.getIdToken() : null;
 
     try {
+      // Cargar kioscos para el cálculo de fuera-de-zona por GPS
+      const kiosksSnap = await getDocs(collection(db, 'kiosks'));
+      const kiosksMap: Record<string, { lat: number; lng: number; radiusKm: number }> = {};
+      kiosksSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        const loc = data.location;
+        if (loc) {
+          kiosksMap[doc.id] = {
+            lat: loc.latitude,
+            lng: loc.longitude,
+            radiusKm: (data.radiusMeters || data.radiusOverride || 100) / 1000,
+          };
+        }
+      });
+
       const results = await Promise.all(
         selectedUsers.map(async (user, idx): Promise<SellerReport> => {
           const color = SELLER_COLORS[idx % SELLER_COLORS.length];
@@ -766,6 +860,7 @@ const ReporteProductividad: React.FC = () => {
           }
 
           // 5. Build day reports
+          const kiosk = user.assignedKioskId ? kiosksMap[user.assignedKioskId] : undefined;
           const days = buildDayReports(
             workDays,
             filteredLocDocs,
@@ -775,6 +870,9 @@ const ReporteProductividad: React.FC = () => {
             workSchedule,
             user.homeLat,
             user.homeLng,
+            kiosk?.lat,
+            kiosk?.lng,
+            kiosk?.radiusKm,
           );
 
           // 6. Aggregate
@@ -797,6 +895,7 @@ const ReporteProductividad: React.FC = () => {
             hubspotOwnerId: user.hubspotOwnerId,
             color,
             workDaysCount: workDays.length,
+            elapsedWorkDaysCount: elapsedWorkDays.length,
             checkInDays,
             checkOutDays,
             avgKmPerDay: gpsDays > 0 ? Math.round((totalKm / gpsDays) * 10) / 10 : 0,
@@ -1011,8 +1110,10 @@ const ReporteProductividad: React.FC = () => {
           )}
           {reportData.some((r) => r.hubspotError) && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              <strong>Solicitudes HubSpot no disponibles</strong> — Configura la variable{' '}
-              <code>VITE_HUBSPOT_API_KEY</code> en tu archivo <code>.env.local</code>.
+              <strong>Solicitudes HubSpot no disponibles para algunos vendedores</strong> — La Cloud
+              Function <code>getOwnerDeals</code> devolvió un error. Verifica que la clave de HubSpot
+              esté configurada en Firebase Functions (<code>functions.config().hubspot.apikey</code>)
+              y que la función esté desplegada correctamente.
             </Alert>
           )}
 
@@ -1025,9 +1126,16 @@ const ReporteProductividad: React.FC = () => {
                     <TableCell sx={{ width: 40 }} />
                     <TableCell><strong>Vendedor</strong></TableCell>
                     <TableCell align="center">
-                      <Tooltip title="Días con entrada registrada EN sucursal (locationValid = true) / días laborables">
+                      <Tooltip title="Días con entrada registrada EN sucursal (locationValid = true) / días laborables transcurridos">
                         <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                           <CheckIcon sx={{ fontSize: 14 }} /><span>Inicio sucursal</span>
+                        </Stack>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Días con salida registrada EN sucursal (locationValid = true) / días laborables transcurridos">
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <CheckIcon sx={{ fontSize: 14 }} /><span>Fin sucursal</span>
                         </Stack>
                       </Tooltip>
                     </TableCell>
@@ -1053,14 +1161,7 @@ const ReporteProductividad: React.FC = () => {
                       </Tooltip>
                     </TableCell>
                     <TableCell align="center">
-                      <Tooltip title="Días con salida registrada EN sucursal (locationValid = true) / días laborables">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <CheckIcon sx={{ fontSize: 14 }} /><span>Fin sucursal</span>
-                        </Stack>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Total de minutos fuera de zona asignada">
+                      <Tooltip title="Total de minutos fuera de zona asignada (radio del kiosco) y zonas prohibidas">
                         <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                           <ZoneIcon sx={{ fontSize: 14 }} /><span>Fuera de zona</span>
                         </Stack>
@@ -1118,7 +1219,11 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            <PctCell value={seller.checkInDays} total={seller.workDaysCount} error={seller.checkInsError} />
+                            <PctCell value={seller.checkInDays} total={seller.elapsedWorkDaysCount} error={seller.checkInsError} />
+                          </TableCell>
+
+                          <TableCell align="center">
+                            <PctCell value={seller.checkOutDays} total={seller.elapsedWorkDaysCount} error={seller.checkInsError} />
                           </TableCell>
 
                           <TableCell align="right">
@@ -1150,10 +1255,6 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            <PctCell value={seller.checkOutDays} total={seller.workDaysCount} error={seller.checkInsError} />
-                          </TableCell>
-
-                          <TableCell align="center">
                             {seller.totalOutOfZoneMinutes > 0
                               ? (
                                 <Typography
@@ -1170,7 +1271,7 @@ const ReporteProductividad: React.FC = () => {
 
                           <TableCell align="center">
                             {seller.hubspotError
-                              ? <Tooltip title="Configura VITE_HUBSPOT_API_KEY">
+                              ? <Tooltip title="Error al consultar la Cloud Function de HubSpot">
                                   <Typography variant="caption" color="text.disabled">N/D</Typography>
                                 </Tooltip>
                               : !seller.hubspotOwnerId
@@ -1200,7 +1301,7 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            <PctCell value={seller.gpsDays} total={seller.workDaysCount} />
+                            <PctCell value={seller.gpsDays} total={seller.elapsedWorkDaysCount} />
                           </TableCell>
                         </TableRow>
 

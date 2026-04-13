@@ -702,6 +702,12 @@ class MainActivity : AppCompatActivity() {
             // Cancelar alarmas de recordatorio al cerrar sesión
             AttendanceAlarmScheduler.cancelAll(this)
 
+            // Detener el servicio de ubicación antes de cerrar sesión
+            if (::locationManager.isInitialized) {
+                locationManager.stopTracking()
+                Log.d(TAG, "📍 LocationService detenido al cerrar sesión")
+            }
+
             auth.signOut()
             googleSignInClient.signOut().addOnCompleteListener(this) {
                 Log.d(TAG, "✅ Sesión cerrada exitosamente")

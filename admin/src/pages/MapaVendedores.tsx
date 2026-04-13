@@ -173,6 +173,7 @@ const MapaVendedores: React.FC = () => {
   const [kiosks, setKiosks] = useState<KioskData[]>([]);
   const [fieldSellerCodes, setFieldSellerCodes] = useState<Set<string>>(new Set());
   const [productsList, setProductsList] = useState<{ code: string; name: string }[]>([]);
+  const [noFieldProductsConfigured, setNoFieldProductsConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<VendorData | null>(null);
@@ -190,15 +191,31 @@ const MapaVendedores: React.FC = () => {
   useEffect(() => {
     getDocs(collection(db, 'products')).then(snapshot => {
       const codes = new Set<string>();
+
+      // Normaliza un string: minúsculas, quita acentos, reemplaza espacios/guiones por nada
+      const norm = (s: string) =>
+        s.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[\s_\-]+/g, '');
+
       const list: { code: string; name: string }[] = [];
       snapshot.docs.forEach(doc => {
         const data = doc.data() as ProductData;
         if (data.code) {
-          if (data.isFieldSeller) codes.add(data.code.toLowerCase());
+          if (data.isFieldSeller) {
+            // Agregar código e nombre normalizados para matching flexible
+            codes.add(data.code.toLowerCase());
+            codes.add(norm(data.code));
+            if (data.name) {
+              codes.add(data.name.toLowerCase());
+              codes.add(norm(data.name));
+            }
+          }
           list.push({ code: data.code.toLowerCase(), name: data.name || data.code });
         }
       });
       setFieldSellerCodes(codes);
+      setNoFieldProductsConfigured(codes.size === 0 && list.length > 0);
       setProductsList(list.sort((a, b) => a.name.localeCompare(b.name)));
     }).catch(err => console.error('Error loading products:', err));
   }, []);
@@ -262,11 +279,17 @@ const MapaVendedores: React.FC = () => {
   // kioscos + códigos de campo. Esto garantiza que si cualquiera de los tres
   // cambia, todos los status se recalculan correctamente.
   const vendors = useMemo((): VendorData[] => {
+    const norm = (s: string) =>
+      s.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\s_\-]+/g, '');
+
     return rawUsers.map(raw => {
       let status: VendorData['status'] = 'inactive';
       const lastUpdate = raw.lastLocationUpdate?.toDate();
       const isFieldSeller = raw.productLine
-        ? fieldSellerCodes.has(raw.productLine.toLowerCase())
+        ? fieldSellerCodes.has(raw.productLine.toLowerCase()) ||
+          fieldSellerCodes.has(norm(raw.productLine))
         : false;
 
       if (lastUpdate && (Date.now() - lastUpdate.getTime()) <= 30 * 60 * 1000) {
@@ -411,12 +434,31 @@ const MapaVendedores: React.FC = () => {
       bgcolor: 'background.default',
       zIndex: 1
     }}>
+      {/* Aviso si ningún producto tiene isFieldSeller configurado */}
+      {noFieldProductsConfigured && (
+        <Alert
+          severity="warning"
+          sx={{
+            position: 'absolute',
+            top: 16,
+            left: sidebarOpen ? 376 : 16,
+            right: 16,
+            zIndex: 1001,
+          }}
+        >
+          <strong>Productos de campo no configurados</strong> — Ningún producto tiene activado
+          "Vendedor de campo". Ve a <strong>Configuración → Productos</strong> y activa ese
+          switch en los productos correspondientes para que sus vendedores aparezcan como{' '}
+          <em>En campo</em> en lugar de <em>Fuera de zona de trabajo</em>.
+        </Alert>
+      )}
+
       {/* Barra superior de estadísticas */}
       <Paper
         elevation={3}
         sx={{
           position: 'absolute',
-          top: 16,
+          top: noFieldProductsConfigured ? 80 : 16,
           left: sidebarOpen ? 376 : 16,
           right: 16,
           zIndex: 1000,
@@ -436,7 +478,7 @@ const MapaVendedores: React.FC = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CheckCircle sx={{ color: COLORS.active_in_zone, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption">En Zona</Typography>
+                  <Typography variant="caption">En lugar de trabajo</Typography>
                   <Typography variant="h6" fontWeight={600} color={COLORS.active_in_zone}>{stats.inZone}</Typography>
                 </Box>
               </Stack>
@@ -445,7 +487,7 @@ const MapaVendedores: React.FC = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <Warning sx={{ color: COLORS.out_of_zone, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption">Fuera</Typography>
+                  <Typography variant="caption">Fuera de zona de trabajo</Typography>
                   <Typography variant="h6" fontWeight={600} color={COLORS.out_of_zone}>{stats.outZone}</Typography>
                 </Box>
               </Stack>
@@ -454,28 +496,44 @@ const MapaVendedores: React.FC = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <Info sx={{ color: COLORS.in_transit, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption">Tránsito</Typography>
+                  <Typography variant="caption">En campo</Typography>
                   <Typography variant="h6" fontWeight={600} color={COLORS.in_transit}>{stats.transit}</Typography>
                 </Box>
               </Stack>
             </Box>
           </Stack>
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="Refrescar">
-              <IconButton onClick={() => window.location.reload()} size="small">
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Centrar mapa">
-              <IconButton onClick={centerMap} size="small">
-                <MyLocationIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
-              <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
-                {sidebarOpen ? <VisibilityOffIcon /> : <VisibilityIcon />}
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel>Producto</InputLabel>
+              <Select
+                value={filterProductLine}
+                label="Producto"
+                onChange={(e) => setFilterProductLine(e.target.value)}
+              >
+                <MenuItem value="all">Todos</MenuItem>
+                {productsList.map((p) => (
+                  <MenuItem key={p.code} value={p.code}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Divider orientation="vertical" flexItem />
+            <Stack direction="row" spacing={1}>
+              <Tooltip title="Refrescar">
+                <IconButton onClick={() => window.location.reload()} size="small">
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Centrar mapa">
+                <IconButton onClick={centerMap} size="small">
+                  <MyLocationIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
+                <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
+                  {sidebarOpen ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </Tooltip>
+            </Stack>
           </Stack>
         </Stack>
       </Paper>
@@ -741,9 +799,9 @@ const MapaVendedores: React.FC = () => {
                   </Stack>
                   <Chip
                     label={
-                      selectedVendor.status === 'active_in_zone' ? 'En Zona' :
-                      selectedVendor.status === 'out_of_zone' ? 'Fuera de Zona' :
-                      selectedVendor.status === 'in_transit' ? 'En Tránsito' : 'Inactivo'
+                      selectedVendor.status === 'active_in_zone' ? 'En lugar de trabajo' :
+                      selectedVendor.status === 'out_of_zone' ? 'Fuera de zona de trabajo' :
+                      selectedVendor.status === 'in_transit' ? 'En campo' : 'Inactivo'
                     }
                     size="small"
                     sx={{ bgcolor: COLORS[selectedVendor.status], color: 'white', fontWeight: 600 }}
