@@ -1011,8 +1011,10 @@ const ReporteProductividad: React.FC = () => {
           )}
           {reportData.some((r) => r.hubspotError) && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              <strong>Solicitudes HubSpot no disponibles</strong> — Configura la variable{' '}
-              <code>VITE_HUBSPOT_API_KEY</code> en tu archivo <code>.env.local</code>.
+              <strong>Solicitudes HubSpot no disponibles para algunos vendedores</strong> — La Cloud
+              Function <code>getOwnerDeals</code> devolvió un error. Verifica que la clave de HubSpot
+              esté configurada en Firebase Functions (<code>functions.config().hubspot.apikey</code>)
+              y que la función esté desplegada correctamente.
             </Alert>
           )}
 
@@ -1170,7 +1172,7 @@ const ReporteProductividad: React.FC = () => {
 
                           <TableCell align="center">
                             {seller.hubspotError
-                              ? <Tooltip title="Configura VITE_HUBSPOT_API_KEY">
+                              ? <Tooltip title="Error al consultar la Cloud Function de HubSpot">
                                   <Typography variant="caption" color="text.disabled">N/D</Typography>
                                 </Tooltip>
                               : !seller.hubspotOwnerId
