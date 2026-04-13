@@ -436,7 +436,7 @@ const MapaVendedores: React.FC = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CheckCircle sx={{ color: COLORS.active_in_zone, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption">En Zona</Typography>
+                  <Typography variant="caption">En lugar de trabajo</Typography>
                   <Typography variant="h6" fontWeight={600} color={COLORS.active_in_zone}>{stats.inZone}</Typography>
                 </Box>
               </Stack>
@@ -445,7 +445,7 @@ const MapaVendedores: React.FC = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <Warning sx={{ color: COLORS.out_of_zone, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption">Fuera</Typography>
+                  <Typography variant="caption">Fuera de zona de trabajo</Typography>
                   <Typography variant="h6" fontWeight={600} color={COLORS.out_of_zone}>{stats.outZone}</Typography>
                 </Box>
               </Stack>
@@ -454,28 +454,44 @@ const MapaVendedores: React.FC = () => {
               <Stack direction="row" spacing={1} alignItems="center">
                 <Info sx={{ color: COLORS.in_transit, fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption">Tránsito</Typography>
+                  <Typography variant="caption">En campo</Typography>
                   <Typography variant="h6" fontWeight={600} color={COLORS.in_transit}>{stats.transit}</Typography>
                 </Box>
               </Stack>
             </Box>
           </Stack>
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="Refrescar">
-              <IconButton onClick={() => window.location.reload()} size="small">
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Centrar mapa">
-              <IconButton onClick={centerMap} size="small">
-                <MyLocationIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
-              <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
-                {sidebarOpen ? <VisibilityOffIcon /> : <VisibilityIcon />}
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel>Producto</InputLabel>
+              <Select
+                value={filterProductLine}
+                label="Producto"
+                onChange={(e) => setFilterProductLine(e.target.value)}
+              >
+                <MenuItem value="all">Todos</MenuItem>
+                {productsList.map((p) => (
+                  <MenuItem key={p.code} value={p.code}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Divider orientation="vertical" flexItem />
+            <Stack direction="row" spacing={1}>
+              <Tooltip title="Refrescar">
+                <IconButton onClick={() => window.location.reload()} size="small">
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Centrar mapa">
+                <IconButton onClick={centerMap} size="small">
+                  <MyLocationIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}>
+                <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} size="small">
+                  {sidebarOpen ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </Tooltip>
+            </Stack>
           </Stack>
         </Stack>
       </Paper>
@@ -741,9 +757,9 @@ const MapaVendedores: React.FC = () => {
                   </Stack>
                   <Chip
                     label={
-                      selectedVendor.status === 'active_in_zone' ? 'En Zona' :
-                      selectedVendor.status === 'out_of_zone' ? 'Fuera de Zona' :
-                      selectedVendor.status === 'in_transit' ? 'En Tránsito' : 'Inactivo'
+                      selectedVendor.status === 'active_in_zone' ? 'En lugar de trabajo' :
+                      selectedVendor.status === 'out_of_zone' ? 'Fuera de zona de trabajo' :
+                      selectedVendor.status === 'in_transit' ? 'En campo' : 'Inactivo'
                     }
                     size="small"
                     sx={{ bgcolor: COLORS[selectedVendor.status], color: 'white', fontWeight: 600 }}
