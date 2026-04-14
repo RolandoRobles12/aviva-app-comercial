@@ -53,8 +53,8 @@ class LocationService : Service() {
 
     companion object {
         private const val TAG = "LocationService"
-        // ID nuevo: permite cambiar la importancia (Android no deja bajarla en un canal ya creado)
-        private const val CHANNEL_ID = "location_service_silent_v2"
+        // v3: importancia subida a LOW para que el sistema priorice este foreground service
+        private const val CHANNEL_ID = "location_service_v3"
         private const val CHANNEL_ID_STATIONARY = "StationaryAlertChannel"
         private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_ID_STATIONARY = 1002
@@ -580,8 +580,9 @@ class LocationService : Service() {
     }
 
     /**
-     * Programa el reinicio del servicio usando AlarmManager con setExactAndAllowWhileIdle()
-     * para que funcione incluso en modo Doze.
+     * Programa el reinicio del servicio usando AlarmManager.
+     * Usa setExactAndAllowWhileIdle() (sobrevive a Doze) si el permiso está disponible;
+     * de lo contrario usa setAndAllowWhileIdle() como fallback seguro.
      */
     private fun scheduleServiceRestart(delayMs: Long) {
         try {
@@ -594,13 +595,31 @@ class LocationService : Service() {
                 restartIntent,
                 android.app.PendingIntent.FLAG_ONE_SHOT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
-            val alarmManager = getSystemService(android.app.AlarmManager::class.java)
-            alarmManager?.setExactAndAllowWhileIdle(
-                android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                android.os.SystemClock.elapsedRealtime() + delayMs,
-                pendingIntent
-            )
-            Log.d(TAG, "⏰ Reinicio del servicio programado en ${delayMs / 1000}s")
+            val alarmManager = getSystemService(android.app.AlarmManager::class.java) ?: return
+            val triggerAt = android.os.SystemClock.elapsedRealtime() + delayMs
+
+            val canUseExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                alarmManager.canScheduleExactAlarms()
+            } else {
+                true
+            }
+
+            if (canUseExact) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pendingIntent
+                )
+                Log.d(TAG, "⏰ Reinicio exacto programado en ${delayMs / 1000}s")
+            } else {
+                // Fallback: inexacto pero Doze-safe (puede dispararse con hasta 1 min de retraso)
+                alarmManager.setAndAllowWhileIdle(
+                    android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pendingIntent
+                )
+                Log.d(TAG, "⏰ Reinicio inexacto programado en ~${delayMs / 1000}s (sin permiso de alarma exacta)")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error programando reinicio: ${e.message}")
         }
