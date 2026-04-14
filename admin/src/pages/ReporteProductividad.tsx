@@ -804,10 +804,10 @@ const ReporteProductividad: React.FC = () => {
         selectedUsers.map(async (user, idx): Promise<SellerReport> => {
           const color = SELLER_COLORS[idx % SELLER_COLORS.length];
 
-          // 1. GPS Locations (filter by date in memory to avoid requiring composite index)
+          // 1. GPS Locations — query by userEmail (always present, avoids UID mismatch)
           const locSnap = await getDocs(query(
             collection(db, 'locations'),
-            where('userId', '==', user.uid),
+            where('userEmail', '==', user.email),
           ));
           const filteredLocDocs = locSnap.docs.filter((d) => {
             const ts: Timestamp | undefined = d.data().timestamp;
@@ -821,7 +821,7 @@ const ReporteProductividad: React.FC = () => {
           try {
             const alertsSnap = await getDocs(query(
               collection(db, 'locationAlerts'),
-              where('userId', '==', user.uid),
+              where('userEmail', '==', user.email),
             ));
             alertDocs = alertsSnap.docs.filter((d) => {
               const ts: Timestamp | undefined = d.data().detectedAt;

@@ -254,18 +254,16 @@ const RutasPromotores: React.FC = () => {
       const allVisits: KioskVisit[] = [];
 
       for (const userId of selectedUserIds) {
-        // Resolve Firebase Auth UID for this user.
-        // For admin-created users, their Firestore doc ID differs from their Firebase Auth UID
-        // (stored in the 'uid' field). Location documents always use the Firebase Auth UID.
+        // Query by userEmail — always present in location docs, avoids UID/doc-ID mismatch
         const user = users.find(u => u.id === userId);
-        const locationUserId = user?.uid || userId;
+        const userEmail = user?.email || '';
 
-        // Cargar ubicaciones de la colección 'locations' que YA EXISTE
+        // Cargar ubicaciones de la colección 'locations'
         // Query simple sin rangos para evitar requerir índice compuesto
         // El filtrado de fechas se hace en memoria
         const locQuery = query(
           collection(db, 'locations'),
-          where('userId', '==', locationUserId)
+          where('userEmail', '==', userEmail)
         );
 
         const locSnapshot = await getDocs(locQuery);
@@ -297,7 +295,7 @@ const RutasPromotores: React.FC = () => {
         // Query simple sin rangos
         const visitsQuery = query(
           collection(db, 'kioskVisits'),
-          where('userId', '==', locationUserId)
+          where('userEmail', '==', userEmail)
         );
 
         const visitsSnapshot = await getDocs(visitsQuery);
