@@ -160,6 +160,7 @@ interface DayReport {
   longStops: number;
   stopMinutes: number;
   hasGps: boolean;
+  outOfZoneCount: number;    // veces que se detectó fuera de zona
   outOfZoneMinutes: number;
   deals: number;
   homeVisits: number;    // veces que estuvo en casa durante horario laboral
@@ -180,6 +181,7 @@ interface SellerReport {
   avgKmPerDay: number;
   avgStopHoursPerDay: number;
   totalLongStops: number;
+  totalOutOfZoneCount: number;
   totalOutOfZoneMinutes: number;
   totalDeals: number;
   gpsDays: number;
@@ -334,6 +336,7 @@ const buildDayReports = (
   });
 
   const alertMinByDate: Record<string, number> = {};
+  const alertCountByDate: Record<string, number> = {};
   alertDocs.forEach((d) => {
     const data = d.data();
     const detectedAt: Timestamp | undefined = data.detectedAt;
@@ -344,6 +347,7 @@ const buildDayReports = (
       ? resolvedAt.toDate().getTime() - detectedAt.toDate().getTime()
       : 0;
     alertMinByDate[date] = (alertMinByDate[date] || 0) + durationMs / 60000;
+    alertCountByDate[date] = (alertCountByDate[date] || 0) + 1;
   });
 
   const ciByDate: Record<string, CheckInRecord[]> = {};
@@ -439,19 +443,28 @@ const buildDayReports = (
       }
     }
 
-    // GPS-based out-of-kiosk minutes during work hours
+    // GPS-based out-of-kiosk minutes during work hours.
+    // Además se cuenta una "entrada" fuera de zona cada vez que el vendedor
+    // transiciona de dentro del radio del kiosco hacia afuera.
     let gpsOutOfKioskMinutes = 0;
+    let gpsOutOfKioskEntries = 0;
     if (kioskLat !== undefined && kioskLng !== undefined && kioskRadiusKm !== undefined) {
+      let wasOutside = false;
       for (let i = 0; i < locs.length - 1; i++) {
         const loc = locs[i];
         const t = loc.ts.toDate();
         const min = t.getHours() * 60 + t.getMinutes();
         if (min >= workStartMin && min <= workEndMin) {
           const distKm = calculateDistance(loc.lat, loc.lng, kioskLat, kioskLng);
-          if (distKm > kioskRadiusKm) {
+          const isOutside = distKm > kioskRadiusKm;
+          if (isOutside) {
             const gapMin = (locs[i + 1].ts.toDate().getTime() - t.getTime()) / 60000;
             if (gapMin <= 60) gpsOutOfKioskMinutes += gapMin; // ignorar brechas > 1h (GPS apagado)
+            if (!wasOutside) gpsOutOfKioskEntries++;
           }
+          wasOutside = isOutside;
+        } else {
+          wasOutside = false;
         }
       }
     }
@@ -474,6 +487,7 @@ const buildDayReports = (
       longStops,
       stopMinutes: Math.round(stopMinutes),
       hasGps: locs.length > 0,
+      outOfZoneCount: (alertCountByDate[date] || 0) + gpsOutOfKioskEntries,
       outOfZoneMinutes: Math.round((alertMinByDate[date] || 0) + gpsOutOfKioskMinutes),
       deals: dealsByDate[date] || 0,
       homeVisits,
@@ -571,19 +585,29 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
                 <Typography variant="caption">{formatDuration(day.stopMinutes)}</Typography>
               </TableCell>
               <TableCell align="center">
-                <Typography variant="caption">
-                  {day.outOfZoneMinutes > 0 ? `${day.outOfZoneMinutes}m` : '—'}
-                </Typography>
+                {day.outOfZoneCount > 0
+                  ? (
+                    <Tooltip title={day.outOfZoneMinutes > 0 ? `Tiempo estimado fuera de zona: ${day.outOfZoneMinutes}m` : 'Veces detectado fuera de zona'}>
+                      <Chip
+                        label={day.outOfZoneMinutes > 0 ? `${day.outOfZoneCount}× (${day.outOfZoneMinutes}m)` : `${day.outOfZoneCount}×`}
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                      />
+                    </Tooltip>
+                  )
+                  : <Typography variant="caption" color="text.disabled">0</Typography>
+                }
               </TableCell>
               <TableCell align="center">
                 {day.deals > 0
                   ? <Chip label={day.deals} size="small" color="primary" variant="outlined" />
-                  : <Typography variant="caption" color="text.disabled">—</Typography>
+                  : <Typography variant="caption" color="text.disabled">0</Typography>
                 }
               </TableCell>
               <TableCell align="center">
                 <Typography variant="caption" color={day.homeVisits > 0 ? 'warning.main' : 'text.disabled'}>
-                  {day.homeVisits > 0 ? day.homeVisits : '—'}
+                  {day.homeVisits > 0 ? day.homeVisits : '0'}
                 </Typography>
               </TableCell>
               <TableCell align="center">
@@ -904,6 +928,7 @@ const ReporteProductividad: React.FC = () => {
           const totalKm           = days.reduce((s, d) => s + d.km, 0);
           const totalLongStops    = days.reduce((s, d) => s + d.longStops, 0);
           const totalStopMinutes  = days.reduce((s, d) => s + d.stopMinutes, 0);
+          const totalOutOfZoneCount   = days.reduce((s, d) => s + d.outOfZoneCount, 0);
           const totalOutOfZoneMinutes = days.reduce((s, d) => s + d.outOfZoneMinutes, 0);
           const totalDeals        = days.reduce((s, d) => s + d.deals, 0);
           const totalHomeVisits   = days.reduce((s, d) => s + d.homeVisits, 0);
@@ -923,6 +948,7 @@ const ReporteProductividad: React.FC = () => {
             avgKmPerDay: gpsDays > 0 ? Math.round((totalKm / gpsDays) * 10) / 10 : 0,
             avgStopHoursPerDay: gpsDays > 0 ? Math.round((totalStopMinutes / 60 / gpsDays) * 10) / 10 : 0,
             totalLongStops,
+            totalOutOfZoneCount,
             totalOutOfZoneMinutes,
             totalDeals,
             gpsDays,
@@ -1277,17 +1303,28 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            {seller.totalOutOfZoneMinutes > 0
+                            {seller.totalOutOfZoneCount > 0
                               ? (
-                                <Typography
-                                  variant="body2"
-                                  color={seller.totalOutOfZoneMinutes > 120 ? 'error.main' : 'warning.main'}
-                                  fontWeight={600}
+                                <Tooltip
+                                  title={
+                                    seller.totalOutOfZoneMinutes > 0
+                                      ? `${seller.totalOutOfZoneCount} vez(ces) fuera de zona — tiempo estimado ${formatDuration(seller.totalOutOfZoneMinutes)}`
+                                      : `${seller.totalOutOfZoneCount} vez(ces) detectado fuera de zona`
+                                  }
                                 >
-                                  {formatDuration(seller.totalOutOfZoneMinutes)}
-                                </Typography>
+                                  <Chip
+                                    label={
+                                      seller.totalOutOfZoneMinutes > 0
+                                        ? `${seller.totalOutOfZoneCount}× ${formatDuration(seller.totalOutOfZoneMinutes)}`
+                                        : `${seller.totalOutOfZoneCount}×`
+                                    }
+                                    size="small"
+                                    color={seller.totalOutOfZoneMinutes > 120 || seller.totalOutOfZoneCount > 10 ? 'error' : 'warning'}
+                                    variant="outlined"
+                                  />
+                                </Tooltip>
                               )
-                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                              : <Typography variant="caption" color="text.disabled">0</Typography>
                             }
                           </TableCell>
 
@@ -1318,7 +1355,7 @@ const ReporteProductividad: React.FC = () => {
                                   />
                                 </Tooltip>
                               )
-                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                              : <Typography variant="caption" color="text.disabled">0</Typography>
                             }
                           </TableCell>
 
