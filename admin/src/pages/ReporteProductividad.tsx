@@ -111,6 +111,7 @@ const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'S
 
 interface AdminUser {
   id: string;
+  uid: string;
   displayName: string;
   email: string;
   productLine?: string;
@@ -676,16 +677,19 @@ const ReporteProductividad: React.FC = () => {
           getDocs(query(collection(db, 'products'), orderBy('name', 'asc'))),
         ]);
 
-        const usersData: AdminUser[] = usersSnap.docs.map((d) => ({
-          id: d.id,
-          displayName: d.data().displayName || 'Sin nombre',
-          email: d.data().email || '',
-          productLine: d.data().productLine,
-          hubspotOwnerId: d.data().hubspotOwnerId,
-          homeLat: d.data().homeLat,
-          homeLng: d.data().homeLng,
-          assignedKioskId: d.data().assignedKioskId,
-        }));
+        const usersData: AdminUser[] = usersSnap.docs
+          .filter((d) => !d.data().migratedToUid) // skip superseded admin-created docs
+          .map((d) => ({
+            id: d.id,
+            uid: d.data().uid || d.id, // Firebase Auth UID used by LocationService
+            displayName: d.data().displayName || 'Sin nombre',
+            email: d.data().email || '',
+            productLine: d.data().productLine,
+            hubspotOwnerId: d.data().hubspotOwnerId,
+            homeLat: d.data().homeLat,
+            homeLng: d.data().homeLng,
+            assignedKioskId: d.data().assignedKioskId,
+          }));
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
         setProducts(productsSnap.docs.map((d) => ({
@@ -785,7 +789,7 @@ const ReporteProductividad: React.FC = () => {
           // 1. GPS Locations (filter by date in memory to avoid requiring composite index)
           const locSnap = await getDocs(query(
             collection(db, 'locations'),
-            where('userId', '==', user.id),
+            where('userId', '==', user.uid),
           ));
           const filteredLocDocs = locSnap.docs.filter((d) => {
             const ts: Timestamp | undefined = d.data().timestamp;
@@ -799,7 +803,7 @@ const ReporteProductividad: React.FC = () => {
           try {
             const alertsSnap = await getDocs(query(
               collection(db, 'locationAlerts'),
-              where('userId', '==', user.id),
+              where('userId', '==', user.uid),
             ));
             alertDocs = alertsSnap.docs.filter((d) => {
               const ts: Timestamp | undefined = d.data().detectedAt;
