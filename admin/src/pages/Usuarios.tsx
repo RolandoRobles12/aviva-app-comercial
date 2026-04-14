@@ -193,14 +193,24 @@ const Usuarios: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'users'));
-      const usersData: User[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Exclude documents that have been superseded by the UID-migration flow
-        // (admin-created docs that got merged into the real users/{uid} document on first login)
-        if (data.migratedToUid) return;
-        usersData.push({ id: doc.id, ...data } as User);
+
+      // Deduplicate by email: prefer the canonical doc where doc.id === data.uid
+      // (Firebase Auth UID document). Handles users with both an admin-created doc
+      // and an app-created doc that haven't been merged by AuthService yet.
+      const byEmail = new Map<string, User>();
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.migratedToUid) return; // skip superseded docs
+        const email = data.email || '';
+        const uid = data.uid || '';
+        const isCanonical = uid && docSnap.id === uid;
+        const u = { id: docSnap.id, ...data } as User;
+        if (!email) { byEmail.set(docSnap.id, u); return; }
+        const existing = byEmail.get(email);
+        if (!existing || isCanonical) byEmail.set(email, u);
       });
+
+      const usersData = Array.from(byEmail.values());
       setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
       // Filtrar gerentes para el selector
