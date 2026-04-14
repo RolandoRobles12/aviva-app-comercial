@@ -53,12 +53,9 @@ import {
   DEFAULT_WEEKLY_SCHEDULE
 } from '../types/kiosk';
 import KioskImport from '../components/KioskImport';
-import { useLoadScript } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FilterListIcon from '@mui/icons-material/FilterList';
-
-const PLACES_LIBRARIES: ('places')[] = ['places'];
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 /** Maps Google's long state names to the shorter names used in the app */
 const normalizeStateName = (googleState: string): string => {
@@ -112,10 +109,7 @@ const Kioscos: React.FC = () => {
   const [mapLat, setMapLat] = useState<string>('');
   const [mapLng, setMapLng] = useState<string>('');
 
-  const { isLoaded: mapsLoaded } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: PLACES_LIBRARIES,
-  });
+  const { isLoaded: mapsLoaded } = useGoogleMaps();
   const addressInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
