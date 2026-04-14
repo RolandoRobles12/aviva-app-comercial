@@ -1,5 +1,6 @@
 package com.promotoresavivatunegocio_1.workers
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -39,14 +40,34 @@ class TrackingKeepaliveWorker(
         Log.d(TAG, "Keepalive ejecutado para usuario: ${currentUser.email}")
 
         try {
-            val serviceIntent = Intent(applicationContext, LocationService::class.java)
-            ContextCompat.startForegroundService(applicationContext, serviceIntent)
-            Log.d(TAG, "LocationService reiniciado exitosamente")
+            if (isLocationServiceRunning()) {
+                Log.d(TAG, "LocationService ya está activo, no se requiere reinicio")
+            } else {
+                Log.d(TAG, "LocationService no está activo – reiniciando")
+                val serviceIntent = Intent(applicationContext, LocationService::class.java).apply {
+                    action = LocationService.ACTION_START_TRACKING
+                }
+                ContextCompat.startForegroundService(applicationContext, serviceIntent)
+                Log.d(TAG, "LocationService reiniciado exitosamente")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error al reiniciar LocationService: ${e.message}", e)
             return Result.retry()
         }
 
         return Result.success()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isLocationServiceRunning(): Boolean {
+        return try {
+            val activityManager =
+                applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            activityManager.getRunningServices(Int.MAX_VALUE)
+                .any { it.service.className == LocationService::class.java.name }
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo verificar estado del servicio: ${e.message}")
+            false // Asumir que no está corriendo y reiniciar
+        }
     }
 }

@@ -53,8 +53,8 @@ class LocationService : Service() {
 
     companion object {
         private const val TAG = "LocationService"
-        // ID nuevo: permite cambiar la importancia (Android no deja bajarla en un canal ya creado)
-        private const val CHANNEL_ID = "location_service_silent_v2"
+        // v3: importancia subida a LOW para que el sistema priorice este foreground service
+        private const val CHANNEL_ID = "location_service_v3"
         private const val CHANNEL_ID_STATIONARY = "StationaryAlertChannel"
         private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_ID_STATIONARY = 1002
@@ -83,6 +83,9 @@ class LocationService : Service() {
         const val ACTION_START_TRACKING = "START_TRACKING"
         const val ACTION_STOP_TRACKING = "STOP_TRACKING"
         const val ACTION_CHECK_WORK_HOURS = "CHECK_WORK_HOURS"
+
+        // Código de petición para el PendingIntent de reinicio
+        private const val RESTART_REQUEST_CODE = 9001
     }
 
     override fun onCreate() {
@@ -504,12 +507,13 @@ class LocationService : Service() {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "App Comercial Aviva",
-                NotificationManager.IMPORTANCE_MIN   // Sin icono en barra de estado
+                NotificationManager.IMPORTANCE_LOW   // Silencioso pero prioritario para el sistema
             ).apply {
-                description = "Servicio en segundo plano"
+                description = "Tracking de ubicación activo"
                 setShowBadge(false)
                 enableVibration(false)
                 enableLights(false)
+                setSound(null, null)
             }
 
             val manager = getSystemService(NotificationManager::class.java)
@@ -540,8 +544,13 @@ class LocationService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "⚠️ App eliminada de recientes – programando reinicio del servicio")
+        scheduleServiceRestart(delayMs = 3_000L)
+    }
+
     override fun onDestroy() {
-        super.onDestroy()
         val serviceLifetime = (System.currentTimeMillis() - serviceStartTime) / 1000 / 60
         Log.d(TAG, "🏁 LocationService destruido - Tiempo de vida: ${serviceLifetime} min")
 
@@ -558,8 +567,61 @@ class LocationService : Service() {
                     }
             }
 
+            // Si el usuario sigue autenticado, reagendar el servicio para que el sistema lo relance
+            if (auth.currentUser != null) {
+                scheduleServiceRestart(delayMs = 5_000L)
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error en onDestroy: ${e.message}")
+        }
+
+        super.onDestroy()
+    }
+
+    /**
+     * Programa el reinicio del servicio usando AlarmManager.
+     * Usa setExactAndAllowWhileIdle() (sobrevive a Doze) si el permiso está disponible;
+     * de lo contrario usa setAndAllowWhileIdle() como fallback seguro.
+     */
+    private fun scheduleServiceRestart(delayMs: Long) {
+        try {
+            val restartIntent = Intent(applicationContext, LocationService::class.java).apply {
+                action = ACTION_START_TRACKING
+            }
+            val pendingIntent = android.app.PendingIntent.getService(
+                applicationContext,
+                RESTART_REQUEST_CODE,
+                restartIntent,
+                android.app.PendingIntent.FLAG_ONE_SHOT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(android.app.AlarmManager::class.java) ?: return
+            val triggerAt = android.os.SystemClock.elapsedRealtime() + delayMs
+
+            val canUseExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                alarmManager.canScheduleExactAlarms()
+            } else {
+                true
+            }
+
+            if (canUseExact) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pendingIntent
+                )
+                Log.d(TAG, "⏰ Reinicio exacto programado en ${delayMs / 1000}s")
+            } else {
+                // Fallback: inexacto pero Doze-safe (puede dispararse con hasta 1 min de retraso)
+                alarmManager.setAndAllowWhileIdle(
+                    android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pendingIntent
+                )
+                Log.d(TAG, "⏰ Reinicio inexacto programado en ~${delayMs / 1000}s (sin permiso de alarma exacta)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error programando reinicio: ${e.message}")
         }
     }
 

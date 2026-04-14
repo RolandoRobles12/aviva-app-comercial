@@ -15,28 +15,33 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d(TAG, "Dispositivo reiniciado, verificando si debe iniciar el servicio")
+        val trigger = when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED -> "reinicio del dispositivo"
+            Intent.ACTION_MY_PACKAGE_REPLACED -> "actualización de la app"
+            else -> return
+        }
 
-            // Verificar si hay un usuario autenticado
-            val auth = FirebaseAuth.getInstance()
-            if (auth.currentUser != null) {
-                Log.d(TAG, "Usuario autenticado encontrado, iniciando servicio de ubicación")
+        Log.d(TAG, "Evento recibido: $trigger – verificando si debe iniciar el servicio")
 
-                val serviceIntent = Intent(context, LocationService::class.java)
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser != null) {
+            Log.d(TAG, "Usuario autenticado encontrado, iniciando servicio de ubicación tras $trigger")
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    ContextCompat.startForegroundService(context, serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-
-                // Reprogramar alarmas de recordatorio de asistencia
-                AttendanceAlarmScheduler.scheduleAll(context)
-                Log.d(TAG, "Alarmas de recordatorio reprogramadas")
-            } else {
-                Log.d(TAG, "No hay usuario autenticado, no se inicia el servicio")
+            val serviceIntent = Intent(context, LocationService::class.java).apply {
+                action = LocationService.ACTION_START_TRACKING
             }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+
+            // Reprogramar alarmas de recordatorio de asistencia
+            AttendanceAlarmScheduler.scheduleAll(context)
+            Log.d(TAG, "Alarmas de recordatorio reprogramadas")
+        } else {
+            Log.d(TAG, "No hay usuario autenticado, no se inicia el servicio")
         }
     }
 }

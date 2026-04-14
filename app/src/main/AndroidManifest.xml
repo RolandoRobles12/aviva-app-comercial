@@ -98,13 +98,13 @@
             </intent-filter>
         </activity>
 
-        <!-- CORREGIDO: Servicio de ubicación que realmente se usa -->
+        <!-- Servicio de ubicación en foreground (tipo "location" requerido en API 34+) -->
         <service
             android:name="com.promotoresavivatunegocio_1.LocationService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
+            android:stopWithTask="false" />
 
         <!-- Receptor para reiniciar servicios al arrancar -->
         <receiver
