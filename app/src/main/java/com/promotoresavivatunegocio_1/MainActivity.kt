@@ -44,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     internal var currentUser: models.User? = null // Accessible by fragments
     private var navigationManager: com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager? = null
 
+    // Diálogo bloqueador de permisos de ubicación
+    private var locationBlockerDialog: android.app.AlertDialog? = null
+
     companion object {
         private const val TAG = "MainActivity"
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
@@ -472,15 +475,12 @@ class MainActivity : AppCompatActivity() {
             // Bottom navigation eliminada - navegación a través de Home screen
             Log.d(TAG, "📱 Navegación configurada a través de Home screen")
 
-            // Inicializar tracking de ubicación
-            if (::locationManager.isInitialized) {
-                Log.d(TAG, "📍 LocationManager disponible, iniciando tracking")
-                requestLocationPermissionsAndStartTracking()
-            } else {
-                Log.e(TAG, "💥 ERROR CRÍTICO: LocationManager no inicializado")
+            // Verificar y exigir permisos de ubicación obligatorios
+            if (!::locationManager.isInitialized) {
+                Log.e(TAG, "💥 LocationManager no inicializado, inicializando ahora...")
                 locationManager = LocationManager.getInstance(this)
-                requestLocationPermissionsAndStartTracking()
             }
+            checkAndEnforceLocationPermissions()
 
             Log.d(TAG, "✅ Contenido principal configurado")
         } catch (e: Exception) {
@@ -725,77 +725,110 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ============================================================================
-    // LOCATION SERVICES - CORREGIDO PARA PERMITIR "TODO EL TIEMPO"
+    // LOCATION SERVICES - PERMISO "TODO EL TIEMPO" OBLIGATORIO
     // ============================================================================
 
-    private fun requestLocationPermissionsAndStartTracking() {
+    /**
+     * Verifica los permisos de ubicación de forma obligatoria.
+     * Si el permiso "Siempre" (background) no está concedido, la app se bloquea.
+     */
+    private fun checkAndEnforceLocationPermissions() {
         try {
-            Log.d(TAG, "📍 Solicitando permisos de ubicación...")
+            Log.d(TAG, "🔒 Verificando permisos obligatorios de ubicación...")
 
-            val permissions = mutableListOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-
-            // Para Android 10+ agregar permiso de background location
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            }
-
-            val missingPermissions = permissions.filter {
-                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-            }
-
-            Log.d(TAG, "📍 Permisos faltantes: ${missingPermissions.size}")
-
-            if (missingPermissions.isEmpty()) {
-                Log.d(TAG, "✅ Todos los permisos de ubicación concedidos")
-                startLocationTrackingIfNeeded()
-            } else {
-                // Solicitar permisos básicos primero
-                val basicPermissions = missingPermissions.filter {
-                    it != Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                }
-
-                if (basicPermissions.isNotEmpty()) {
-                    Log.d(TAG, "📍 Solicitando permisos básicos: ${basicPermissions.size}")
-                    ActivityCompat.requestPermissions(
-                        this,
-                        basicPermissions.toTypedArray(),
-                        LOCATION_PERMISSION_REQUEST_CODE
-                    )
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    missingPermissions.contains(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-                    // Solicitar permiso de background por separado
-                    Log.d(TAG, "📍 Solicitando permiso de background...")
-                    requestBackgroundLocationPermission()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "💥 Error en requestLocationPermissionsAndStartTracking: ${e.message}", e)
-        }
-    }
-
-    // NUEVO: Solicitar permiso de ubicación en background (todo el tiempo)
-    private fun requestBackgroundLocationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-
-                Log.d(TAG, "📍 Explicando permiso de background al usuario...")
-                // Explicar al usuario por qué necesitamos este permiso
-                Toast.makeText(
+            if (!locationManager.hasLocationPermissions()) {
+                Log.d(TAG, "📍 Permisos básicos no concedidos, solicitando...")
+                ActivityCompat.requestPermissions(
                     this,
-                    "Para un tracking preciso, permite el acceso a ubicación 'Todo el tiempo' en la siguiente pantalla",
-                    Toast.LENGTH_LONG
-                ).show()
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ),
+                    LOCATION_PERMISSION_REQUEST_CODE
+                )
+                return
+            }
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                !locationManager.hasBackgroundLocationPermission()) {
+                Log.d(TAG, "📍 Permiso 'Todo el tiempo' no concedido – bloqueando app")
+                showLocationPermissionBlocker()
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
                     BACKGROUND_LOCATION_REQUEST_CODE
                 )
+                return
             }
+
+            Log.d(TAG, "✅ Todos los permisos de ubicación concedidos, iniciando tracking")
+            dismissLocationBlocker()
+            startLocationTrackingIfNeeded()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error en checkAndEnforceLocationPermissions: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Muestra un diálogo no descartable que bloquea el uso de la app
+     * mientras el permiso "Todo el tiempo" no esté concedido.
+     */
+    private fun showLocationPermissionBlocker() {
+        try {
+            if (locationBlockerDialog?.isShowing == true) return
+
+            Log.d(TAG, "🚫 Mostrando bloqueador: permiso de ubicación requerido")
+
+            val mensaje = "Esta aplicación requiere acceso a la ubicación " +
+                "\"Todo el tiempo\" para poder funcionar.\n\n" +
+                "Toca \"Ir a Configuración\", luego ve a " +
+                "Permisos → Ubicación y selecciona \"Siempre\"."
+
+            val dialog = android.app.AlertDialog.Builder(this)
+                .setTitle("Permiso de Ubicación Requerido")
+                .setMessage(mensaje)
+                .setCancelable(false)
+                .setPositiveButton("Ir a Configuración") { _, _ ->
+                    openAppLocationSettings()
+                }
+                .setNegativeButton("Cerrar Sesión") { _, _ ->
+                    showLogoutConfirmationDialog()
+                }
+                .create()
+
+            locationBlockerDialog = dialog
+            dialog.show()
+            Log.d(TAG, "✅ Bloqueador de permisos mostrado")
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error mostrando bloqueador: ${e.message}", e)
+        }
+    }
+
+    private fun dismissLocationBlocker() {
+        locationBlockerDialog?.dismiss()
+        locationBlockerDialog = null
+    }
+
+    /**
+     * Abre la pantalla de ajustes de la app para que el usuario
+     * pueda conceder el permiso de ubicación "Siempre".
+     */
+    private fun openAppLocationSettings() {
+        try {
+            val intent = android.content.Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            ).apply {
+                data = android.net.Uri.fromParts("package", packageName, null)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error abriendo ajustes: ${e.message}", e)
+            Toast.makeText(
+                this,
+                "Abre Ajustes del teléfono → Aplicaciones → ${getString(R.string.app_name)} → Permisos → Ubicación → Siempre",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -869,43 +902,31 @@ class MainActivity : AppCompatActivity() {
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                     Log.d(TAG, "✅ Permisos básicos de ubicación concedidos")
-                    Toast.makeText(this, "Permisos básicos de ubicación concedidos", Toast.LENGTH_SHORT).show()
-
-                    // Ahora solicitar permiso de background si es necesario
+                    // Solicitar permiso de background de forma obligatoria en Android 10+
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        requestBackgroundLocationPermission()
+                        showLocationPermissionBlocker()
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                            BACKGROUND_LOCATION_REQUEST_CODE
+                        )
                     } else {
                         startLocationTrackingIfNeeded()
                     }
                 } else {
-                    Log.w(TAG, "❌ Algunos permisos básicos denegados")
-                    Toast.makeText(
-                        this,
-                        "Se requieren permisos de ubicación para el tracking",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    val hasBasicPermissions = grantResults.any { it == PackageManager.PERMISSION_GRANTED }
-                    if (hasBasicPermissions) {
-                        Log.d(TAG, "ℹ️ Al menos algunos permisos concedidos, iniciando servicio...")
-                        startLocationService()
-                    }
+                    Log.w(TAG, "❌ Permisos básicos de ubicación denegados – bloqueando app")
+                    showLocationPermissionBlocker()
                 }
             }
 
             BACKGROUND_LOCATION_REQUEST_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.d(TAG, "✅ Permiso de ubicación en background concedido")
-                    Toast.makeText(this, "Permiso de ubicación en background concedido", Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, "✅ Permiso de ubicación 'Todo el tiempo' concedido")
+                    dismissLocationBlocker()
                     startLocationTrackingIfNeeded()
                 } else {
-                    Log.w(TAG, "❌ Permiso de background denegado")
-                    Toast.makeText(
-                        this,
-                        "Sin permiso de background. El tracking funcionará solo cuando la app esté abierta",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    startLocationTrackingIfNeeded()
+                    Log.w(TAG, "❌ Permiso 'Todo el tiempo' denegado – bloqueando app")
+                    showLocationPermissionBlocker()
                 }
             }
         }
@@ -918,6 +939,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         try {
             Log.d(TAG, "🔚 MainActivity onDestroy")
+            dismissLocationBlocker()
             _binding = null
             super.onDestroy()
         } catch (e: Exception) {
@@ -948,6 +970,23 @@ class MainActivity : AppCompatActivity() {
         try {
             Log.d(TAG, "▶️ MainActivity onResume")
             super.onResume()
+
+            // Re-verificar permiso de ubicación al volver de Ajustes
+            if (auth.currentUser != null && ::locationManager.isInitialized) {
+                val backgroundOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    locationManager.hasBackgroundLocationPermission()
+                } else {
+                    true
+                }
+
+                if (backgroundOk && locationBlockerDialog?.isShowing == true) {
+                    Log.d(TAG, "✅ Permiso 'Todo el tiempo' ahora concedido – reanudando app")
+                    dismissLocationBlocker()
+                    startLocationTrackingIfNeeded()
+                } else if (!backgroundOk && locationManager.hasLocationPermissions()) {
+                    showLocationPermissionBlocker()
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error en onResume: ${e.message}", e)
         }
