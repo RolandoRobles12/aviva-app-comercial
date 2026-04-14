@@ -36,7 +36,8 @@ import {
   VisibilityOff as VisibilityOffIcon,
   Warning
 } from '@mui/icons-material';
-import { GoogleMap, useLoadScript, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import {
   collection,
   query,
@@ -47,8 +48,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 };
 
 const COLORS = {
@@ -110,10 +109,7 @@ type QuickFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth'
 const RutasPromotores: React.FC = () => {
   const [mainTab, setMainTab] = useState(0);
 
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -521,7 +517,7 @@ const RutasPromotores: React.FC = () => {
     };
   }, [selectedUserIds, locationPoints, kioskVisits, longStops]);
 
-  if (!GOOGLE_MAPS_API_KEY) {
+  if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
     return (
       <Box sx={{ p: 4 }}>
         <Alert severity="warning">⚠️ API Key de Google Maps no configurada</Alert>

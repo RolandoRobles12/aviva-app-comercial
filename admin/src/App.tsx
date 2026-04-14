@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
+import { GoogleMapsProvider } from './contexts/GoogleMapsContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastContainer from './components/ToastContainer';
 import LoadingOverlay from './components/LoadingOverlay';
@@ -267,9 +268,11 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <AppProvider>
-              <AppRoutes />
-              <ToastContainer />
-              <LoadingOverlay />
+              <GoogleMapsProvider>
+                <AppRoutes />
+                <ToastContainer />
+                <LoadingOverlay />
+              </GoogleMapsProvider>
             </AppProvider>
           </AuthProvider>
         </BrowserRouter>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLoadScript } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import {
   Box,
   Button,
@@ -110,14 +110,8 @@ const statusColors: Record<UserStatus, "success" | "default" | "error" | "warnin
   'PENDING_ACTIVATION': 'warning'
 };
 
-const PLACES_LIBRARIES: ('places')[] = ['places'];
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-
 const Usuarios: React.FC = () => {
-  const { isLoaded: mapsLoaded } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: PLACES_LIBRARIES,
-  });
+  const { isLoaded: mapsLoaded } = useGoogleMaps();
   const homeInputRef = useRef<HTMLInputElement>(null);
 
   const [users, setUsers] = useState<User[]>([]);

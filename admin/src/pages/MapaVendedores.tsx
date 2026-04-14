@@ -39,7 +39,8 @@ import {
   Warning,
   Info
 } from '@mui/icons-material';
-import { GoogleMap, useLoadScript, Marker, Circle, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, Marker, Circle, InfoWindow } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import {
   collection,
   query,
@@ -51,11 +52,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-// IMPORTANTE: libraries debe ser constante fuera del componente
-const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
-
 // Configuración del mapa
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 }; // Ciudad de México
 
 // Colores con claves que coinciden con los status
@@ -163,10 +160,7 @@ const calculateDistance = (point1: GeoPoint, point2: GeoPoint): number => {
 
 const MapaVendedores: React.FC = () => {
   const theme = useTheme();
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   // Datos crudos de Firestore (sin cálculo de status)
   const [rawUsers, setRawUsers] = useState<RawUser[]>([]);
@@ -402,30 +396,14 @@ const MapaVendedores: React.FC = () => {
     );
   }
 
-  if (!GOOGLE_MAPS_API_KEY) {
+  if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
     return (
       <Box sx={{ p: 4 }}>
         <Alert severity="warning">
           <Typography variant="h6" gutterBottom>⚠️ API Key no configurada</Typography>
           <Typography paragraph>
-            Necesitas configurar tu API Key de Google Maps.
+            Configura <code>VITE_GOOGLE_MAPS_API_KEY</code> en tu archivo <code>.env</code> y reinicia el servidor.
           </Typography>
-          <Paper sx={{ p: 2, bgcolor: 'grey.100', mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>Paso 1: En PowerShell ACTUAL, ejecuta:</Typography>
-            <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'grey.900', color: 'white', borderRadius: 1 }}>
-              $env:VITE_GOOGLE_MAPS_API_KEY = "tu_api_key"
-            </Box>
-          </Paper>
-          <Paper sx={{ p: 2, bgcolor: 'grey.100' }}>
-            <Typography variant="subtitle2" gutterBottom>Paso 2: Reinicia el servidor:</Typography>
-            <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'grey.900', color: 'white', borderRadius: 1 }}>
-              npm run dev
-            </Box>
-          </Paper>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <strong>Nota:</strong> El comando <code>setx</code> solo funciona para sesiones FUTURAS.
-            Debes usar <code>$env:</code> en la sesión actual.
-          </Alert>
         </Alert>
       </Box>
     );

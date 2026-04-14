@@ -42,7 +42,8 @@ import {
   Cancel as CancelIcon,
   Place as PlaceIcon
 } from '@mui/icons-material';
-import { GoogleMap, useLoadScript, DrawingManager, Polygon, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, DrawingManager, Polygon, InfoWindow } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import {
   collection,
   getDocs,
@@ -53,8 +54,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry" | "drawing")[] = ['places', 'geometry', 'drawing'];
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const MAP_CENTER = { lat: 19.4326, lng: -99.1332 };
 
 const ZONE_COLOR = '#4CAF50'; // Verde fijo para zonas de venta
@@ -126,10 +125,7 @@ const MEXICO_STATES = [
 ];
 
 const ZonasVendedores: React.FC = () => {
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const [zones, setZones] = useState<Zone[]>([]);
   const [users, setUsers] = useState<User[]>([]);
