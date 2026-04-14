@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -472,6 +473,9 @@ class MainActivity : AppCompatActivity() {
             // Solicitar permisos de notificación y alarma exacta, luego programar alarmas
             requestNotificationPermissions()
 
+            // Solicitar exención de optimización de batería para tracking continuo
+            requestBatteryOptimizationExemption()
+
             // Bottom navigation eliminada - navegación a través de Home screen
             Log.d(TAG, "📱 Navegación configurada a través de Home screen")
 
@@ -830,6 +834,44 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         }
+    }
+
+    /**
+     * Solicita al usuario que exima la app de las optimizaciones de batería del sistema.
+     * Sin esta exención, el OS puede pausar el LocationService cuando la pantalla esté apagada.
+     * Se muestra un diálogo explicativo antes de abrir el ajuste del sistema.
+     */
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+
+        val powerManager = getSystemService(PowerManager::class.java) ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            Log.d(TAG, "✅ App ya exenta de optimización de batería")
+            return
+        }
+
+        Log.d(TAG, "🔋 Solicitando exención de optimización de batería...")
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Optimización de Batería")
+            .setMessage(
+                "Para garantizar el registro continuo de tu ubicación durante el día, " +
+                "esta app necesita estar exenta de la optimización de batería.\n\n" +
+                "En la siguiente pantalla selecciona \"Sin restricciones\" o " +
+                "\"No optimizar\"."
+            )
+            .setCancelable(false)
+            .setPositiveButton("Entendido") { _, _ ->
+                try {
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = android.net.Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "💥 Error abriendo ajuste de batería: ${e.message}", e)
+                }
+            }
+            .show()
     }
 
     private fun startLocationTrackingIfNeeded() {

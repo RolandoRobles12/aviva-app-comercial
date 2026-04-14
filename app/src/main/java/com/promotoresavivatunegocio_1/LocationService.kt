@@ -83,6 +83,9 @@ class LocationService : Service() {
         const val ACTION_START_TRACKING = "START_TRACKING"
         const val ACTION_STOP_TRACKING = "STOP_TRACKING"
         const val ACTION_CHECK_WORK_HOURS = "CHECK_WORK_HOURS"
+
+        // Código de petición para el PendingIntent de reinicio
+        private const val RESTART_REQUEST_CODE = 9001
     }
 
     override fun onCreate() {
@@ -504,12 +507,13 @@ class LocationService : Service() {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "App Comercial Aviva",
-                NotificationManager.IMPORTANCE_MIN   // Sin icono en barra de estado
+                NotificationManager.IMPORTANCE_LOW   // Silencioso pero prioritario para el sistema
             ).apply {
-                description = "Servicio en segundo plano"
+                description = "Tracking de ubicación activo"
                 setShowBadge(false)
                 enableVibration(false)
                 enableLights(false)
+                setSound(null, null)
             }
 
             val manager = getSystemService(NotificationManager::class.java)
@@ -540,8 +544,13 @@ class LocationService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "⚠️ App eliminada de recientes – programando reinicio del servicio")
+        scheduleServiceRestart(delayMs = 3_000L)
+    }
+
     override fun onDestroy() {
-        super.onDestroy()
         val serviceLifetime = (System.currentTimeMillis() - serviceStartTime) / 1000 / 60
         Log.d(TAG, "🏁 LocationService destruido - Tiempo de vida: ${serviceLifetime} min")
 
@@ -558,8 +567,42 @@ class LocationService : Service() {
                     }
             }
 
+            // Si el usuario sigue autenticado, reagendar el servicio para que el sistema lo relance
+            if (auth.currentUser != null) {
+                scheduleServiceRestart(delayMs = 5_000L)
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error en onDestroy: ${e.message}")
+        }
+
+        super.onDestroy()
+    }
+
+    /**
+     * Programa el reinicio del servicio usando AlarmManager con setExactAndAllowWhileIdle()
+     * para que funcione incluso en modo Doze.
+     */
+    private fun scheduleServiceRestart(delayMs: Long) {
+        try {
+            val restartIntent = Intent(applicationContext, LocationService::class.java).apply {
+                action = ACTION_START_TRACKING
+            }
+            val pendingIntent = android.app.PendingIntent.getService(
+                applicationContext,
+                RESTART_REQUEST_CODE,
+                restartIntent,
+                android.app.PendingIntent.FLAG_ONE_SHOT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(android.app.AlarmManager::class.java)
+            alarmManager?.setExactAndAllowWhileIdle(
+                android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                android.os.SystemClock.elapsedRealtime() + delayMs,
+                pendingIntent
+            )
+            Log.d(TAG, "⏰ Reinicio del servicio programado en ${delayMs / 1000}s")
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error programando reinicio: ${e.message}")
         }
     }
 
