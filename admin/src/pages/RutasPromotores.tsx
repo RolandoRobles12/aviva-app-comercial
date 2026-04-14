@@ -196,23 +196,31 @@ const RutasPromotores: React.FC = () => {
     const fetchUsers = async () => {
       try {
         const usersSnapshot = await getDocs(collection(db, 'users'));
-        const usersData: User[] = usersSnapshot.docs
-          .map(doc => {
-            const data = doc.data();
-            // uid field stores Firebase Auth UID (set by Android app on first login).
-            // For admin-created users that haven't linked yet, uid may be empty → fall back to doc.id.
-            // After the AuthService migration fix, uid == doc.id for all properly-linked users.
-            return {
-              id: doc.id,
-              uid: data.uid || doc.id,
-              displayName: data.displayName || 'Sin nombre',
-              email: data.email || '',
-              homeLat: data.homeLat,
-              homeLng: data.homeLng,
-            };
-          })
-          // Exclude documents that have been superseded (migrated to another uid)
-          .filter(u => !usersSnapshot.docs.find(d => d.id === u.id)?.data().migratedToUid);
+
+        // Deduplicate by email: prefer the canonical doc where doc.id === data.uid
+        // (Firebase Auth UID document). Handles users with both an admin-created doc
+        // and an app-created doc that haven't been merged by AuthService yet.
+        const byEmail = new Map<string, User>();
+        usersSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.migratedToUid) return; // skip superseded docs
+          const email = data.email || '';
+          const uid = data.uid || '';
+          const isCanonical = uid && doc.id === uid;
+          const u: User = {
+            id: doc.id,
+            uid: uid || doc.id,
+            displayName: data.displayName || 'Sin nombre',
+            email,
+            homeLat: data.homeLat,
+            homeLng: data.homeLng,
+          };
+          if (!email) { byEmail.set(doc.id, u); return; }
+          const existing = byEmail.get(email);
+          if (!existing || isCanonical) byEmail.set(email, u);
+        });
+
+        const usersData = Array.from(byEmail.values());
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -246,18 +254,16 @@ const RutasPromotores: React.FC = () => {
       const allVisits: KioskVisit[] = [];
 
       for (const userId of selectedUserIds) {
-        // Resolve Firebase Auth UID for this user.
-        // For admin-created users, their Firestore doc ID differs from their Firebase Auth UID
-        // (stored in the 'uid' field). Location documents always use the Firebase Auth UID.
+        // Query by userEmail — always present in location docs, avoids UID/doc-ID mismatch
         const user = users.find(u => u.id === userId);
-        const locationUserId = user?.uid || userId;
+        const userEmail = user?.email || '';
 
-        // Cargar ubicaciones de la colección 'locations' que YA EXISTE
+        // Cargar ubicaciones de la colección 'locations'
         // Query simple sin rangos para evitar requerir índice compuesto
         // El filtrado de fechas se hace en memoria
         const locQuery = query(
           collection(db, 'locations'),
-          where('userId', '==', locationUserId)
+          where('userEmail', '==', userEmail)
         );
 
         const locSnapshot = await getDocs(locQuery);
@@ -289,7 +295,7 @@ const RutasPromotores: React.FC = () => {
         // Query simple sin rangos
         const visitsQuery = query(
           collection(db, 'kioskVisits'),
-          where('userId', '==', locationUserId)
+          where('userEmail', '==', userEmail)
         );
 
         const visitsSnapshot = await getDocs(visitsQuery);

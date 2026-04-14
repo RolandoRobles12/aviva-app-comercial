@@ -677,19 +677,37 @@ const ReporteProductividad: React.FC = () => {
           getDocs(query(collection(db, 'products'), orderBy('name', 'asc'))),
         ]);
 
-        const usersData: AdminUser[] = usersSnap.docs
-          .filter((d) => !d.data().migratedToUid) // skip superseded admin-created docs
-          .map((d) => ({
+        // Deduplicate by email: prefer the canonical doc (doc.id === data.uid),
+        // which is the Firebase Auth UID document created/migrated by the Android app.
+        // This handles users who have both an admin-created doc (random ID) and an
+        // app-created doc (firebase_uid) when migration hasn't run yet.
+        const byEmail = new Map<string, AdminUser>();
+        usersSnap.docs.forEach((d) => {
+          const data = d.data();
+          if (data.migratedToUid) return; // skip superseded admin-created docs
+
+          const email = data.email || '';
+          const uid = data.uid || '';
+          const isCanonical = uid && d.id === uid; // doc ID matches Firebase Auth UID
+
+          const u: AdminUser = {
             id: d.id,
-            uid: d.data().uid || d.id, // Firebase Auth UID used by LocationService
-            displayName: d.data().displayName || 'Sin nombre',
-            email: d.data().email || '',
-            productLine: d.data().productLine,
-            hubspotOwnerId: d.data().hubspotOwnerId,
-            homeLat: d.data().homeLat,
-            homeLng: d.data().homeLng,
-            assignedKioskId: d.data().assignedKioskId,
-          }));
+            uid: uid || d.id,
+            displayName: data.displayName || 'Sin nombre',
+            email,
+            productLine: data.productLine,
+            hubspotOwnerId: data.hubspotOwnerId,
+            homeLat: data.homeLat,
+            homeLng: data.homeLng,
+            assignedKioskId: data.assignedKioskId,
+          };
+
+          if (!email) { byEmail.set(d.id, u); return; } // no email → keep as-is
+          const existing = byEmail.get(email);
+          if (!existing || isCanonical) byEmail.set(email, u);
+        });
+
+        const usersData = Array.from(byEmail.values());
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
         setProducts(productsSnap.docs.map((d) => ({
@@ -786,10 +804,10 @@ const ReporteProductividad: React.FC = () => {
         selectedUsers.map(async (user, idx): Promise<SellerReport> => {
           const color = SELLER_COLORS[idx % SELLER_COLORS.length];
 
-          // 1. GPS Locations (filter by date in memory to avoid requiring composite index)
+          // 1. GPS Locations — query by userEmail (always present, avoids UID mismatch)
           const locSnap = await getDocs(query(
             collection(db, 'locations'),
-            where('userId', '==', user.uid),
+            where('userEmail', '==', user.email),
           ));
           const filteredLocDocs = locSnap.docs.filter((d) => {
             const ts: Timestamp | undefined = d.data().timestamp;
@@ -803,7 +821,7 @@ const ReporteProductividad: React.FC = () => {
           try {
             const alertsSnap = await getDocs(query(
               collection(db, 'locationAlerts'),
-              where('userId', '==', user.uid),
+              where('userEmail', '==', user.email),
             ));
             alertDocs = alertsSnap.docs.filter((d) => {
               const ts: Timestamp | undefined = d.data().detectedAt;
