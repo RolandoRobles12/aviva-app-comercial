@@ -201,7 +201,11 @@ const Usuarios: React.FC = () => {
       const querySnapshot = await getDocs(collection(db, 'users'));
       const usersData: User[] = [];
       querySnapshot.forEach((doc) => {
-        usersData.push({ id: doc.id, ...doc.data() } as User);
+        const data = doc.data();
+        // Exclude documents that have been superseded by the UID-migration flow
+        // (admin-created docs that got merged into the real users/{uid} document on first login)
+        if (data.migratedToUid) return;
+        usersData.push({ id: doc.id, ...data } as User);
       });
       setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 

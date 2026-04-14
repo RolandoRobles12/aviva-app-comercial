@@ -242,12 +242,20 @@ const MapaVendedores: React.FC = () => {
   // el status se calcula en el useMemo de abajo para evitar closures obsoletos.
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, 'users'), where('status', '==', 'ACTIVE'));
+    // Include PENDING_ACTIVATION so recently-logged-in vendors appear even before
+    // an admin has formally activated them. Exclude INACTIVE and SUSPENDED.
+    const q = query(
+      collection(db, 'users'),
+      where('status', 'in', ['ACTIVE', 'PENDING_ACTIVATION'])
+    );
     const unsubscribe = onSnapshot(q,
       (snapshot) => {
         const raw: RawUser[] = [];
         snapshot.docs.forEach(doc => {
           const data = doc.data();
+          // Skip documents that were superseded by the UID-migration flow
+          if (data.migratedToUid) return;
+          // Skip users without location data (can't show them on the map)
           if (!data.lastLocation) return;
           raw.push({
             id: doc.id,

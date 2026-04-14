@@ -169,21 +169,65 @@ class AuthService(private val context: Context) {
 
             existingUser
         } else {
-            // Create new user
-            val newUser = User(
-                uid = firebaseUser.uid,
-                email = firebaseUser.email ?: "",
-                displayName = firebaseUser.displayName ?: "",
-                photoUrl = firebaseUser.photoUrl?.toString(),
-                role = User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO, // Default role
-                productLine = User.ProductLine.AVIVA_TU_NEGOCIO, // Default product line
-                status = User.UserStatus.PENDING_ACTIVATION, // Requires admin activation
-                createdAt = Timestamp.now(),
-                updatedAt = Timestamp.now()
-            )
+            // No document at users/{uid}.
+            // Try to find a pre-created admin document by email (admin panel uses addDoc → random ID).
+            val email = firebaseUser.email ?: ""
+            val existingByEmail = if (email.isNotEmpty()) {
+                try {
+                    usersCollection.whereEqualTo("email", email).limit(1).get().await()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error buscando usuario por email: ${e.message}")
+                    null
+                }
+            } else null
 
-            usersCollection.document(firebaseUser.uid).set(newUser).await()
-            newUser.copy(id = firebaseUser.uid)
+            if (existingByEmail != null && !existingByEmail.isEmpty) {
+                // Found admin-created document. Migrate it to users/{uid} so that
+                // LocationService and queries work correctly with the Firebase Auth UID.
+                val adminDoc = existingByEmail.documents[0]
+                val adminData = adminDoc.data?.toMutableMap() ?: mutableMapOf()
+
+                adminData["uid"] = firebaseUser.uid
+                adminData["id"] = firebaseUser.uid
+                adminData["displayName"] = firebaseUser.displayName
+                    ?: adminData["displayName"] as? String ?: ""
+                val photoUrlValue = firebaseUser.photoUrl?.toString()
+                    ?: adminData["photoUrl"] as? String
+                if (photoUrlValue != null) adminData["photoUrl"] = photoUrlValue
+                adminData["updatedAt"] = Timestamp.now()
+
+                // Write document at the correct UID path
+                usersCollection.document(firebaseUser.uid).set(adminData).await()
+
+                // Mark the original admin-created document as migrated (don't delete to preserve history)
+                try {
+                    adminDoc.reference.update(mapOf(
+                        "migratedToUid" to firebaseUser.uid,
+                        "updatedAt" to Timestamp.now()
+                    )).await()
+                } catch (e: Exception) {
+                    Log.w(TAG, "No se pudo marcar documento original como migrado: ${e.message}")
+                }
+
+                Log.d(TAG, "✅ Usuario migrado de ${adminDoc.id} → ${firebaseUser.uid}")
+                usersCollection.document(firebaseUser.uid).get().await()
+                    .toObject(User::class.java)!!.copy(id = firebaseUser.uid)
+            } else {
+                // Brand new user — requires admin activation
+                val newUser = User(
+                    uid = firebaseUser.uid,
+                    email = firebaseUser.email ?: "",
+                    displayName = firebaseUser.displayName ?: "",
+                    photoUrl = firebaseUser.photoUrl?.toString(),
+                    role = User.UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
+                    productLine = User.ProductLine.AVIVA_TU_NEGOCIO,
+                    status = User.UserStatus.PENDING_ACTIVATION,
+                    createdAt = Timestamp.now(),
+                    updatedAt = Timestamp.now()
+                )
+                usersCollection.document(firebaseUser.uid).set(newUser).await()
+                newUser.copy(id = firebaseUser.uid)
+            }
         }
     }
 

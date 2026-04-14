@@ -70,6 +70,7 @@ const createHomeIconRutas = (): string =>
 
 interface User {
   id: string;
+  uid: string; // Firebase Auth UID — used for location queries. May differ from id for admin-created users.
   displayName: string;
   email: string;
   homeLat?: number;
@@ -199,13 +200,23 @@ const RutasPromotores: React.FC = () => {
     const fetchUsers = async () => {
       try {
         const usersSnapshot = await getDocs(collection(db, 'users'));
-        const usersData: User[] = usersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          displayName: doc.data().displayName || 'Sin nombre',
-          email: doc.data().email || '',
-          homeLat: doc.data().homeLat,
-          homeLng: doc.data().homeLng,
-        }));
+        const usersData: User[] = usersSnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            // uid field stores Firebase Auth UID (set by Android app on first login).
+            // For admin-created users that haven't linked yet, uid may be empty → fall back to doc.id.
+            // After the AuthService migration fix, uid == doc.id for all properly-linked users.
+            return {
+              id: doc.id,
+              uid: data.uid || doc.id,
+              displayName: data.displayName || 'Sin nombre',
+              email: data.email || '',
+              homeLat: data.homeLat,
+              homeLng: data.homeLng,
+            };
+          })
+          // Exclude documents that have been superseded (migrated to another uid)
+          .filter(u => !usersSnapshot.docs.find(d => d.id === u.id)?.data().migratedToUid);
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -239,26 +250,37 @@ const RutasPromotores: React.FC = () => {
       const allVisits: KioskVisit[] = [];
 
       for (const userId of selectedUserIds) {
+        // Resolve Firebase Auth UID for this user.
+        // For admin-created users, their Firestore doc ID differs from their Firebase Auth UID
+        // (stored in the 'uid' field). Location documents always use the Firebase Auth UID.
+        const user = users.find(u => u.id === userId);
+        const locationUserId = user?.uid || userId;
+
         // Cargar ubicaciones de la colección 'locations' que YA EXISTE
         // Query simple sin rangos para evitar requerir índice compuesto
         // El filtrado de fechas se hace en memoria
         const locQuery = query(
           collection(db, 'locations'),
-          where('userId', '==', userId)
+          where('userId', '==', locationUserId)
         );
 
         const locSnapshot = await getDocs(locQuery);
         const userPoints: LocationPoint[] = locSnapshot.docs
           .map(doc => {
             const data = doc.data();
+            // Support both GeoPoint 'location' field and flat 'latitude'/'longitude' fields
+            const lat = data.location?.latitude ?? data.latitude;
+            const lng = data.location?.longitude ?? data.longitude;
+            if (!data.timestamp || lat == null || lng == null) return null;
             return {
               id: doc.id,
               timestamp: data.timestamp,
-              location: data.location,
+              location: data.location ?? new GeoPoint(lat, lng),
               accuracy: data.accuracy,
               userId: userId
-            };
+            } as LocationPoint;
           })
+          .filter((point): point is LocationPoint => point !== null)
           // Filtrar por fecha en memoria (sin índice de Firebase)
           .filter(point => {
             const pointTime = point.timestamp.toMillis();
@@ -271,7 +293,7 @@ const RutasPromotores: React.FC = () => {
         // Query simple sin rangos
         const visitsQuery = query(
           collection(db, 'kioskVisits'),
-          where('userId', '==', userId)
+          where('userId', '==', locationUserId)
         );
 
         const visitsSnapshot = await getDocs(visitsQuery);
