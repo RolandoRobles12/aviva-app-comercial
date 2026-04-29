@@ -86,23 +86,44 @@ export class HubSpotService {
   /**
    * Obtiene deals de HubSpot para un owner específico en un rango de fechas.
    * Usado por el Reporte de Productividad para evitar CORS desde el browser.
+   * Incluye retry con backoff exponencial para manejar rate limits (429).
    */
   async getDealsByOwner(ownerId: string, startMs: number, endMs: number): Promise<{ id: string; createdDate: string }[]> {
-    const response = await this.axiosInstance.post("/crm/v3/objects/deals/search", {
-      filterGroups: [{
-        filters: [
-          { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
-          { propertyName: "createdate", operator: "GTE", value: startMs.toString() },
-          { propertyName: "createdate", operator: "LTE", value: endMs.toString() },
-        ],
-      }],
-      properties: ["dealname", "createdate"],
-      limit: 200,
-    });
-    return (response.data.results || []).map((d: any) => ({
-      id: d.id,
-      createdDate: (d.properties.createdate || "").split("T")[0],
-    }));
+    const maxRetries = 4;
+    let lastError: any;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await this.axiosInstance.post("/crm/v3/objects/deals/search", {
+          filterGroups: [{
+            filters: [
+              { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
+              { propertyName: "createdate", operator: "GTE", value: startMs.toString() },
+              { propertyName: "createdate", operator: "LTE", value: endMs.toString() },
+            ],
+          }],
+          properties: ["dealname", "createdate"],
+          limit: 200,
+        });
+        return (response.data.results || []).map((d: any) => ({
+          id: d.id,
+          createdDate: (d.properties.createdate || "").split("T")[0],
+        }));
+      } catch (error: any) {
+        lastError = error;
+        const status = error.response?.status;
+        // Retry on rate limit (429) or transient server errors (500/502/503)
+        if (status === 429 || status === 500 || status === 502 || status === 503) {
+          const delayMs = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s, 8s
+          console.warn(`[getDealsByOwner] attempt ${attempt + 1} failed (${status}), retrying in ${delayMs}ms`);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw lastError;
   }
 
   /**

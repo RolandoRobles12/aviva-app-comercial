@@ -1366,6 +1366,68 @@ export const updateLeaguePoints = functions.https.onRequest(async (req, res) => 
   });
 });
 
+// Lazy-initialized admin app for the registro-aviva project.
+// The Cloud Function service account must be granted "Cloud Datastore User" on registro-aviva:
+//   IAM → registro-aviva → Add principal: <project>@appspot.gserviceaccount.com → Cloud Datastore User
+let registroAdminApp: admin.app.App | null = null;
+function getRegistroDb(): admin.firestore.Firestore {
+  if (!registroAdminApp) {
+    registroAdminApp = admin.initializeApp({ projectId: "registro-aviva" }, "registro-aviva");
+  }
+  return admin.firestore(registroAdminApp);
+}
+
+/**
+ * Devuelve los check-ins de un vendedor (por email) en un rango de fechas.
+ * Proxy server-side para acceder a la colección checkins del proyecto registro-aviva
+ * sin requerir que el usuario esté autenticado en ese proyecto.
+ * Endpoint: /getCheckinsForReport
+ * Body: { email: string, startMs: number, endMs: number }
+ */
+export const getCheckinsForReport = functions.https.onRequest(async (req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+
+      const { email, startMs, endMs } = req.body;
+      if (!email || !startMs || !endMs) {
+        res.status(400).json({ error: "Missing params: email, startMs, endMs" });
+        return;
+      }
+
+      const startTs = admin.firestore.Timestamp.fromMillis(Number(startMs));
+      const endTs   = admin.firestore.Timestamp.fromMillis(Number(endMs));
+
+      const registroDb = getRegistroDb();
+      const snap = await registroDb
+        .collection("checkins")
+        .where("email", "==", email)
+        .where("timestamp", ">=", startTs)
+        .where("timestamp", "<=", endTs)
+        .get();
+
+      const checkins = snap.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          // Timestamps are not JSON-serializable; send as milliseconds.
+          timestamp: (data.timestamp as admin.firestore.Timestamp)?.toMillis() ?? null,
+        };
+      });
+
+      res.status(200).json({ checkins });
+    } catch (error: any) {
+      functions.logger.error("Error in getCheckinsForReport:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+});
+
 /**
  * Devuelve los deals de HubSpot para un owner específico en un rango de fechas.
  * Proxy server-side para evitar bloqueos CORS del browser.
