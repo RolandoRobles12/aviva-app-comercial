@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   type User,
   GoogleAuthProvider,
+  signInAnonymously,
   signInWithCredential,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -38,6 +39,30 @@ export const useAuth = () => {
   return context;
 };
 
+// Garantiza que haya un usuario autenticado en registro-aviva para que las
+// queries de Firestore pasen la regla "allow read: if request.auth != null".
+// Se intenta primero con la credencial de Google (si está disponible) y luego
+// con autenticación anónima como fallback. Esto cubre tanto logins nuevos como
+// sesiones existentes restauradas desde localStorage.
+async function ensureRegistroAuth(googleCredential?: ReturnType<typeof GoogleAuthProvider.credentialFromResult>) {
+  if (authRegistro.currentUser) return; // ya autenticado, nada que hacer
+
+  if (googleCredential) {
+    try {
+      await signInWithCredential(authRegistro, googleCredential);
+      return;
+    } catch {
+      // Google Auth puede no estar habilitado en registro-aviva; usar anónimo.
+    }
+  }
+
+  try {
+    await signInAnonymously(authRegistro);
+  } catch (e) {
+    console.warn('[AuthContext] No se pudo autenticar en registro-aviva:', e);
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -48,6 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
 
       if (firebaseUser) {
+        // Asegurar autenticación en registro-aviva (cubre recargas de página
+        // donde la sesión principal se restaura pero registro-aviva no).
+        ensureRegistroAuth();
+
         // Obtener datos adicionales del usuario desde Firestore
         try {
           // Verificar si está en la colección admins por email
@@ -115,17 +144,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Solo se permiten cuentas de @avivacredito.com');
       }
 
-      // Reutilizar la credencial de Google para autenticarse también en el proyecto
-      // registro-aviva, de modo que las queries de Firestore a ese proyecto tengan auth.
+      // Intentar autenticar en registro-aviva con la credencial de Google.
+      // Si no está habilitado Google Auth en ese proyecto, ensureRegistroAuth
+      // caerá automáticamente en autenticación anónima.
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential) {
-        try {
-          await signInWithCredential(authRegistro, credential);
-        } catch (e) {
-          // No bloquear el login si registro-aviva no tiene Google Auth habilitado.
-          console.warn('[AuthContext] No se pudo autenticar en registro-aviva:', e);
-        }
-      }
+      await ensureRegistroAuth(credential ?? undefined);
     } catch (error: any) {
       console.error('Error signing in:', error);
       throw error;
