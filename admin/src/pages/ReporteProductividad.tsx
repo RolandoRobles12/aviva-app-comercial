@@ -57,6 +57,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -234,36 +235,9 @@ const getDateRange = (filter: QuickFilter, customStart: string, customEnd: strin
   }
 };
 
-// ── Fetch check-ins via Cloud Function proxy ──────────────────────────────
+// ── Fetch HubSpot deals ───────────────────────────────────────────────────
 
 const FUNCTIONS_BASE = 'https://us-central1-promotores-aviva-tu-negocio.cloudfunctions.net';
-
-const fetchCheckins = async (
-  email: string,
-  startMs: number,
-  endMs: number,
-  idToken: string,
-): Promise<CheckInRecord[]> => {
-  const res = await fetch(`${FUNCTIONS_BASE}/getCheckinsForReport`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, startMs, endMs }),
-  });
-
-  if (!res.ok) throw new Error(`getCheckinsForReport returned ${res.status}`);
-  const data = await res.json();
-
-  return ((data.checkins || []) as any[]).map((ci) => ({
-    ...ci,
-    // Reconstruct Timestamp from milliseconds for compatibility with existing helpers.
-    timestamp: ci.timestamp != null ? Timestamp.fromMillis(ci.timestamp) : null,
-  })) as CheckInRecord[];
-};
-
-// ── Fetch HubSpot deals ───────────────────────────────────────────────────
 
 const fetchHubspotDeals = async (
   ownerId: string,
@@ -842,19 +816,29 @@ const ReporteProductividad: React.FC = () => {
             // Se ignora fuera de zona si no hay datos
           }
 
-          // 3. Check-ins via Cloud Function proxy (registro-aviva project).
+          // 3. Check-ins desde registro-aviva.
+          // El usuario está autenticado en ese proyecto gracias a signInWithCredential
+          // en AuthContext. Las reglas de registro-aviva deben permitir:
+          //   match /checkins/{id} { allow read: if request.auth != null; }
           let checkIns: CheckInRecord[] = [];
           let checkInsError = false;
-          if (idToken) {
-            try {
-              const startMs = new Date(start + 'T00:00:00').getTime();
-              const endMs   = new Date(end   + 'T23:59:59').getTime();
-              checkIns = await fetchCheckins(user.email, startMs, endMs, idToken);
-              console.log(`[ReporteProductividad] checkins para ${user.email}: ${checkIns.length}`);
-            } catch (e) {
-              console.error('[ReporteProductividad] Error al obtener checkins:', e);
-              checkInsError = true;
-            }
+          try {
+            const ciSnap = await getDocs(query(
+              collection(dbRegistro, 'checkins'),
+              where('email', '==', user.email),
+            ));
+            checkIns = ciSnap.docs
+              .filter((d) => {
+                const ts: Timestamp | undefined = d.data().timestamp;
+                if (!ts) return false;
+                const ms = ts.toMillis();
+                return ms >= startTs.toMillis() && ms <= endTs.toMillis();
+              })
+              .map((d) => d.data() as CheckInRecord);
+            console.log(`[ReporteProductividad] checkins en rango para ${user.email}: ${checkIns.length}`);
+          } catch (e) {
+            console.error('[ReporteProductividad] Error al obtener checkins:', e);
+            checkInsError = true;
           }
 
           // 4. HubSpot deals (via Firebase Function para evitar CORS)
