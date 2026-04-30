@@ -1,4 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Segunda instancia de Firebase para el proyecto de registro (check-ins)
@@ -17,4 +18,5 @@ const registroApp =
   getApps().find((app) => app.name === 'registro') ||
   initializeApp(registroConfig, 'registro');
 
+export const authRegistro = getAuth(registroApp);
 export const dbRegistro = getFirestore(registroApp);

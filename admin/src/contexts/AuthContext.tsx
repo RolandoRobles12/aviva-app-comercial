@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   type User,
+  GoogleAuthProvider,
+  signInWithCredential,
   signInWithPopup,
   signOut as firebaseSignOut,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, query, where, setDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config/firebase';
+import { authRegistro } from '../config/firebaseRegistro';
 
 interface UserData {
   uid: string;
@@ -110,6 +113,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!result.user.email?.endsWith('@avivacredito.com')) {
         await firebaseSignOut(auth);
         throw new Error('Solo se permiten cuentas de @avivacredito.com');
+      }
+
+      // Reutilizar la credencial de Google para autenticarse también en el proyecto
+      // registro-aviva, de modo que las queries de Firestore a ese proyecto tengan auth.
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential) {
+        try {
+          await signInWithCredential(authRegistro, credential);
+        } catch (e) {
+          // No bloquear el login si registro-aviva no tiene Google Auth habilitado.
+          console.warn('[AuthContext] No se pudo autenticar en registro-aviva:', e);
+        }
       }
     } catch (error: any) {
       console.error('Error signing in:', error);
