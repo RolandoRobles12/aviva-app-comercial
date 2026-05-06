@@ -817,21 +817,32 @@ class MainActivity : AppCompatActivity() {
      * pueda conceder el permiso de ubicación "Siempre".
      */
     private fun openAppLocationSettings() {
-        try {
-            val intent = android.content.Intent(
+        // Try increasingly generic intents until one resolves
+        val intentsToTry = listOf(
+            // Direct to app permissions list (works on AOSP/Pixel and many OEMs)
+            android.content.Intent("android.intent.action.MANAGE_APP_PERMISSIONS").apply {
+                putExtra("android.intent.extra.PACKAGE_NAME", packageName)
+            },
+            // App details (user then taps Permissions → Ubicación)
+            android.content.Intent(
                 android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
             ).apply {
                 data = android.net.Uri.fromParts("package", packageName, null)
             }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "💥 Error abriendo ajustes: ${e.message}", e)
-            Toast.makeText(
-                this,
-                "Abre Ajustes del teléfono → Aplicaciones → ${getString(R.string.app_name)} → Permisos → Ubicación → Siempre",
-                Toast.LENGTH_LONG
-            ).show()
+        )
+        for (intent in intentsToTry) {
+            try {
+                if (packageManager.resolveActivity(intent, 0) != null) {
+                    startActivity(intent)
+                    return
+                }
+            } catch (_: Exception) {}
         }
+        Toast.makeText(
+            this,
+            "Abre Ajustes → Aplicaciones → ${getString(R.string.app_name)} → Permisos → Ubicación → Siempre",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     /**
@@ -1022,7 +1033,7 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
 
-                if (backgroundOk && locationBlockerDialog?.isShowing == true) {
+                if (backgroundOk && binding.locationPermissionBlocker.visibility == View.VISIBLE) {
                     Log.d(TAG, "✅ Permiso 'Todo el tiempo' ahora concedido – reanudando app")
                     dismissLocationBlocker()
                     startLocationTrackingIfNeeded()
