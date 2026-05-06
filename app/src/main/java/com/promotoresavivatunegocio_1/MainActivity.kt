@@ -13,7 +13,10 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.app.IntentCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.pm.PackageManagerCompat
+import androidx.core.content.pm.UnusedAppRestrictionsConstants
 import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -483,6 +486,7 @@ class MainActivity : AppCompatActivity() {
                 locationManager = LocationManager.getInstance(this)
             }
             checkAndEnforceLocationPermissions()
+            checkUnusedAppRestrictions()
 
             Log.d(TAG, "✅ Contenido principal configurado")
         } catch (e: Exception) {
@@ -817,13 +821,25 @@ class MainActivity : AppCompatActivity() {
      * pueda conceder el permiso de ubicación "Siempre".
      */
     private fun openAppLocationSettings() {
-        // Try increasingly generic intents until one resolves
         val intentsToTry = listOf(
-            // Direct to app permissions list (works on AOSP/Pixel and many OEMs)
+            // MIUI (Xiaomi) – permissions editor
+            android.content.Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setClassName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.permissions.PermissionsEditorActivity"
+                )
+                putExtra("extra_pkgname", packageName)
+            },
+            // AOSP / Pixel / most OEMs – app permissions list
             android.content.Intent("android.intent.action.MANAGE_APP_PERMISSIONS").apply {
                 putExtra("android.intent.extra.PACKAGE_NAME", packageName)
             },
-            // App details (user then taps Permissions → Ubicación)
+            // Alternative action used on some ROMs
+            android.content.Intent("android.settings.APP_PERMISSION_SETTINGS").apply {
+                putExtra("android.intent.extra.PACKAGE_NAME", packageName)
+                data = android.net.Uri.fromParts("package", packageName, null)
+            },
+            // Universal fallback: app info page
             android.content.Intent(
                 android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
             ).apply {
@@ -840,9 +856,42 @@ class MainActivity : AppCompatActivity() {
         }
         Toast.makeText(
             this,
-            "Abre Ajustes → Aplicaciones → ${getString(R.string.app_name)} → Permisos → Ubicación → Siempre",
+            "Ajustes → Aplicaciones → ${getString(R.string.app_name)} → Permisos → Ubicación → Siempre",
             Toast.LENGTH_LONG
         ).show()
+    }
+
+    private fun checkUnusedAppRestrictions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
+        future.addListener({
+            val status = try { future.get() } catch (_: Exception) { return@addListener }
+            if (status == UnusedAppRestrictionsConstants.DISABLED ||
+                status == UnusedAppRestrictionsConstants.FEATURE_NOT_AVAILABLE) return@addListener
+            runOnUiThread { showDisableHibernationDialog() }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun showDisableHibernationDialog() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Desactivar pausa automática")
+            .setMessage(
+                "La opción \"Pausar actividad si no se usa\" puede revocar el permiso " +
+                "de ubicación y detener el seguimiento cuando no abras la app por un tiempo.\n\n" +
+                "Desactívala para garantizar el registro continuo de tu ruta."
+            )
+            .setCancelable(false)
+            .setPositiveButton("Desactivar ahora") { _, _ ->
+                try {
+                    val intent = IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName)
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "💥 Error abriendo ajuste de hibernación: ${e.message}", e)
+                    openAppLocationSettings()
+                }
+            }
+            .setNegativeButton("Ahora no", null)
+            .show()
     }
 
     /**
