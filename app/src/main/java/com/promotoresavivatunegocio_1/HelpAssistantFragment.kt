@@ -63,7 +63,7 @@ class HelpAssistantFragment : Fragment() {
 
         // Configurar botón de regreso
         buttonBack.setOnClickListener {
-            requireActivity().onBackPressed()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
     }
 
