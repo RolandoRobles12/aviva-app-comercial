@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
     internal var currentUser: models.User? = null // Accessible by fragments
     private var navigationManager: com.promotoresavivatunegocio_1.services.RoleBasedNavigationManager? = null
 
-    // Diálogo bloqueador de permisos de ubicación
+    // Diálogo bloqueador de permisos de ubicación (legacy, ya no se usa)
     private var locationBlockerDialog: android.app.AlertDialog? = null
 
     companion object {
@@ -773,41 +773,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Muestra un diálogo no descartable que bloquea el uso de la app
+     * Muestra el overlay de pantalla completa que bloquea toda la app
      * mientras el permiso "Todo el tiempo" no esté concedido.
+     * Al ser una View en el layout (no un Dialog), no puede ser descartado
+     * por el sistema ni por recreación de la actividad.
      */
     private fun showLocationPermissionBlocker() {
         try {
-            if (locationBlockerDialog?.isShowing == true) return
+            Log.d(TAG, "🚫 Mostrando bloqueador de ubicación")
 
-            Log.d(TAG, "🚫 Mostrando bloqueador: permiso de ubicación requerido")
-
-            // Ocultar el contenido de la app mientras no haya permiso
+            // Ocultar contenido de navegación
             val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
             navHostFragment?.view?.visibility = View.GONE
 
-            val mensaje = "Esta aplicación requiere acceso a la ubicación " +
-                "\"Todo el tiempo\" para poder funcionar.\n\n" +
-                "Toca \"Ir a Configuración\", luego ve a " +
-                "Permisos → Ubicación y selecciona \"Siempre\"."
+            // Mostrar overlay de pantalla completa
+            binding.locationPermissionBlocker.visibility = View.VISIBLE
+            binding.btnGoToSettings.setOnClickListener { openAppLocationSettings() }
+            binding.btnBlockerLogout.setOnClickListener { performLogout() }
 
-            val dialog = android.app.AlertDialog.Builder(this)
-                .setTitle("Permiso de Ubicación Requerido")
-                .setMessage(mensaje)
-                .setCancelable(false)
-                .setPositiveButton("Ir a Configuración") { _, _ ->
-                    openAppLocationSettings()
-                }
-                .setNegativeButton("Cerrar Sesión") { _, _ ->
-                    // Cerrar sesión directamente — el usuario eligió salir desde la pantalla
-                    // de bloqueo, una segunda confirmación sería redundante
-                    performLogout()
-                }
-                .create()
-
-            locationBlockerDialog = dialog
-            dialog.show()
-            Log.d(TAG, "✅ Bloqueador de permisos mostrado")
+            Log.d(TAG, "✅ Bloqueador de pantalla completa mostrado")
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error mostrando bloqueador: ${e.message}", e)
         }
@@ -816,6 +800,7 @@ class MainActivity : AppCompatActivity() {
     private fun dismissLocationBlocker() {
         locationBlockerDialog?.dismiss()
         locationBlockerDialog = null
+        binding.locationPermissionBlocker.visibility = View.GONE
         revealNavContent()
     }
 
@@ -996,7 +981,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         try {
             Log.d(TAG, "🔚 MainActivity onDestroy")
-            dismissLocationBlocker()
+            locationBlockerDialog?.dismiss()
+            locationBlockerDialog = null
             _binding = null
             super.onDestroy()
         } catch (e: Exception) {

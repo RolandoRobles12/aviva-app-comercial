@@ -169,5 +169,77 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:navGraph="@navigation/mobile_navigation" />
 
+    <!-- Bloqueador de pantalla completa cuando falta el permiso de ubicación "Siempre".
+         Debe ser el último hijo para tener el mayor z-order y cubrir todo lo demás. -->
+    <FrameLayout
+        android:id="@+id/locationPermissionBlocker"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        android:background="@color/background"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="40dp">
+
+            <ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:src="@android:drawable/ic_menu_mylocation"
+                android:tint="@color/primary"
+                android:layout_marginBottom="24dp"
+                android:contentDescription="Ubicación" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Permiso de Ubicación Requerido"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_text"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Esta aplicación requiere acceso a la ubicación «Siempre» para poder funcionar.\n\nVe a Configuración → Permisos → Ubicación y selecciona «Permitir todo el tiempo»."
+                android:textSize="15sp"
+                android:textColor="@color/on_surface"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="32dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnGoToSettings"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Ir a Configuración"
+                android:textSize="16sp"
+                app:backgroundTint="@color/primary"
+                android:layout_marginBottom="12dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnBlockerLogout"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Cerrar Sesión"
+                android:textSize="16sp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                app:strokeColor="@color/primary" />
+
+        </LinearLayout>
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
