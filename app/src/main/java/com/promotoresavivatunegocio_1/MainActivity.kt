@@ -782,6 +782,10 @@ class MainActivity : AppCompatActivity() {
 
             Log.d(TAG, "🚫 Mostrando bloqueador: permiso de ubicación requerido")
 
+            // Ocultar el contenido de la app mientras no haya permiso
+            val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
+            navHostFragment?.view?.visibility = View.GONE
+
             val mensaje = "Esta aplicación requiere acceso a la ubicación " +
                 "\"Todo el tiempo\" para poder funcionar.\n\n" +
                 "Toca \"Ir a Configuración\", luego ve a " +
@@ -795,7 +799,9 @@ class MainActivity : AppCompatActivity() {
                     openAppLocationSettings()
                 }
                 .setNegativeButton("Cerrar Sesión") { _, _ ->
-                    showLogoutConfirmationDialog()
+                    // Cerrar sesión directamente — el usuario eligió salir desde la pantalla
+                    // de bloqueo, una segunda confirmación sería redundante
+                    performLogout()
                 }
                 .create()
 
