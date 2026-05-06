@@ -13,10 +13,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.app.IntentCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.pm.PackageManagerCompat
-import androidx.core.content.pm.UnusedAppRestrictionsConstants
 import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -863,13 +860,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkUnusedAppRestrictions() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
-        val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
-        future.addListener({
-            val status = try { future.get() } catch (_: Exception) { return@addListener }
-            if (status == UnusedAppRestrictionsConstants.DISABLED ||
-                status == UnusedAppRestrictionsConstants.FEATURE_NOT_AVAILABLE) return@addListener
-            runOnUiThread { showDisableHibernationDialog() }
-        }, ContextCompat.getMainExecutor(this))
+        try {
+            // API 30+ nativa: isAutoRevokeWhitelisted() devuelve true si la app YA está exenta
+            val exempt = packageManager.isAutoRevokeWhitelisted()
+            if (!exempt) showDisableHibernationDialog()
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error verificando restricciones de app sin uso: ${e.message}", e)
+        }
     }
 
     private fun showDisableHibernationDialog() {
@@ -883,7 +880,19 @@ class MainActivity : AppCompatActivity() {
             .setCancelable(false)
             .setPositiveButton("Desactivar ahora") { _, _ ->
                 try {
-                    val intent = IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName)
+                    // Android 11: intent directo a la pantalla de auto-revoke de permisos
+                    // Android 12+: la opción está dentro de Información de la app
+                    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                        ).apply {
+                            data = android.net.Uri.fromParts("package", packageName, null)
+                        }
+                    } else {
+                        android.content.Intent(Intent.ACTION_AUTO_REVOKE_PERMISSIONS).apply {
+                            data = android.net.Uri.fromParts("package", packageName, null)
+                        }
+                    }
                     startActivity(intent)
                 } catch (e: Exception) {
                     Log.e(TAG, "💥 Error abriendo ajuste de hibernación: ${e.message}", e)
