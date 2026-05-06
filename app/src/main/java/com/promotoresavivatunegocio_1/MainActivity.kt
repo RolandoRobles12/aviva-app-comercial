@@ -463,9 +463,7 @@ class MainActivity : AppCompatActivity() {
 
             binding.loginContainer.visibility = View.GONE
             // toolbar remains GONE – HomeFragment has its own header
-
-            val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
-            navHostFragment?.view?.visibility = View.VISIBLE
+            // navHostFragment stays GONE until location permissions are confirmed
 
             // Configurar toolbar y botón de logout
             setupToolbar()
@@ -812,6 +810,15 @@ class MainActivity : AppCompatActivity() {
     private fun dismissLocationBlocker() {
         locationBlockerDialog?.dismiss()
         locationBlockerDialog = null
+        revealNavContent()
+    }
+
+    private fun revealNavContent() {
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment)
+        if (navHostFragment?.view?.visibility != View.VISIBLE) {
+            navHostFragment?.view?.visibility = View.VISIBLE
+            Log.d(TAG, "✅ Contenido de navegación revelado")
+        }
     }
 
     /**
@@ -953,6 +960,8 @@ class MainActivity : AppCompatActivity() {
                             BACKGROUND_LOCATION_REQUEST_CODE
                         )
                     } else {
+                        // Android < 10: no existe background location, permisos básicos son suficientes
+                        revealNavContent()
                         startLocationTrackingIfNeeded()
                     }
                 } else {
