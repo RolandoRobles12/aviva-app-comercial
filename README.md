@@ -36,19 +36,13 @@ aviva-app-comercial/
 
 ### Configuración Inicial
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/RolandoRobles12/aviva-app-comercial.git
-   cd aviva-app-comercial
-   ```
-
-2. **Configurar Firebase**
+1. **Configurar Firebase**
    ```bash
    firebase login
    firebase use --add
    ```
 
-3. **Instalar dependencias**
+2. **Instalar dependencias**
    ```bash
    # Admin Panel
    cd admin && npm install
@@ -57,10 +51,10 @@ aviva-app-comercial/
    cd ../functions && npm install
    ```
 
-4. **Configurar variables de entorno**
+3. **Configurar variables de entorno**
    - Ver: [`FIREBASE_SETUP_DETALLADO.md`](./FIREBASE_SETUP_DETALLADO.md)
 
-5. **Abrir proyecto Android**
+4. **Abrir proyecto Android**
    - Abre la carpeta `app/` en Android Studio
    - Sincroniza Gradle
    - Ejecuta en emulador o dispositivo
