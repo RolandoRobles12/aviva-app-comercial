@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "256021991557-stric6ltcjl53f6lj85qk3salg6302dh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aviva.appcomercial2",
+            "certificate_hash": "0c072e984fa85c193fef48c59c86b8cec4cace7c"
+          }
+        },
+        {
           "client_id": "256021991557-9lk38c1eq1jd4vac364iqfep3cfr5d8r.apps.googleusercontent.com",
           "client_type": 3
         }
