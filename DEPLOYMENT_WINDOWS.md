@@ -1,234 +1,69 @@
-# 🪟 Guía de Deployment (Windows/PowerShell)
+# Deployment en Windows/PowerShell
 
-## 🚀 DEPLOYMENT RÁPIDO
+## Deploy rápido
 
 ```powershell
-# 1. Ve a la raíz del proyecto
-cd ruta\a\tu\proyecto\aviva-app-comercial
-
-# 2. Desplegar todo
-firebase deploy
-
-# O desplegar componentes específicos
-firebase deploy --only hosting      # Solo admin panel
-firebase deploy --only functions    # Solo cloud functions
+firebase deploy                    # hosting + functions + rules
+firebase deploy --only hosting     # solo panel web
+firebase deploy --only functions   # solo Cloud Functions
 ```
 
----
-
-## 📋 DEPLOYMENT MANUAL PASO A PASO
-
-### Paso 1: Ir a la raíz del proyecto
+## Deploy manual (con builds previos)
 
 ```powershell
-# Navega a la carpeta de tu proyecto
-cd C:\ruta\a\tu\proyecto\aviva-app-comercial
-```
-
-### Paso 2: Construir el Admin
-
-```powershell
-cd admin
-npm run build
-cd ..
-```
-
-### Paso 3: Construir las Functions
-
-```powershell
-cd functions
-npm run build
-cd ..
-```
-
-### Paso 4: Desplegar todo
-
-```powershell
-# Opción A: Desplegar TODO (recomendado)
-firebase deploy
-
-# Opción B: Solo admin
-firebase deploy --only hosting
-
-# Opción C: Solo functions
-firebase deploy --only functions
-```
-
----
-
-## ❌ ERROR: "firestore.indexes.json does not exist"
-
-**Solo necesitas:
-
-1. **Hacer pull de los cambios:**
-
-```powershell
-git fetch origin
-git pull
-```
-
-2. **Desplegar:**
-
-```powershell
+cd admin && npm run build && cd ..
+cd functions && npm run build && cd ..
 firebase deploy
 ```
 
----
-
-## ✅ VERIFICAR DEPLOYMENT EXITOSO
-
-### Admin Panel
+## Verificación post-deploy
 
 ```powershell
-# Ver URL del admin desplegado
-firebase hosting:channel:list
+firebase hosting:channel:list      # URL del panel
+firebase functions:list            # estado de cada función
+firebase functions:log             # logs recientes
 ```
 
-Abre tu admin panel en: `https://TU_PROJECT_ID.web.app`
+## Troubleshooting
 
-Verifica:
-- ✅ Login funciona correctamente
-- ✅ Todas las secciones cargan sin errores
-- ✅ Conexión a Firestore funciona
-
-### Firebase Functions
-
+**"El término './deploy-all.sh' no se reconoce"**: Usar Firebase CLI directamente o el script PowerShell:
 ```powershell
-# Ver funciones desplegadas
-firebase functions:list
-
-# Ver logs
-firebase functions:log
-```
-
-Verifica:
-- ✅ Todas las funciones aparecen con estado "ACTIVE"
-- ✅ No hay errores en los logs
-
----
-
-## 🔧 TROUBLESHOOTING
-
-### Error: "El término './deploy-all.sh' no se reconoce"
-
-**Causa:** Estás intentando ejecutar un script bash en PowerShell.
-
-**Solución:**
-
-```powershell
-# Usa Firebase CLI directamente
-firebase deploy
-
-# O si hay un script PowerShell disponible
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\deploy-all.ps1
 ```
 
-### Error: "firestore.indexes.json does not exist"
-
-**Solución:**
-
+**"firestore.indexes.json does not exist"**:
 ```powershell
-# Opción 1: Hacer pull de los últimos cambios
+# Opción 1: obtener el archivo actualizado
 git pull
 
-# Opción 2: Crear el archivo manualmente
-@"
-{
-  "indexes": [],
-  "fieldOverrides": []
-}
-"@ | Out-File -FilePath firestore.indexes.json -Encoding utf8
+# Opción 2: crear vacío
+@"{"indexes": [], "fieldOverrides": []}"@ | Out-File -FilePath firestore.indexes.json -Encoding utf8
 ```
 
-### El admin no carga después del deploy
+**Panel no carga tras deploy**: Limpiar caché del navegador (`Ctrl+F5`) o verificar en incógnito.
 
-**Causa:** Cache del navegador.
-
-**Solución:**
-
-1. Limpia el cache: `Ctrl + Shift + Delete`
-2. Abre en modo incógnito: `Ctrl + Shift + N`
-3. Refresca con cache limpio: `Ctrl + F5`
-
-### Las functions no responden
-
-**Causa:** Functions no desplegadas o error de configuración.
-
-**Solución:**
-
+**Functions no responden**:
 ```powershell
-# Ver estado de functions
 firebase functions:list
-
-# Ver logs de errores
 firebase functions:log
-
-# Redesplegar
 firebase deploy --only functions
 ```
 
----
-
-## 📊 VERIFICAR HubSpot API Key
+## Gestión de configuración de Functions
 
 ```powershell
-# Ver configuración actual
 firebase functions:config:get
-
-# Si no está configurada, agregarla
-firebase functions:config:set hubspot.apikey="TU_HUBSPOT_API_KEY"
-
-# Después de configurar, redesplegar functions
-firebase deploy --only functions
+firebase functions:config:set hubspot.apikey="..."
+firebase deploy --only functions   # necesario tras cambiar config
 ```
 
----
+## Checklist
 
-## 🚀 COMANDOS ÚTILES
-
-```powershell
-# Deploy completo
-firebase deploy
-
-# Deploy solo admin
-firebase deploy --only hosting
-
-# Deploy solo functions
-firebase deploy --only functions
-
-# Ver logs en tiempo real
-firebase functions:log --only getMyGoals
-
-# Listar functions desplegadas
-firebase functions:list
-
-# Ver configuración de functions
-firebase functions:config:get
-
-# Limpiar cache de npm (si hay errores de build)
-cd admin
-npm cache clean --force
-npm install
-npm run build
-cd ..
-
-cd functions
-npm cache clean --force
-npm install
-npm run build
-cd ..
-```
-
----
-
-## 📞 CHECKLIST DE DEPLOYMENT
-
-- [ ] Código actualizado con `git pull`
-- [ ] Admin compilado: `cd admin && npm run build`
-- [ ] Functions compiladas: `cd functions && npm run build`
-- [ ] Deployment ejecutado: `firebase deploy`
-- [ ] Admin panel verificado en navegador
-- [ ] Functions activas: `firebase functions:list`
-- [ ] Logs sin errores: `firebase functions:log`
-- [ ] App Android probada con nuevos cambios
+- [ ] `git pull` para tener el código actualizado
+- [ ] `cd admin && npm run build`
+- [ ] `cd functions && npm run build`
+- [ ] `firebase deploy`
+- [ ] Panel verificado en navegador
+- [ ] `firebase functions:list` — todas en estado `ACTIVE`
+- [ ] `firebase functions:log` — sin errores

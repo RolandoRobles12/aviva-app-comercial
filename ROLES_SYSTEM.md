@@ -1,76 +1,57 @@
-# Sistema de Roles - Aviva App Comercial
+# Sistema de Roles
 
-## 📋 Descripción General
-
-Sistema completo de gestión de roles para la aplicación Android de Aviva, soportando 4 tipos de vendedores con interfaces y permisos diferenciados.
-
-## 🎯 Roles Disponibles
-
-### Roles Administrativos
-- **SUPER_ADMIN**: Acceso completo al sistema
-- **ADMIN**: Gestión de usuarios y configuración
-
-### Roles de Vendedores
-- **GERENTE_AVIVA_CONTIGO**: Gerente con promotores de Aviva Tu Negocio a cargo
-- **PROMOTOR_AVIVA_TU_NEGOCIO**: Promotor con visitas y prospección
-- **EMBAJADOR_AVIVA_TU_COMPRA**: Embajador sin visitas ni prospección
-- **PROMOTOR_AVIVA_TU_CASA**: Promotor de casa sin visitas, prospección ni ligas
-
-## 📦 Líneas de Producto
+## Roles disponibles
 
 ```kotlin
+enum class UserRole {
+    SUPER_ADMIN,
+    ADMIN,
+    GERENTE_AVIVA_CONTIGO,
+    PROMOTOR_AVIVA_TU_NEGOCIO,
+    EMBAJADOR_AVIVA_TU_COMPRA,
+    PROMOTOR_AVIVA_TU_CASA
+}
+
 enum class ProductLine {
-    AVIVA_TU_NEGOCIO,   // Producto actual (con visitas y prospección)
-    AVIVA_CONTIGO,      // Gerentes
-    AVIVA_TU_COMPRA,    // Embajadores
-    AVIVA_TU_CASA       // Promotores de casa
+    AVIVA_TU_NEGOCIO,
+    AVIVA_CONTIGO,
+    AVIVA_TU_COMPRA,
+    AVIVA_TU_CASA
 }
 ```
 
-## 🔐 Matriz de Permisos
+## Matriz de permisos
 
 | Funcionalidad | Gerente Contigo | Promotor Negocio | Embajador Compra | Promotor Casa |
-|---------------|:---------------:|:----------------:|:----------------:|:-------------:|
-| Dashboard con mapa de equipo | ✅ | ❌ | ❌ | ❌ |
-| Ver métricas de equipo | ✅ | ❌ | ❌ | ❌ |
-| Check-in/Asistencia | ✅ | ✅ | ✅ | ✅ |
-| Registro de visitas | ✅ | ✅ | ❌ | ❌ |
-| Prospección | ✅ | ✅ | ❌ | ❌ |
-| Métricas personales | ✅ | ✅ | ✅ | ✅ |
-| Ligas/Competencias | ✅ | ✅ | ✅ | ❌ |
-| Badges | ✅ | ✅ | ✅ | ✅ |
-| Perfil/Carrera | ✅ | ✅ | ✅ | ✅ |
-| Aprobar tiempo libre | ✅ | ❌ | ❌ | ❌ |
+|---------------|:---:|:---:|:---:|:---:|
+| Dashboard equipo / mapa equipo | ✓ | — | — | — |
+| Métricas de equipo | ✓ | — | — | — |
+| Check-in / Asistencia | ✓ | ✓ | ✓ | ✓ |
+| Registro de visitas | ✓ | ✓ | — | — |
+| Prospección | ✓ | ✓ | — | — |
+| Métricas personales | ✓ | ✓ | ✓ | ✓ |
+| Ligas / Competencias | ✓ | ✓ | ✓ | — |
+| Badges | ✓ | ✓ | ✓ | ✓ |
+| Perfil / Carrera | ✓ | ✓ | ✓ | ✓ |
+| Aprobar tiempo libre | ✓ | — | — | — |
 
-## 🏗️ Arquitectura
+## Arquitectura
 
-### 1. Modelo de Datos (`models/User.kt`)
+### Modelo (`models/User.kt`)
 
 ```kotlin
 data class User(
     val role: UserRole = UserRole.PROMOTOR_AVIVA_TU_NEGOCIO,
     val productLine: ProductLine = ProductLine.AVIVA_TU_NEGOCIO,
-    val assignedPromoters: List<String> = emptyList(), // Para gerentes
-    // ... otros campos
+    val assignedPromoters: List<String> = emptyList(),
+    // ...
 )
 ```
 
-**Funciones de utilidad:**
-- `hasPermission(permission: String): Boolean` - Verifica si el usuario tiene un permiso específico
-- `canAccessVisits(): Boolean` - Verifica acceso a visitas
-- `canAccessProspection(): Boolean` - Verifica acceso a prospección
-- `canAccessLeagues(): Boolean` - Verifica acceso a ligas
-- `canAccessTeamDashboard(): Boolean` - Verifica acceso a dashboard de equipo
-- `isManager(): Boolean` - Verifica si es gerente
-- `isAdmin(): Boolean` - Verifica si es admin
-- `getRoleDisplayName(): String` - Nombre legible del rol
-- `getProductLineDisplayName(): String` - Nombre legible de la línea de producto
+Funciones de utilidad: `hasPermission()`, `canAccessVisits()`, `canAccessProspection()`, `canAccessLeagues()`, `canAccessTeamDashboard()`, `isManager()`, `isAdmin()`, `getRoleDisplayName()`, `getProductLineDisplayName()`
 
-### 2. Navegación (`services/RoleBasedNavigationManager.kt`)
+### Navigation Manager (`services/RoleBasedNavigationManager.kt`)
 
-Gestiona la visibilidad de elementos de navegación y valida el acceso a diferentes pantallas.
-
-**Funciones principales:**
 ```kotlin
 fun getNavigationConfig(): NavigationConfig
 fun configureBottomNavigation(menu: Menu)
@@ -79,313 +60,122 @@ fun canNavigateTo(destinationId: Int): Boolean
 fun navigateIfAllowed(navController: NavController, destinationId: Int): Boolean
 ```
 
-### 3. MainActivity
+### MainActivity — API pública para Fragments
 
-**Funciones públicas para acceso desde fragments:**
 ```kotlin
-fun getCurrentUser(): User? - Obtiene el usuario actual
-fun getNavigationManager(): RoleBasedNavigationManager? - Obtiene el navigation manager
-fun canAccessDashboard(): Boolean - Verifica acceso al dashboard
-fun isManager(): Boolean - Verifica si es gerente
-fun getManagerPromoters(): List<String> - Obtiene promotores asignados
+fun getCurrentUser(): User?
+fun getNavigationManager(): RoleBasedNavigationManager?
+fun canAccessDashboard(): Boolean
+fun isManager(): Boolean
+fun getManagerPromoters(): List<String>
 ```
 
-## 🔄 Flujo de Autenticación
+## Flujo de autenticación
 
-1. Usuario inicia sesión con Google (dominio @avivacredito.com)
-2. `MainActivity.loadUserAndSetupNavigation(userId)` carga el User desde Firestore
-3. Se crea un `RoleBasedNavigationManager` basado en el rol del usuario
-4. `setupRoleBasedNavigation()` configura la visibilidad del menú
-5. El usuario solo ve las opciones permitidas para su rol
+1. Google Sign-In con dominio `@avivacredito.com`
+2. `MainActivity.loadUserAndSetupNavigation(userId)` — carga `User` desde Firestore
+3. Instancia `RoleBasedNavigationManager` con el rol del usuario
+4. `setupRoleBasedNavigation()` — configura visibilidad del menú
 
-## 📝 Permisos Disponibles
+## Constantes de permisos (`User.companion object`)
 
-### Permisos Administrativos
-- `PERMISSION_VIEW_DASHBOARD` - Ver dashboard administrativo
-- `PERMISSION_MANAGE_USERS` - Gestionar usuarios
-- `PERMISSION_VIEW_ALL_ATTENDANCE` - Ver asistencia de todos
-- `PERMISSION_APPROVE_TIMEOFF` - Aprobar solicitudes de tiempo libre
-- `PERMISSION_MANAGE_LOCATIONS` - Gestionar ubicaciones
-- `PERMISSION_MANAGE_SCHEDULES` - Gestionar horarios
-- `PERMISSION_VIEW_REPORTS` - Ver reportes
-- `PERMISSION_SYSTEM_CONFIG` - Configuración del sistema
+**Administrativos:** `PERMISSION_VIEW_DASHBOARD`, `PERMISSION_MANAGE_USERS`, `PERMISSION_VIEW_ALL_ATTENDANCE`, `PERMISSION_APPROVE_TIMEOFF`, `PERMISSION_MANAGE_LOCATIONS`, `PERMISSION_MANAGE_SCHEDULES`, `PERMISSION_VIEW_REPORTS`, `PERMISSION_SYSTEM_CONFIG`
 
-### Permisos de Operaciones de Campo
-- `PERMISSION_CHECKIN` - Registrar asistencia
-- `PERMISSION_REQUEST_TIMEOFF` - Solicitar tiempo libre
-- `PERMISSION_VIEW_VISITS` - Ver visitas
-- `PERMISSION_MANAGE_VISITS` - Gestionar visitas
-- `PERMISSION_VIEW_PROSPECTION` - Ver prospección
-- `PERMISSION_MANAGE_PROSPECTION` - Gestionar prospección
-- `PERMISSION_VIEW_LEAGUES` - Ver ligas/competencias
-- `PERMISSION_VIEW_BADGES` - Ver badges
-- `PERMISSION_VIEW_PROFILE` - Ver perfil
-- `PERMISSION_VIEW_METRICS` - Ver métricas
-- `PERMISSION_VIEW_TEAM_DASHBOARD` - Ver dashboard de equipo
-- `PERMISSION_VIEW_TEAM_METRICS` - Ver métricas de equipo
+**Campo:** `PERMISSION_CHECKIN`, `PERMISSION_REQUEST_TIMEOFF`, `PERMISSION_VIEW_VISITS`, `PERMISSION_MANAGE_VISITS`, `PERMISSION_VIEW_PROSPECTION`, `PERMISSION_MANAGE_PROSPECTION`, `PERMISSION_VIEW_LEAGUES`, `PERMISSION_VIEW_BADGES`, `PERMISSION_VIEW_PROFILE`, `PERMISSION_VIEW_METRICS`, `PERMISSION_VIEW_TEAM_DASHBOARD`, `PERMISSION_VIEW_TEAM_METRICS`
 
-## 🎨 Navegación por Rol
+## Bottom navigation por rol
 
-### Gerente Aviva Contigo
-```
-Bottom Navigation:
-├── 🏠 Inicio (Dashboard de equipo)
-├── 📊 Métricas
-├── ✅ Asistencia
-├── 🏆 Ligas
-└── 👤 Perfil
-```
+| Rol | Pestañas |
+|-----|----------|
+| GERENTE_AVIVA_CONTIGO | Home, Métricas, Asistencia, Ligas, Perfil |
+| PROMOTOR_AVIVA_TU_NEGOCIO | Métricas, Asistencia*, Ligas, Perfil |
+| EMBAJADOR_AVIVA_TU_COMPRA | Métricas, Asistencia*, Ligas, Perfil |
+| PROMOTOR_AVIVA_TU_CASA | Métricas, Asistencia*, Perfil |
 
-### Promotor Aviva Tu Negocio
-```
-Bottom Navigation:
-├── 📊 Métricas
-├── ✅ Asistencia (página inicial)
-├── 🏆 Ligas
-└── 👤 Perfil
-```
+\* Destino inicial
 
-### Embajador Aviva Tu Compra
-```
-Bottom Navigation:
-├── 📊 Métricas
-├── ✅ Asistencia (página inicial)
-├── 🏆 Ligas
-└── 👤 Perfil
-```
-
-### Promotor Aviva Tu Casa
-```
-Bottom Navigation:
-├── 📊 Métricas
-├── ✅ Asistencia (página inicial)
-└── 👤 Perfil
-```
-
-## 🔧 Configuración de Usuarios en Firestore
-
-### Estructura del documento en colección `users`:
+## Schema Firestore — colección `users`
 
 ```json
 {
-  "id": "user_uid",
-  "uid": "user_uid",
+  "id": "uid",
+  "uid": "uid",
   "email": "usuario@avivacredito.com",
-  "displayName": "Nombre Usuario",
+  "displayName": "Nombre",
   "role": "PROMOTOR_AVIVA_TU_NEGOCIO",
   "productLine": "AVIVA_TU_NEGOCIO",
   "status": "ACTIVE",
-  "assignedPromoters": [],  // Solo para gerentes
-  "managerId": null,        // ID del gerente (si aplica)
+  "assignedPromoters": [],
+  "managerId": null,
   "permissions": [],
+  "hubspotOwnerId": "123456789",
   "createdAt": "timestamp",
   "updatedAt": "timestamp"
 }
 ```
 
-### Ejemplo - Gerente:
-```json
-{
-  "role": "GERENTE_AVIVA_CONTIGO",
-  "productLine": "AVIVA_CONTIGO",
-  "assignedPromoters": ["promotor_uid_1", "promotor_uid_2"]
-}
-```
-
-### Ejemplo - Promotor Aviva Tu Negocio:
-```json
-{
-  "role": "PROMOTOR_AVIVA_TU_NEGOCIO",
-  "productLine": "AVIVA_TU_NEGOCIO",
-  "managerId": "gerente_uid"
-}
-```
-
-### Ejemplo - Embajador Aviva Tu Compra:
-```json
-{
-  "role": "EMBAJADOR_AVIVA_TU_COMPRA",
-  "productLine": "AVIVA_TU_COMPRA"
-}
-```
-
-### Ejemplo - Promotor Aviva Tu Casa:
-```json
-{
-  "role": "PROMOTOR_AVIVA_TU_CASA",
-  "productLine": "AVIVA_TU_CASA"
-}
-```
-
-## 🚀 Uso en Código
-
-### Validar permisos en un Fragment:
+## Uso en Fragments
 
 ```kotlin
-class MiFragment : Fragment() {
+val user = (requireActivity() as MainActivity).getCurrentUser()
+if (user?.canAccessVisits() == true) { /* mostrar UI */ }
 
-    private fun verificarPermisos() {
-        val mainActivity = requireActivity() as MainActivity
-        val user = mainActivity.getCurrentUser()
-
-        if (user?.canAccessVisits() == true) {
-            // Mostrar funcionalidad de visitas
-        }
-
-        if (user?.isManager() == true) {
-            // Mostrar dashboard de equipo
-            val promotores = mainActivity.getManagerPromoters()
-        }
-    }
-}
-```
-
-### Navegar con validación de permisos:
-
-```kotlin
 val navigationManager = (activity as MainActivity).getNavigationManager()
-val navController = findNavController()
-
-// Intenta navegar, retorna false si no tiene permisos
 if (!navigationManager?.navigateIfAllowed(navController, R.id.navigation_home)) {
-    Toast.makeText(context, "No tienes acceso a esta sección", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, "Acceso denegado", Toast.LENGTH_SHORT).show()
 }
 ```
 
-## 🔒 Seguridad
-
-### Reglas de Firestore Recomendadas:
+## Firestore Security Rules
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Función helper para verificar autenticación
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Función helper para verificar dominio
+    function isAuthenticated() { return request.auth != null; }
     function isAvivaUser() {
-      return isAuthenticated() &&
-             request.auth.token.email.matches('.*@avivacredito.com$');
+      return isAuthenticated() && request.auth.token.email.matches('.*@avivacredito.com$');
     }
-
-    // Función helper para obtener datos del usuario
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
-    // Función helper para verificar si es admin
     function isAdmin() {
-      return isAvivaUser() &&
-             getUserData().role in ['SUPER_ADMIN', 'ADMIN'];
+      return isAvivaUser() && getUserData().role in ['SUPER_ADMIN', 'ADMIN'];
     }
 
-    // Función helper para verificar si es gerente
-    function isManager() {
-      return isAvivaUser() &&
-             getUserData().role == 'GERENTE_AVIVA_CONTIGO';
-    }
-
-    // Regla para colección users
     match /users/{userId} {
-      // Leer: el propio usuario o admin
-      allow read: if isAvivaUser() &&
-                     (request.auth.uid == userId || isAdmin());
-
-      // Escribir: solo admins pueden crear/actualizar usuarios
+      allow read: if isAvivaUser() && (request.auth.uid == userId || isAdmin());
       allow write: if isAdmin();
     }
-
-    // Regla para visitas (solo Aviva Tu Negocio y Gerentes)
     match /visits/{visitId} {
       allow read: if isAvivaUser();
       allow create: if isAvivaUser() &&
-                       getUserData().role in [
-                         'PROMOTOR_AVIVA_TU_NEGOCIO',
-                         'GERENTE_AVIVA_CONTIGO',
-                         'ADMIN',
-                         'SUPER_ADMIN'
-                       ];
+        getUserData().role in ['PROMOTOR_AVIVA_TU_NEGOCIO', 'GERENTE_AVIVA_CONTIGO', 'ADMIN', 'SUPER_ADMIN'];
     }
-
-    // Regla para ligas (todos excepto Promotor Casa)
     match /leagues/{leagueId} {
-      allow read: if isAvivaUser() &&
-                     getUserData().role != 'PROMOTOR_AVIVA_TU_CASA';
+      allow read: if isAvivaUser() && getUserData().role != 'PROMOTOR_AVIVA_TU_CASA';
     }
   }
 }
 ```
 
-## 🛠️ Mantenimiento
+## Extender el sistema
 
-### Agregar un nuevo rol:
+**Nuevo rol:**
+1. Agregar al enum `UserRole` en `models/User.kt`
+2. Definir lista de permisos en `companion object`
+3. Actualizar `hasPermission()` y `getRoleDisplayName()`
+4. Agregar `NavigationConfig` en `RoleBasedNavigationManager.kt`
+5. Actualizar Firestore Rules si aplica
 
-1. Agregar el rol al enum `UserRole` en `models/User.kt`
-2. Crear la lista de permisos en el `companion object`
-3. Actualizar `hasPermission()` en `User.kt`
-4. Actualizar `getRoleDisplayName()` en `User.kt`
-5. Actualizar `getNavigationConfig()` en `RoleBasedNavigationManager.kt`
-6. Actualizar las reglas de Firestore si es necesario
+**Nuevo permiso:**
+1. Agregar constante en `User.companion object`
+2. Agregar a las listas de roles correspondientes
+3. Usar `user.hasPermission(PERMISSION_NAME)` en el Fragment/ViewModel
 
-### Agregar un nuevo permiso:
+## Referencias
 
-1. Agregar la constante en `User.companion object`
-2. Agregar el permiso a las listas de roles correspondientes
-3. Usar `user.hasPermission(PERMISSION_NAME)` donde se necesite
-
-## 📱 Testing
-
-### Crear usuarios de prueba:
-
-```kotlin
-// En Firestore, crear documentos en la colección 'users':
-
-// Gerente
-{
-  "id": "gerente_test_uid",
-  "email": "gerente@avivacredito.com",
-  "role": "GERENTE_AVIVA_CONTIGO",
-  "productLine": "AVIVA_CONTIGO",
-  "assignedPromoters": ["promotor1_uid", "promotor2_uid"],
-  "status": "ACTIVE"
-}
-
-// Promotor Aviva Tu Negocio
-{
-  "id": "promotor_negocio_uid",
-  "email": "promotor.negocio@avivacredito.com",
-  "role": "PROMOTOR_AVIVA_TU_NEGOCIO",
-  "productLine": "AVIVA_TU_NEGOCIO",
-  "managerId": "gerente_test_uid",
-  "status": "ACTIVE"
-}
-
-// Embajador
-{
-  "id": "embajador_uid",
-  "email": "embajador@avivacredito.com",
-  "role": "EMBAJADOR_AVIVA_TU_COMPRA",
-  "productLine": "AVIVA_TU_COMPRA",
-  "status": "ACTIVE"
-}
-
-// Promotor Casa
-{
-  "id": "promotor_casa_uid",
-  "email": "promotor.casa@avivacredito.com",
-  "role": "PROMOTOR_AVIVA_TU_CASA",
-  "productLine": "AVIVA_TU_CASA",
-  "status": "ACTIVE"
-}
-```
-
-## 📚 Referencias
-
-- **Modelo de Usuario**: `app/src/main/java/models/User.kt`
-- **Navigation Manager**: `app/src/main/java/com/promotoresavivatunegocio_1/services/RoleBasedNavigationManager.kt`
-- **MainActivity**: `app/src/main/java/com/promotoresavivatunegocio_1/MainActivity.kt`
-- **Navigation Graph**: `app/src/main/res/navigation/mobile_navigation.xml`
+- `app/src/main/java/models/User.kt`
+- `app/src/main/java/com/promotoresavivatunegocio_1/services/RoleBasedNavigationManager.kt`
+- `app/src/main/java/com/promotoresavivatunegocio_1/MainActivity.kt`
+- `app/src/main/res/navigation/mobile_navigation.xml`
