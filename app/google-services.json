@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:256021991557:android:6d706f90e6dee2cc6859ec",
         "android_client_info": {
-          "package_name": "com.aviva.appcomercial"
+          "package_name": "com.aviva.appcomercial2"
         }
       },
       "oauth_client": [
@@ -18,7 +18,7 @@
           "client_id": "256021991557-r7gu3i4ejijpe6rpp62029kd1nkp9dov.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.aviva.appcomercial",
+            "package_name": "com.aviva.appcomercial2",
             "certificate_hash": "b6fc6ab4d2ee802e248b78530ffe007078109937"
           }
         },
@@ -26,7 +26,7 @@
           "client_id": "256021991557-spl79nlrmrl1lc5njf59anlfd0ee16kr.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.aviva.appcomercial",
+            "package_name": "com.aviva.appcomercial2",
             "certificate_hash": "0c072e984fa85c193fef48c59c86b8cec4cace7c"
           }
         },
