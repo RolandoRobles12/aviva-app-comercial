@@ -60,6 +60,7 @@ import { db } from '../config/firebase';
 import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useApp } from '../contexts/AppContext';
 
 // ── Local constants ──────────────────────────────────────────────────────────
 
@@ -617,8 +618,13 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
+const CACHE_KEY = 'reporte-productividad';
+const CACHE_TTL = 8 * 60 * 60 * 1000; // 8 horas (toda una jornada laboral)
+
 const ReporteProductividad: React.FC = () => {
   const { user } = useAuth();
+  const { getCachedData, setCachedData } = useApp();
+
   const [users, setUsers]       = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule>(DEFAULT_SCHEDULE);
@@ -640,6 +646,10 @@ const ReporteProductividad: React.FC = () => {
   const [reportData, setReportData] = useState<SellerReport[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
+  // Se pone en true tras restaurar el caché; evita que el efecto de guardado
+  // sobreescriba el caché con valores iniciales vacíos antes del primer render.
+  const [cacheRestored, setCacheRestored] = useState(false);
+
   // ── Initial data load ────────────────────────────────────────────────────
   useEffect(() => {
     const today = new Date();
@@ -648,8 +658,24 @@ const ReporteProductividad: React.FC = () => {
     const sun = new Date(mon);
     sun.setDate(mon.getDate() + 6);
     const fmt = (d: Date) => d.toISOString().split('T')[0];
-    setCustomStart(fmt(mon));
-    setCustomEnd(fmt(sun));
+
+    // Restaurar estado previo desde caché (filtros + reporte generado)
+    const cached = getCachedData(CACHE_KEY, CACHE_TTL);
+    if (cached) {
+      if (cached.quickFilter)     setQuickFilter(cached.quickFilter);
+      if (cached.customStart)     setCustomStart(cached.customStart);
+      if (cached.customEnd)       setCustomEnd(cached.customEnd);
+      if (cached.productFilter)   setProductFilter(cached.productFilter);
+      if (cached.selectedUserIds) setSelectedUserIds(cached.selectedUserIds);
+      if (cached.reportData)      setReportData(cached.reportData);
+      if (cached.expandedRows)    setExpandedRows(new Set(cached.expandedRows));
+    } else {
+      setCustomStart(fmt(mon));
+      setCustomEnd(fmt(sun));
+    }
+    // Marca que el caché ya fue restaurado; a partir de aquí el efecto de
+    // guardado puede escribir sin riesgo de sobrescribir datos válidos.
+    setCacheRestored(true);
 
     const loadInitial = async () => {
       try {
@@ -714,6 +740,22 @@ const ReporteProductividad: React.FC = () => {
 
     loadInitial();
   }, []);
+
+  // Guardar estado en caché para persistirlo entre navegaciones.
+  // Solo se activa después de que el caché inicial fue restaurado para evitar
+  // sobrescribir datos válidos con los valores vacíos del primer render.
+  useEffect(() => {
+    if (!cacheRestored) return;
+    setCachedData(CACHE_KEY, {
+      quickFilter,
+      customStart,
+      customEnd,
+      productFilter,
+      selectedUserIds,
+      reportData,
+      expandedRows: Array.from(expandedRows),
+    });
+  }, [cacheRestored, quickFilter, customStart, customEnd, productFilter, selectedUserIds, reportData, expandedRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update custom dates when quickFilter changes
   useEffect(() => {
