@@ -73,6 +73,7 @@ interface AdminUser {
   uid: string;
   displayName: string;
   email: string;
+  status?: string;
   productLine?: string;
   hubspotOwnerId?: string;
   homeLat?: number;
@@ -678,6 +679,7 @@ const ReporteProductividad: React.FC = () => {
             uid: uid || d.id,
             displayName: data.displayName || 'Sin nombre',
             email,
+            status: data.status,
             productLine: data.productLine,
             hubspotOwnerId: data.hubspotOwnerId,
             homeLat: data.homeLat,
@@ -690,7 +692,10 @@ const ReporteProductividad: React.FC = () => {
           if (!existing || isCanonical) byEmail.set(email, u);
         });
 
-        const usersData = Array.from(byEmail.values());
+        // Excluir usuarios inactivos/suspendidos del reporte de productividad
+        const usersData = Array.from(byEmail.values()).filter(
+          (u) => !u.status || u.status === 'ACTIVE'
+        );
         setUsers(usersData.sort((a, b) => a.displayName.localeCompare(b.displayName)));
 
         setProducts(productsSnap.docs.map((d) => ({

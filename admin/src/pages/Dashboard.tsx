@@ -23,7 +23,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CategoryIcon from '@mui/icons-material/Category';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 interface StatCard {
@@ -41,118 +41,114 @@ const Dashboard: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    let unsubscribeUsers: (() => void) | undefined;
+
+    const init = async () => {
       try {
-        // Obtener datos de todas las colecciones
-        const [
-          kioscosSnap,
-          usersSnap,
-          metasSnap,
-          ligasSnap,
-          girosSnap,
-          bonosSnap,
-          visitasSnap
-        ] = await Promise.all([
-          getDocs(collection(db, 'kiosks')),
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'metas')),
-          getDocs(collection(db, 'leagues')),
-          getDocs(collection(db, 'giros_relevantes')),
-          getDocs(collection(db, 'configuracion_bonos')),
-          getDocs(query(collection(db, 'visits')))
-        ]);
+        const [kioscosSnap, metasSnap, ligasSnap, girosSnap, bonosSnap, visitasSnap] =
+          await Promise.all([
+            getDocs(collection(db, 'kiosks')),
+            getDocs(collection(db, 'metas')),
+            getDocs(collection(db, 'leagues')),
+            getDocs(collection(db, 'giros_relevantes')),
+            getDocs(collection(db, 'configuracion_bonos')),
+            getDocs(query(collection(db, 'visits'))),
+          ]);
 
-        // Calcular estadísticas de usuarios
-        const activeUsers = usersSnap.docs.filter(doc => {
-          const data = doc.data();
-          return data.status === 'ACTIVE';
-        }).length;
-
-        const usersWithHubSpot = usersSnap.docs.filter(doc => {
-          const data = doc.data();
-          return data.hubspotOwnerId;
-        }).length;
-
-        // Calcular estadísticas de metas
         const activeMetas = metasSnap.docs.filter(doc => doc.data().activo).length;
-
-        // Calcular estadísticas de ligas
         const activeLigas = ligasSnap.docs.filter(doc => doc.data().status === 'ACTIVE').length;
 
-        setStats([
-          {
-            title: 'Usuarios Activos',
-            value: activeUsers,
-            subtitle: `${usersSnap.size} total`,
-            icon: <PeopleIcon sx={{ fontSize: 40 }} />,
-            color: '#2e7d32',
-            trend: `${Math.round((activeUsers / usersSnap.size) * 100)}%`
-          },
-          {
-            title: 'Kioscos Registrados',
-            value: kioscosSnap.size,
-            icon: <StoreIcon sx={{ fontSize: 40 }} />,
-            color: '#1976d2'
-          },
-          {
-            title: 'Metas Activas',
-            value: activeMetas,
-            subtitle: `${metasSnap.size} total`,
-            icon: <TrendingUpIcon sx={{ fontSize: 40 }} />,
-            color: '#ed6c02'
-          },
-          {
-            title: 'Ligas en Curso',
-            value: activeLigas,
-            subtitle: `${ligasSnap.size} total`,
-            icon: <EmojiEventsIcon sx={{ fontSize: 40 }} />,
-            color: '#9c27b0'
-          },
-          {
-            title: 'Giros Relevantes',
-            value: girosSnap.docs.filter(doc => doc.data().activo).length,
-            subtitle: `${girosSnap.size} total`,
-            icon: <CategoryIcon sx={{ fontSize: 40 }} />,
-            color: '#0288d1'
-          },
-          {
-            title: 'Configuraciones de Bonos',
-            value: bonosSnap.docs.filter(doc => doc.data().activo).length,
-            subtitle: `${bonosSnap.size} total`,
-            icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
-            color: '#f57c00'
-          },
-          {
-            title: 'HubSpot Integrado',
-            value: usersWithHubSpot,
-            subtitle: `${Math.round((usersWithHubSpot / usersSnap.size) * 100)}% cobertura`,
-            icon: usersWithHubSpot > 0 ? <CheckCircleIcon sx={{ fontSize: 40 }} /> : <ErrorIcon sx={{ fontSize: 40 }} />,
-            color: usersWithHubSpot > 0 ? '#388e3c' : '#d32f2f'
-          },
-          {
-            title: 'Visitas Registradas',
-            value: visitasSnap.size,
-            icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
-            color: '#5e35b1'
-          }
-        ]);
+        // Listener en tiempo real para usuarios: se actualiza automáticamente cuando
+        // cambia el status de cualquier usuario desde la página de Usuarios.
+        unsubscribeUsers = onSnapshot(
+          collection(db, 'users'),
+          (usersSnap) => {
+            const activeUsers = usersSnap.docs.filter(d => d.data().status === 'ACTIVE').length;
+            const usersWithHubSpot = usersSnap.docs.filter(d => d.data().hubspotOwnerId).length;
+            const totalUsers = usersSnap.size;
 
-        // Actividad reciente (placeholder - en producción vendría de una query ordenada)
-        const activities = [
+            setStats([
+              {
+                title: 'Usuarios Activos',
+                value: activeUsers,
+                subtitle: `${totalUsers} total`,
+                icon: <PeopleIcon sx={{ fontSize: 40 }} />,
+                color: '#2e7d32',
+                trend: `${totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0}%`
+              },
+              {
+                title: 'Kioscos Registrados',
+                value: kioscosSnap.size,
+                icon: <StoreIcon sx={{ fontSize: 40 }} />,
+                color: '#1976d2'
+              },
+              {
+                title: 'Metas Activas',
+                value: activeMetas,
+                subtitle: `${metasSnap.size} total`,
+                icon: <TrendingUpIcon sx={{ fontSize: 40 }} />,
+                color: '#ed6c02'
+              },
+              {
+                title: 'Ligas en Curso',
+                value: activeLigas,
+                subtitle: `${ligasSnap.size} total`,
+                icon: <EmojiEventsIcon sx={{ fontSize: 40 }} />,
+                color: '#9c27b0'
+              },
+              {
+                title: 'Giros Relevantes',
+                value: girosSnap.docs.filter(doc => doc.data().activo).length,
+                subtitle: `${girosSnap.size} total`,
+                icon: <CategoryIcon sx={{ fontSize: 40 }} />,
+                color: '#0288d1'
+              },
+              {
+                title: 'Configuraciones de Bonos',
+                value: bonosSnap.docs.filter(doc => doc.data().activo).length,
+                subtitle: `${bonosSnap.size} total`,
+                icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
+                color: '#f57c00'
+              },
+              {
+                title: 'HubSpot Integrado',
+                value: usersWithHubSpot,
+                subtitle: `${totalUsers > 0 ? Math.round((usersWithHubSpot / totalUsers) * 100) : 0}% cobertura`,
+                icon: usersWithHubSpot > 0 ? <CheckCircleIcon sx={{ fontSize: 40 }} /> : <ErrorIcon sx={{ fontSize: 40 }} />,
+                color: usersWithHubSpot > 0 ? '#388e3c' : '#d32f2f'
+              },
+              {
+                title: 'Visitas Registradas',
+                value: visitasSnap.size,
+                icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
+                color: '#5e35b1'
+              }
+            ]);
+
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Error en listener de usuarios:', error);
+            setLoading(false);
+          }
+        );
+
+        setRecentActivity([
           { type: 'Usuario', action: 'Nuevo usuario registrado', timestamp: 'Hace 2 horas' },
           { type: 'Meta', action: 'Meta actualizada', timestamp: 'Hace 4 horas' },
           { type: 'Liga', action: 'Nueva liga creada', timestamp: 'Hace 1 día' }
-        ];
-        setRecentActivity(activities);
-
+        ]);
       } catch (error) {
         console.error('Error fetching stats:', error);
-      } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
+    init();
+
+    return () => {
+      if (unsubscribeUsers) unsubscribeUsers();
+    };
   }, []);
 
   if (loading) {
