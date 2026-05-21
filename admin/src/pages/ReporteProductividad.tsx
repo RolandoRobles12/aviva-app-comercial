@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -20,6 +20,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Collapse,
   IconButton,
   Tooltip,
@@ -126,6 +127,7 @@ interface DayReport {
   deals: number;
   homeVisits: number;    // veces que estuvo en casa durante horario laboral
   homeMinutes: number;   // minutos totales en casa durante horario laboral
+  kioskMinutes: number;  // minutos entre check-in y check-out en sucursal
 }
 
 interface SellerReport {
@@ -151,9 +153,12 @@ interface SellerReport {
   hubspotError: boolean;
   totalHomeVisits: number;
   totalHomeMinutes: number;
+  totalKioskMinutes: number;
+  kioskDays: number;
 }
 
 type QuickFilter = 'today' | 'thisWeek' | 'thisMonth' | 'lastMonth' | 'custom';
+type SortField = 'displayName' | 'checkInPct' | 'checkOutPct' | 'avgKmPerDay' | 'avgStopHoursPerDay' | 'totalLongStops' | 'totalOutOfZoneMinutes' | 'totalDeals' | 'totalKioskMinutes' | 'totalHomeVisits' | 'gpsPct';
 
 const SELLER_COLORS = [
   '#16b877', '#2196F3', '#F44336', '#FF9800', '#9C27B0',
@@ -434,6 +439,10 @@ const buildDayReports = (
     const entrada = dayCIs.find((c) => c.type === 'entrada') || null;
     const salida  = dayCIs.find((c) => c.type === 'salida')  || null;
 
+    const kioskMinutes = (entrada && salida)
+      ? Math.max(0, Math.round((salida.timestamp.toMillis() - entrada.timestamp.toMillis()) / 60000))
+      : 0;
+
     const d = new Date(date + 'T12:00:00');
     return {
       date,
@@ -453,6 +462,7 @@ const buildDayReports = (
       deals: dealsByDate[date] || 0,
       homeVisits,
       homeMinutes: Math.round(homeMinutes),
+      kioskMinutes,
     };
   });
 };
@@ -507,6 +517,7 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
             <TableCell align="center">T. parado</TableCell>
             <TableCell align="center">Fuera zona</TableCell>
             <TableCell align="center">Solicitudes</TableCell>
+            <TableCell align="center">T. kiosco</TableCell>
             <TableCell align="center">En casa</TableCell>
             <TableCell align="center">T. en casa</TableCell>
             <TableCell align="center">GPS</TableCell>
@@ -565,6 +576,11 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
                   ? <Chip label={day.deals} size="small" color="primary" variant="outlined" />
                   : <Typography variant="caption" color="text.disabled">0</Typography>
                 }
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="caption" color={day.kioskMinutes > 0 ? 'text.primary' : 'text.disabled'}>
+                  {day.kioskMinutes > 0 ? formatDuration(day.kioskMinutes) : '—'}
+                </Typography>
               </TableCell>
               <TableCell align="center">
                 <Typography variant="caption" color={day.homeVisits > 0 ? 'warning.main' : 'text.disabled'}>
@@ -645,6 +661,8 @@ const ReporteProductividad: React.FC = () => {
   const [error, setError]           = useState<string | null>(null);
   const [reportData, setReportData] = useState<SellerReport[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Se pone en true tras restaurar el caché; evita que el efecto de guardado
   // sobreescriba el caché con valores iniciales vacíos antes del primer render.
@@ -790,6 +808,44 @@ const ReporteProductividad: React.FC = () => {
       return next;
     });
   };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedReportData = useMemo(() => {
+    if (!sortField) return reportData;
+    const getValue = (s: SellerReport): number | string => {
+      const elapsed = s.elapsedWorkDaysCount || 1;
+      switch (sortField) {
+        case 'displayName':           return s.displayName.toLowerCase();
+        case 'checkInPct':            return s.checkInDays / elapsed;
+        case 'checkOutPct':           return s.checkOutDays / elapsed;
+        case 'avgKmPerDay':           return s.avgKmPerDay;
+        case 'avgStopHoursPerDay':    return s.avgStopHoursPerDay;
+        case 'totalLongStops':        return s.totalLongStops;
+        case 'totalOutOfZoneMinutes': return s.totalOutOfZoneMinutes;
+        case 'totalDeals':            return s.hubspotError ? -1 : s.totalDeals;
+        case 'totalKioskMinutes':     return s.totalKioskMinutes;
+        case 'totalHomeVisits':       return s.totalHomeVisits;
+        case 'gpsPct':                return s.gpsDays / elapsed;
+        default:                      return 0;
+      }
+    };
+    return [...reportData].sort((a, b) => {
+      const av = getValue(a);
+      const bv = getValue(b);
+      const cmp = typeof av === 'string' && typeof bv === 'string'
+        ? av.localeCompare(bv)
+        : (av as number) - (bv as number);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [reportData, sortField, sortDirection]);
 
   // ── Generate report ──────────────────────────────────────────────────────
   const handleGenerateReport = useCallback(async () => {
@@ -939,6 +995,8 @@ const ReporteProductividad: React.FC = () => {
           const totalDeals        = days.reduce((s, d) => s + d.deals, 0);
           const totalHomeVisits   = days.reduce((s, d) => s + d.homeVisits, 0);
           const totalHomeMinutes  = days.reduce((s, d) => s + d.homeMinutes, 0);
+          const kioskDays         = days.filter((d) => d.kioskMinutes > 0).length;
+          const totalKioskMinutes = days.reduce((s, d) => s + d.kioskMinutes, 0);
 
           return {
             userId: user.id,
@@ -963,6 +1021,8 @@ const ReporteProductividad: React.FC = () => {
             hubspotError,
             totalHomeVisits,
             totalHomeMinutes,
+            totalKioskMinutes,
+            kioskDays,
           };
         })
       );
@@ -1173,79 +1233,164 @@ const ReporteProductividad: React.FC = () => {
 
           {/* Main Table */}
           {reportData.length > 0 && (
-            <TableContainer component={Paper}>
-              <Table size="small">
+            <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 380px)', minHeight: 300 }}>
+              <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: 40 }} />
-                    <TableCell><strong>Vendedor</strong></TableCell>
-                    <TableCell align="center">
+                    <TableCell sortDirection={sortField === 'displayName' ? sortDirection : false}>
+                      <TableSortLabel
+                        active={sortField === 'displayName'}
+                        direction={sortField === 'displayName' ? sortDirection : 'asc'}
+                        onClick={() => handleSort('displayName')}
+                      >
+                        <strong>Vendedor</strong>
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell align="center" sortDirection={sortField === 'checkInPct' ? sortDirection : false}>
                       <Tooltip title="Días con entrada registrada EN sucursal (locationValid = true) / días laborables transcurridos">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <CheckIcon sx={{ fontSize: 14 }} /><span>Inicio sucursal</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'checkInPct'}
+                          direction={sortField === 'checkInPct' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('checkInPct')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <CheckIcon sx={{ fontSize: 14 }} /><span>Inicio sucursal</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sortDirection={sortField === 'checkOutPct' ? sortDirection : false}>
                       <Tooltip title="Días con salida registrada EN sucursal (locationValid = true) / días laborables transcurridos">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <CheckIcon sx={{ fontSize: 14 }} /><span>Fin sucursal</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'checkOutPct'}
+                          direction={sortField === 'checkOutPct' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('checkOutPct')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <CheckIcon sx={{ fontSize: 14 }} /><span>Fin sucursal</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sortDirection={sortField === 'avgKmPerDay' ? sortDirection : false}>
                       <Tooltip title="Promedio de kilómetros recorridos por día con GPS activo">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-                          <WalkIcon sx={{ fontSize: 14 }} /><span>Km/día</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'avgKmPerDay'}
+                          direction={sortField === 'avgKmPerDay' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('avgKmPerDay')}
+                          sx={{ flexDirection: 'row-reverse', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+                            <WalkIcon sx={{ fontSize: 14 }} /><span>Km/día</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sortDirection={sortField === 'avgStopHoursPerDay' ? sortDirection : false}>
                       <Tooltip title="Horas de paradas largas (>30 min) por día activo en campo">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-                          <TimerIcon sx={{ fontSize: 14 }} /><span>Hrs parado/día</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'avgStopHoursPerDay'}
+                          direction={sortField === 'avgStopHoursPerDay' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('avgStopHoursPerDay')}
+                          sx={{ flexDirection: 'row-reverse', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+                            <TimerIcon sx={{ fontSize: 14 }} /><span>Hrs parado/día</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sortDirection={sortField === 'totalLongStops' ? sortDirection : false}>
                       <Tooltip title="Total de pausas de más de 30 minutos en el periodo">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <PauseIcon sx={{ fontSize: 14 }} /><span>Paradas &gt;30m</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'totalLongStops'}
+                          direction={sortField === 'totalLongStops' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('totalLongStops')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <PauseIcon sx={{ fontSize: 14 }} /><span>Paradas &gt;30m</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sortDirection={sortField === 'totalOutOfZoneMinutes' ? sortDirection : false}>
                       <Tooltip title="Total de minutos fuera de zona asignada (radio del kiosco) y zonas prohibidas">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <ZoneIcon sx={{ fontSize: 14 }} /><span>Fuera de zona</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'totalOutOfZoneMinutes'}
+                          direction={sortField === 'totalOutOfZoneMinutes' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('totalOutOfZoneMinutes')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <ZoneIcon sx={{ fontSize: 14 }} /><span>Fuera de zona</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sortDirection={sortField === 'totalDeals' ? sortDirection : false}>
                       <Tooltip title="Deals creados en HubSpot durante el periodo">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <HubSpotIcon sx={{ fontSize: 14 }} /><span>Solicitudes</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'totalDeals'}
+                          direction={sortField === 'totalDeals' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('totalDeals')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <HubSpotIcon sx={{ fontSize: 14 }} /><span>Solicitudes</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sortDirection={sortField === 'totalKioskMinutes' ? sortDirection : false}>
+                      <Tooltip title="Tiempo promedio por día entre check-in y check-out en sucursal">
+                        <TableSortLabel
+                          active={sortField === 'totalKioskMinutes'}
+                          direction={sortField === 'totalKioskMinutes' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('totalKioskMinutes')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <CheckIcon sx={{ fontSize: 14 }} /><span>En Kiosco</span>
+                          </Stack>
+                        </TableSortLabel>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell align="center" sortDirection={sortField === 'totalHomeVisits' ? sortDirection : false}>
                       <Tooltip title="Visitas al domicilio registrado durante horario laboral (solo visible para administradores)">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <ZoneIcon sx={{ fontSize: 14 }} /><span>En casa</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'totalHomeVisits'}
+                          direction={sortField === 'totalHomeVisits' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('totalHomeVisits')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <ZoneIcon sx={{ fontSize: 14 }} /><span>En casa</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sortDirection={sortField === 'gpsPct' ? sortDirection : false}>
                       <Tooltip title="Días con datos de GPS / días laborables en el periodo">
-                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <GpsIcon sx={{ fontSize: 14 }} /><span>Trackeo activo</span>
-                        </Stack>
+                        <TableSortLabel
+                          active={sortField === 'gpsPct'}
+                          direction={sortField === 'gpsPct' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('gpsPct')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <GpsIcon sx={{ fontSize: 14 }} /><span>Trackeo activo</span>
+                          </Stack>
+                        </TableSortLabel>
                       </Tooltip>
                     </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {reportData.map((seller) => {
+                  {sortedReportData.map((seller) => {
                     const isExpanded = expandedRows.has(seller.userId);
                     return (
                       <React.Fragment key={seller.userId}>
@@ -1350,6 +1495,24 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
+                            {seller.kioskDays > 0
+                              ? (
+                                <Tooltip title={`Promedio ${formatDuration(Math.round(seller.totalKioskMinutes / seller.kioskDays))}/día · Total ${formatDuration(seller.totalKioskMinutes)} en ${seller.kioskDays} día(s)`}>
+                                  <Box>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {formatDuration(Math.round(seller.totalKioskMinutes / seller.kioskDays))}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {seller.kioskDays} día(s)
+                                    </Typography>
+                                  </Box>
+                                </Tooltip>
+                              )
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
+
+                          <TableCell align="center">
                             {seller.totalHomeVisits > 0
                               ? (
                                 <Tooltip title={`${seller.totalHomeVisits} visita(s) al domicilio durante horario laboral`}>
@@ -1371,7 +1534,7 @@ const ReporteProductividad: React.FC = () => {
                         </TableRow>
 
                         <TableRow>
-                          <TableCell colSpan={11} sx={{ p: 0, border: 0 }}>
+                          <TableCell colSpan={12} sx={{ p: 0, border: 0 }}>
                             <Collapse in={isExpanded} unmountOnExit>
                               <ExpandedDays days={seller.days} />
                             </Collapse>
