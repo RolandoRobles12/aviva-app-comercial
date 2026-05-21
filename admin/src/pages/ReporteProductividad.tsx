@@ -127,6 +127,7 @@ interface DayReport {
   deals: number;
   homeVisits: number;    // veces que estuvo en casa durante horario laboral
   homeMinutes: number;   // minutos totales en casa durante horario laboral
+  kioskMinutes: number;  // minutos entre check-in y check-out en sucursal
 }
 
 interface SellerReport {
@@ -152,10 +153,12 @@ interface SellerReport {
   hubspotError: boolean;
   totalHomeVisits: number;
   totalHomeMinutes: number;
+  totalKioskMinutes: number;
+  kioskDays: number;
 }
 
 type QuickFilter = 'today' | 'thisWeek' | 'thisMonth' | 'lastMonth' | 'custom';
-type SortField = 'displayName' | 'checkInPct' | 'checkOutPct' | 'avgKmPerDay' | 'avgStopHoursPerDay' | 'totalLongStops' | 'totalOutOfZoneMinutes' | 'totalDeals' | 'totalHomeVisits' | 'gpsPct';
+type SortField = 'displayName' | 'checkInPct' | 'checkOutPct' | 'avgKmPerDay' | 'avgStopHoursPerDay' | 'totalLongStops' | 'totalOutOfZoneMinutes' | 'totalDeals' | 'totalKioskMinutes' | 'totalHomeVisits' | 'gpsPct';
 
 const SELLER_COLORS = [
   '#16b877', '#2196F3', '#F44336', '#FF9800', '#9C27B0',
@@ -436,6 +439,10 @@ const buildDayReports = (
     const entrada = dayCIs.find((c) => c.type === 'entrada') || null;
     const salida  = dayCIs.find((c) => c.type === 'salida')  || null;
 
+    const kioskMinutes = (entrada && salida)
+      ? Math.max(0, Math.round((salida.timestamp.toMillis() - entrada.timestamp.toMillis()) / 60000))
+      : 0;
+
     const d = new Date(date + 'T12:00:00');
     return {
       date,
@@ -455,6 +462,7 @@ const buildDayReports = (
       deals: dealsByDate[date] || 0,
       homeVisits,
       homeMinutes: Math.round(homeMinutes),
+      kioskMinutes,
     };
   });
 };
@@ -509,6 +517,7 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
             <TableCell align="center">T. parado</TableCell>
             <TableCell align="center">Fuera zona</TableCell>
             <TableCell align="center">Solicitudes</TableCell>
+            <TableCell align="center">T. kiosco</TableCell>
             <TableCell align="center">En casa</TableCell>
             <TableCell align="center">T. en casa</TableCell>
             <TableCell align="center">GPS</TableCell>
@@ -567,6 +576,11 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
                   ? <Chip label={day.deals} size="small" color="primary" variant="outlined" />
                   : <Typography variant="caption" color="text.disabled">0</Typography>
                 }
+              </TableCell>
+              <TableCell align="center">
+                <Typography variant="caption" color={day.kioskMinutes > 0 ? 'text.primary' : 'text.disabled'}>
+                  {day.kioskMinutes > 0 ? formatDuration(day.kioskMinutes) : '—'}
+                </Typography>
               </TableCell>
               <TableCell align="center">
                 <Typography variant="caption" color={day.homeVisits > 0 ? 'warning.main' : 'text.disabled'}>
@@ -817,6 +831,7 @@ const ReporteProductividad: React.FC = () => {
         case 'totalLongStops':        return s.totalLongStops;
         case 'totalOutOfZoneMinutes': return s.totalOutOfZoneMinutes;
         case 'totalDeals':            return s.hubspotError ? -1 : s.totalDeals;
+        case 'totalKioskMinutes':     return s.totalKioskMinutes;
         case 'totalHomeVisits':       return s.totalHomeVisits;
         case 'gpsPct':                return s.gpsDays / elapsed;
         default:                      return 0;
@@ -980,6 +995,8 @@ const ReporteProductividad: React.FC = () => {
           const totalDeals        = days.reduce((s, d) => s + d.deals, 0);
           const totalHomeVisits   = days.reduce((s, d) => s + d.homeVisits, 0);
           const totalHomeMinutes  = days.reduce((s, d) => s + d.homeMinutes, 0);
+          const kioskDays         = days.filter((d) => d.kioskMinutes > 0).length;
+          const totalKioskMinutes = days.reduce((s, d) => s + d.kioskMinutes, 0);
 
           return {
             userId: user.id,
@@ -1004,6 +1021,8 @@ const ReporteProductividad: React.FC = () => {
             hubspotError,
             totalHomeVisits,
             totalHomeMinutes,
+            totalKioskMinutes,
+            kioskDays,
           };
         })
       );
@@ -1326,6 +1345,20 @@ const ReporteProductividad: React.FC = () => {
                         </TableSortLabel>
                       </Tooltip>
                     </TableCell>
+                    <TableCell align="center" sortDirection={sortField === 'totalKioskMinutes' ? sortDirection : false}>
+                      <Tooltip title="Tiempo promedio por día entre check-in y check-out en sucursal">
+                        <TableSortLabel
+                          active={sortField === 'totalKioskMinutes'}
+                          direction={sortField === 'totalKioskMinutes' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('totalKioskMinutes')}
+                          sx={{ flexDirection: 'row', justifyContent: 'center', width: '100%' }}
+                        >
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                            <CheckIcon sx={{ fontSize: 14 }} /><span>En Kiosco</span>
+                          </Stack>
+                        </TableSortLabel>
+                      </Tooltip>
+                    </TableCell>
                     <TableCell align="center" sortDirection={sortField === 'totalHomeVisits' ? sortDirection : false}>
                       <Tooltip title="Visitas al domicilio registrado durante horario laboral (solo visible para administradores)">
                         <TableSortLabel
@@ -1462,6 +1495,24 @@ const ReporteProductividad: React.FC = () => {
                           </TableCell>
 
                           <TableCell align="center">
+                            {seller.kioskDays > 0
+                              ? (
+                                <Tooltip title={`Promedio ${formatDuration(Math.round(seller.totalKioskMinutes / seller.kioskDays))}/día · Total ${formatDuration(seller.totalKioskMinutes)} en ${seller.kioskDays} día(s)`}>
+                                  <Box>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {formatDuration(Math.round(seller.totalKioskMinutes / seller.kioskDays))}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {seller.kioskDays} día(s)
+                                    </Typography>
+                                  </Box>
+                                </Tooltip>
+                              )
+                              : <Typography variant="caption" color="text.disabled">—</Typography>
+                            }
+                          </TableCell>
+
+                          <TableCell align="center">
                             {seller.totalHomeVisits > 0
                               ? (
                                 <Tooltip title={`${seller.totalHomeVisits} visita(s) al domicilio durante horario laboral`}>
@@ -1483,7 +1534,7 @@ const ReporteProductividad: React.FC = () => {
                         </TableRow>
 
                         <TableRow>
-                          <TableCell colSpan={11} sx={{ p: 0, border: 0 }}>
+                          <TableCell colSpan={12} sx={{ p: 0, border: 0 }}>
                             <Collapse in={isExpanded} unmountOnExit>
                               <ExpandedDays days={seller.days} />
                             </Collapse>
