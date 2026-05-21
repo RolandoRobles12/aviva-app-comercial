@@ -62,6 +62,8 @@ import { dbRegistro } from '../config/firebaseRegistro';
 import { type WorkSchedule, DAY_KEYS, DEFAULT_SCHEDULE } from '../components/JornadaModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
+import { GoogleMap, Marker } from '@react-google-maps/api';
 
 // ── Local constants ──────────────────────────────────────────────────────────
 
@@ -96,6 +98,7 @@ interface CheckInRecord {
   status: string;
   userId: string;
   photoUrl?: string;
+  location?: { latitude: number; longitude: number; accuracy?: number };
   validationResults?: {
     isOnTime: boolean;
     locationValid: boolean;
@@ -115,9 +118,13 @@ interface DayReport {
   checkInTime: string | null;
   checkInOnTime: boolean | null;
   checkInPhotoUrl?: string;
+  checkInLat?: number;
+  checkInLng?: number;
   checkOutTime: string | null;
   checkOutOnTime: boolean | null;
   checkOutPhotoUrl?: string;
+  checkOutLat?: number;
+  checkOutLng?: number;
   km: number;
   longStops: number;
   stopMinutes: number;
@@ -450,9 +457,13 @@ const buildDayReports = (
       checkInTime:      formatTime(entrada?.timestamp ?? null),
       checkInOnTime:    entrada ? (entrada.validationResults?.locationValid ?? null) : null,
       checkInPhotoUrl:  entrada?.photoUrl,
+      checkInLat:       entrada?.location?.latitude,
+      checkInLng:       entrada?.location?.longitude,
       checkOutTime:     formatTime(salida?.timestamp ?? null),
       checkOutOnTime:   salida  ? (salida.validationResults?.locationValid  ?? null) : null,
       checkOutPhotoUrl: salida?.photoUrl,
+      checkOutLat:      salida?.location?.latitude,
+      checkOutLng:      salida?.location?.longitude,
       km: Math.round(km * 10) / 10,
       longStops,
       stopMinutes: Math.round(stopMinutes),
@@ -469,15 +480,34 @@ const buildDayReports = (
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-const CheckInChip: React.FC<{ time: string | null; onTime: boolean | null; hasPhoto?: boolean }> = ({ time, onTime, hasPhoto }) => {
+const CheckInChip: React.FC<{
+  time: string | null;
+  onTime: boolean | null;
+  hasPhoto?: boolean;
+  onChipClick?: () => void;
+  onPhotoClick?: () => void;
+}> = ({ time, onTime, hasPhoto, onChipClick, onPhotoClick }) => {
   if (!time) return <Typography variant="caption" color="text.disabled">—</Typography>;
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      {onTime === true  && <CheckIcon  sx={{ fontSize: 14, color: 'success.main' }} />}
-      {onTime === false && <CancelIcon sx={{ fontSize: 14, color: 'warning.main' }} />}
-      {onTime === null  && <HelpIcon   sx={{ fontSize: 14, color: 'text.disabled' }} />}
-      <Typography variant="body2" fontWeight={600}>{time}</Typography>
-      {hasPhoto && <PhotoCameraIcon sx={{ fontSize: 12, color: 'primary.main' }} />}
+      <Stack
+        direction="row"
+        spacing={0.5}
+        alignItems="center"
+        onClick={onChipClick}
+        sx={{ cursor: onChipClick ? 'pointer' : 'default' }}
+      >
+        {onTime === true  && <CheckIcon  sx={{ fontSize: 14, color: 'success.main' }} />}
+        {onTime === false && <CancelIcon sx={{ fontSize: 14, color: 'warning.main' }} />}
+        {onTime === null  && <HelpIcon   sx={{ fontSize: 14, color: 'text.disabled' }} />}
+        <Typography variant="body2" fontWeight={600}>{time}</Typography>
+      </Stack>
+      {hasPhoto && (
+        <PhotoCameraIcon
+          sx={{ fontSize: 12, color: 'primary.main', cursor: 'pointer' }}
+          onClick={(e) => { e.stopPropagation(); onPhotoClick?.(); }}
+        />
+      )}
     </Stack>
   );
 };
@@ -501,6 +531,8 @@ const PctCell: React.FC<{ value: number; total: number; error?: boolean }> = ({ 
 
 const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
   const [photoDialog, setPhotoDialog] = React.useState<{ url: string; label: string } | null>(null);
+  const [mapDialog, setMapDialog] = React.useState<{ lat: number; lng: number; label: string } | null>(null);
+  const { isLoaded: mapsLoaded } = useGoogleMaps();
 
   return (
     <>
@@ -530,20 +562,22 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
                 <Typography variant="caption" fontWeight={600}>{day.dayLabel}</Typography>
               </TableCell>
               <TableCell align="center">
-                <Box
-                  onClick={day.checkInPhotoUrl ? () => setPhotoDialog({ url: day.checkInPhotoUrl!, label: `Entrada — ${day.dayLabel}` }) : undefined}
-                  sx={{ cursor: day.checkInPhotoUrl ? 'pointer' : 'default', display: 'inline-flex' }}
-                >
-                  <CheckInChip time={day.checkInTime} onTime={day.checkInOnTime} hasPhoto={!!day.checkInPhotoUrl} />
-                </Box>
+                <CheckInChip
+                  time={day.checkInTime}
+                  onTime={day.checkInOnTime}
+                  hasPhoto={!!day.checkInPhotoUrl}
+                  onChipClick={day.checkInLat !== undefined ? () => setMapDialog({ lat: day.checkInLat!, lng: day.checkInLng!, label: `Entrada — ${day.dayLabel}` }) : undefined}
+                  onPhotoClick={day.checkInPhotoUrl ? () => setPhotoDialog({ url: day.checkInPhotoUrl!, label: `Entrada — ${day.dayLabel}` }) : undefined}
+                />
               </TableCell>
               <TableCell align="center">
-                <Box
-                  onClick={day.checkOutPhotoUrl ? () => setPhotoDialog({ url: day.checkOutPhotoUrl!, label: `Salida — ${day.dayLabel}` }) : undefined}
-                  sx={{ cursor: day.checkOutPhotoUrl ? 'pointer' : 'default', display: 'inline-flex' }}
-                >
-                  <CheckInChip time={day.checkOutTime} onTime={day.checkOutOnTime} hasPhoto={!!day.checkOutPhotoUrl} />
-                </Box>
+                <CheckInChip
+                  time={day.checkOutTime}
+                  onTime={day.checkOutOnTime}
+                  hasPhoto={!!day.checkOutPhotoUrl}
+                  onChipClick={day.checkOutLat !== undefined ? () => setMapDialog({ lat: day.checkOutLat!, lng: day.checkOutLng!, label: `Salida — ${day.dayLabel}` }) : undefined}
+                  onPhotoClick={day.checkOutPhotoUrl ? () => setPhotoDialog({ url: day.checkOutPhotoUrl!, label: `Salida — ${day.dayLabel}` }) : undefined}
+                />
               </TableCell>
               <TableCell align="right">
                 <Typography variant="caption">{day.km > 0 ? `${day.km} km` : '—'}</Typography>
@@ -625,6 +659,37 @@ const ExpandedDays: React.FC<{ days: DayReport[] }> = ({ days }) => {
             alt="Foto de registro"
             sx={{ maxWidth: '100%', maxHeight: 520, borderRadius: 1, objectFit: 'contain' }}
           />
+        )}
+      </DialogContent>
+    </Dialog>
+
+    {/* Dialog de mapa de ubicación del registro */}
+    <Dialog open={!!mapDialog} onClose={() => setMapDialog(null)} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ pr: 6 }}>
+        {mapDialog?.label}
+        <IconButton
+          onClick={() => setMapDialog(null)}
+          sx={{ position: 'absolute', right: 8, top: 8 }}
+          size="small"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 0 }}>
+        {mapDialog && mapsLoaded && (
+          <GoogleMap
+            mapContainerStyle={{ width: '100%', height: 400 }}
+            center={{ lat: mapDialog.lat, lng: mapDialog.lng }}
+            zoom={17}
+            options={{ disableDefaultUI: false, zoomControl: true, streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+          >
+            <Marker position={{ lat: mapDialog.lat, lng: mapDialog.lng }} />
+          </GoogleMap>
+        )}
+        {mapDialog && !mapsLoaded && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+            <CircularProgress />
+          </Box>
         )}
       </DialogContent>
     </Dialog>
